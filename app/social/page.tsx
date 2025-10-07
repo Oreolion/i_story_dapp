@@ -1,0 +1,319 @@
+'use client';
+
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Heart,
+  MessageCircle,
+  Share2,
+  TrendingUp,
+  Users,
+  Star,
+  Clock,
+  Award,
+  Volume2,
+  Eye,
+  BookOpen,
+  Zap,
+  UserPlus
+} from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import { StoryCard } from '@/components/StoryCard'; // New import
+
+const mockStories = [
+  {
+    id: 1,
+    author: {
+      name: "Sarah Chen",
+      username: "0x123...abc", // Mock wallet
+      avatar: "https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
+      badges: ["Top Writer", "Community Star"],
+      followers: 1250,
+      isFollowing: false
+    },
+    title: "The Art of Morning Rituals",
+    content: "There's something magical about the quiet hours before the world wakes up. My morning ritual has become sacred to me - it starts with gratitude, moves through gentle movement, and ends with setting intentions for the day ahead. This practice has transformed not just my mornings, but my entire approach to life...",
+    timestamp: "2 hours ago",
+    likes: 89,
+    comments: 24,
+    shares: 12,
+    hasAudio: true,
+    isLiked: false,
+    mood: "peaceful",
+    tags: ["wellness", "morning", "mindfulness"],
+    paywallAmount: 0, // Free
+    isPaid: true // N/A
+  },
+  {
+    id: 2,
+    author: {
+      name: "Marcus Rodriguez",
+      username: "0x456...def",
+      avatar: "https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
+      badges: ["Storyteller", "Early Adopter"],
+      followers: 890,
+      isFollowing: true
+    },
+    title: "Building Dreams in Code",
+    content: "Ten years ago, I wrote my first line of code on a borrowed laptop in a coffee shop. Today, I'm launching my third startup. The journey hasn't been linear - there were failures, sleepless nights, and moments of doubt. But every setback taught me something valuable about resilience, creativity, and the power of never giving up on your dreams...",
+    timestamp: "5 hours ago",
+    likes: 156,
+    comments: 43,
+    shares: 28,
+    hasAudio: false,
+    isLiked: true,
+    mood: "inspiring",
+    tags: ["entrepreneurship", "coding", "dreams"],
+    paywallAmount: 10, // Paywall
+    isPaid: false,
+    teaser: "Unlock the full story of my startup journey—exclusive insights on resilience and code that changed my life."
+  },
+  {
+    id: 3,
+    author: {
+      name: "Elena Vasquez",
+      username: "0x789...ghi",
+      avatar: "https://images.pexels.com/photos/1036623/pexels-photo-1036623.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
+      badges: ["Travel Stories"],
+      followers: 654,
+      isFollowing: false
+    },
+    title: "Letters from Patagonia",
+    content: "The wind here carries stories from across continents. I'm sitting by a glacial lake, writing by candlelight in my tent, and I've never felt more connected to the natural world. Three weeks into this solo trek through Patagonia, and every day brings new lessons about solitude, strength, and the incredible beauty that exists when we step away from our digital lives...",
+    timestamp: "1 day ago",
+    likes: 203,
+    comments: 67,
+    shares: 45,
+    hasAudio: true,
+    isLiked: false,
+    mood: "adventurous",
+    tags: ["travel", "nature", "solitude"],
+    paywallAmount: 0 // Free
+  }
+];
+
+const featuredWriters = [
+  // ... unchanged
+];
+
+const moodColors = {
+  peaceful: "bg-green-100 dark:bg-green-900 text-green-600",
+  inspiring: "bg-yellow-100 dark:bg-yellow-900 text-yellow-600",
+  adventurous: "bg-blue-100 dark:bg-blue-900 text-blue-600",
+};
+
+export default function SocialPage() {
+  const [stories, setStories] = useState(mockStories);
+  const [activeTab, setActiveTab] = useState('feed');
+  const [unlockedStories, setUnlockedStories] = useState<Set<number>>(new Set()); // Track unlocks
+
+  const handleLike = (storyId: number) => {
+    setStories(prev => prev.map(story => {
+      if (story.id === storyId) {
+        return {
+          ...story,
+          isLiked: !story.isLiked,
+          likes: story.isLiked ? story.likes - 1 : story.likes + 1
+        };
+      }
+      return story;
+    }));
+    toast.success('Story liked! +1 $STORY token earned');
+  };
+
+  const handleFollow = (authorUsername: string) => {
+    setStories(prev => prev.map(story => {
+      if (story.author.username === authorUsername) {
+        return {
+          ...story,
+          author: {
+            ...story.author,
+            isFollowing: !story.author.isFollowing,
+            followers: story.author.isFollowing ? story.author.followers - 1 : story.author.followers + 1
+          }
+        };
+      }
+      return story;
+    }));
+    toast.success('Following status updated');
+  };
+
+  const handleShare = (storyId: number) => {
+    toast.success('Story shared! +2 $STORY tokens earned');
+  };
+
+  const handleUnlock = (storyId: number) => {
+    setUnlockedStories(prev => new Set([...prev, storyId]));
+    setStories(prev => prev.map(s => s.id === storyId ? { ...s, isPaid: true } : s));
+  };
+
+  return (
+    <div className="max-w-6xl mx-auto space-y-8">
+      {/* Header - Unchanged */}
+      <div className="text-center space-y-4">
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          className="w-16 h-16 mx-auto bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center"
+        >
+          <Users className="w-8 h-8 text-white" />
+        </motion.div>
+        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
+          Community Stories
+        </h1>
+        <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+          Discover inspiring stories from writers around the world
+        </p>
+      </div>
+
+      {/* Stats Bar - Unchanged */}
+      <Card className="bg-gradient-to-r from-purple-500/10 to-indigo-500/10 border-purple-200 dark:border-purple-800">
+        <CardContent className="pt-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {[
+              { label: 'Stories Today', value: '156', icon: BookOpen, color: 'text-purple-600' },
+              { label: 'Active Writers', value: '2.8K', icon: Users, color: 'text-indigo-600' },
+              { label: 'Trending Tags', value: '#mindfulness', icon: TrendingUp, color: 'text-emerald-600' },
+              { label: 'Story of the Day', value: '89 likes', icon: Star, color: 'text-yellow-600' }
+            ].map((stat, index) => {
+              const Icon = stat.icon;
+              return (
+                <div key={stat.label} className="text-center space-y-2">
+                  <Icon className={`w-6 h-6 mx-auto ${stat.color}`} />
+                  <div className="text-xl font-bold text-gray-900 dark:text-white">{stat.value}</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">{stat.label}</div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Main Content */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Main Feed */}
+        <div className="lg:col-span-2 space-y-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="feed">Latest Stories</TabsTrigger>
+              <TabsTrigger value="trending">Trending</TabsTrigger>
+              <TabsTrigger value="following">Following</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="feed" className="space-y-6">
+              {stories.map((story, index) => (
+                <motion.div
+                  key={story.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <StoryCard
+                    story={{ ...story, isPaid: story.isPaid || unlockedStories.has(story.id) }}
+                    onLike={handleLike}
+                    onFollow={handleFollow}
+                    onShare={handleShare}
+                    onUnlock={handleUnlock}
+                  />
+                </motion.div>
+              ))}
+            </TabsContent>
+
+            {/* Trending & Following Tabs - Unchanged */}
+            <TabsContent value="trending" className="text-center py-16">
+              <div className="w-24 h-24 mx-auto bg-gradient-to-r from-yellow-100 to-orange-100 dark:from-yellow-900 dark:to-orange-900 rounded-full flex items-center justify-center mb-4">
+                <TrendingUp className="w-12 h-12 text-yellow-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Trending Stories</h3>
+              <p className="text-gray-600 dark:text-gray-300">Coming soon - discover the most popular stories of the day</p>
+            </TabsContent>
+
+            <TabsContent value="following" className="text-center py-16">
+              <div className="w-24 h-24 mx-auto bg-gradient-to-r from-purple-100 to-indigo-100 dark:from-purple-900 dark:to-indigo-900 rounded-full flex items-center justify-center mb-4">
+                <Users className="w-12 h-12 text-purple-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Following Feed</h3>
+              <p className="text-gray-600 dark:text-gray-300">Stories from writers you follow will appear here</p>
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* Sidebar - Unchanged */}
+        <div className="space-y-6">
+          {/* Featured Writers */}
+          <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-0 shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Star className="w-5 h-5 text-yellow-500" />
+                <span>Featured Writers</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {featuredWriters.map((writer) => (
+                <div key={writer.username} className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <Avatar className="w-10 h-10">
+                      <AvatarImage src={writer.avatar} />
+                      <AvatarFallback>{writer.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="font-medium text-sm">{writer.name}</div>
+                      <div className="text-xs text-gray-500">{writer.speciality}</div>
+                      <div className="text-xs text-gray-400">{writer.stories} stories</div>
+                    </div>
+                  </div>
+                  <Button size="sm" variant="outline">Follow</Button>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* Trending Tags */}
+          <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-0 shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Zap className="w-5 h-5 text-emerald-500" />
+                <span>Trending Topics</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {['#mindfulness', '#entrepreneurship', '#travel', '#wellness', '#coding', '#dreams', '#nature'].map((tag) => (
+                  <Badge key={tag} variant="secondary" className="cursor-pointer hover:bg-purple-100 dark:hover:bg-purple-900">
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Community Stats */}
+          <Card className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border-emerald-200 dark:border-emerald-800">
+            <CardHeader>
+              <CardTitle className="text-lg">Community Impact</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-emerald-600">45.2K</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">$STORY Tokens Earned</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-teal-600">12.5K</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">Stories Shared</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-cyan-600">2.8K</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">Active Writers</div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
