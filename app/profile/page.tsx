@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '@/components/Provider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,12 +11,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
-import { 
-  User, 
-  Wallet, 
-  Settings, 
-  Award, 
-  TrendingUp, 
+import {
+  User,
+  Wallet,
+  Settings,
+  Award,
+  TrendingUp,
   Calendar,
   Heart,
   Eye,
@@ -31,6 +31,9 @@ import {
   Shield,
   Gift
 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import { useSignMessage } from 'wagmi';
+import { createSupabaseClient } from '@/app/utils/supabase/supabaseClient';
 
 const achievements = [
   { id: 1, name: "First Story", description: "Recorded your first journal entry", earned: true, date: "2025-01-15" },
@@ -60,6 +63,60 @@ export default function ProfilePage() {
     website: "alexjohnson.eth",
     joinDate: "January 2025"
   });
+  const [isSignedIn, setIsSignedIn] = useState(false); 
+  const { signMessageAsync } = useSignMessage();
+
+  // Fetch Supabase profile on load
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const supabase = createSupabaseClient();
+      const { data: session } = await supabase.auth.getSession();
+      console.log('Session fetch:', session); // Debug log
+      setIsSignedIn(!!session.session);
+      if (session.session && user?.address) {
+        const { data, error } = await supabase.from('users').select('*').eq('wallet_address', user.address).single();
+        console.log('Profile fetch:', data, error); // Debug log
+        if (data) setProfile({...profile, name: data.name || profile.name, bio: data.bio || profile.bio});
+      }
+    };
+    fetchProfile();
+  }, [user?.address]);
+
+  const handleWeb3SignIn = async () => {
+    try {
+      const message = 'Sign in to iStory with wallet';
+      const signature = await signMessageAsync({ message });
+      const res = await fetch('/api/auth', {
+        method: 'POST',
+        body: JSON.stringify({ address: user?.address, message, signature }),
+      });
+      const data = await res.json();
+      console.log('Sign-in response:', data); // Debug log
+      if (data.success) {
+        setIsSignedIn(true);
+        toast.success('Signed in with wallet!');
+      }
+    } catch (error) {
+      toast.error('Sign-in failed');
+      console.error('Auth error:', error); // Debug log
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!isSignedIn) {
+      toast.error('Sign in first');
+      return;
+    }
+    const supabase = createSupabaseClient();
+    const { error } = await supabase.from('users').update({ name: profile.name, bio: profile.bio }).eq('wallet_address', user?.address);
+    console.log('Save profile error:', error); // Debug log
+    if (error) {
+      toast.error('Save failed');
+    } else {
+      toast.success('Profile updated');
+      setIsEditing(false);
+    }
+  };
 
   if (!isConnected) {
     return (
@@ -102,7 +159,7 @@ export default function ProfilePage() {
           <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-0 shadow-xl">
             <CardHeader className="text-center">
               <Avatar className="w-24 h-24 mx-auto">
-                <AvatarImage src="https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2" />
+                <AvatarImage src={profile.avatar || "https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2"} />
                 <AvatarFallback>AJ</AvatarFallback>
               </Avatar>
               <div className="space-y-2">
@@ -137,17 +194,26 @@ export default function ProfilePage() {
                   <span className="text-sm text-gray-900 dark:text-white">{profile.joinDate}</span>
                 </div>
               </div>
-
-              <Button 
-                onClick={() => setIsEditing(!isEditing)} 
+              {!isSignedIn && (
+                <Button onClick={handleWeb3SignIn} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600">
+                  Sign In with Wallet
+                </Button>
+              )}
+              <Button
+                onClick={() => setIsEditing(!isEditing)}
                 className="w-full bg-gradient-to-r from-purple-600 to-indigo-600"
               >
                 <Edit3 className="w-4 h-4 mr-2" />
                 {isEditing ? 'Save Changes' : 'Edit Profile'}
               </Button>
+              {isEditing && (
+                <Button onClick={handleSaveProfile} variant="secondary" className="w-full">
+                  <Save className="w-4 h-4 mr-2" />
+                  Save
+                </Button>
+              )}
             </CardContent>
           </Card>
-
           {/* Quick Stats */}
           <Card className="mt-6 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border-emerald-200 dark:border-emerald-800">
             <CardHeader>
@@ -184,7 +250,6 @@ export default function ProfilePage() {
               <TabsTrigger value="activity">Activity</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
             </TabsList>
-
             {/* Overview Tab */}
             <TabsContent value="overview" className="space-y-6">
               {/* Writing Goals */}
@@ -219,7 +284,6 @@ export default function ProfilePage() {
                   </div>
                 </CardContent>
               </Card>
-
               {/* Recent Activity */}
               <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-0 shadow-lg">
                 <CardHeader>
@@ -247,7 +311,6 @@ export default function ProfilePage() {
                 </CardContent>
               </Card>
             </TabsContent>
-
             {/* Achievements Tab */}
             <TabsContent value="achievements" className="space-y-6">
               <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-0 shadow-lg">
@@ -263,11 +326,11 @@ export default function ProfilePage() {
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {achievements.map((achievement) => (
-                      <div 
+                      <div
                         key={achievement.id}
                         className={`p-4 rounded-lg border-2 transition-all ${
-                          achievement.earned 
-                            ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20' 
+                          achievement.earned
+                            ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20'
                             : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 opacity-60'
                         }`}
                       >
@@ -305,7 +368,6 @@ export default function ProfilePage() {
                 </CardContent>
               </Card>
             </TabsContent>
-
             {/* Activity Tab */}
             <TabsContent value="activity" className="space-y-6">
               <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-0 shadow-lg">
@@ -322,11 +384,11 @@ export default function ProfilePage() {
                         <div className="flex items-center justify-between">
                           <div>
                             <h4 className="font-medium text-gray-900 dark:text-white">
-                              {new Date(day.date).toLocaleDateString('en-US', { 
-                                weekday: 'long', 
-                                year: 'numeric', 
-                                month: 'long', 
-                                day: 'numeric' 
+                              {new Date(day.date).toLocaleDateString('en-US', {
+                                weekday: 'long',
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
                               })}
                             </h4>
                             <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400 mt-1">
@@ -356,7 +418,6 @@ export default function ProfilePage() {
                 </CardContent>
               </Card>
             </TabsContent>
-
             {/* Settings Tab */}
             <TabsContent value="settings" className="space-y-6">
               <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-0 shadow-lg">
@@ -369,43 +430,42 @@ export default function ProfilePage() {
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="name">Display Name</Label>
-                    <Input 
-                      id="name" 
-                      value={profile.name} 
+                    <Input
+                      id="name"
+                      value={profile.name}
                       disabled={!isEditing}
                       onChange={(e) => setProfile({...profile, name: e.target.value})}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="bio">Bio</Label>
-                    <Input 
-                      id="bio" 
-                      value={profile.bio} 
+                    <Input
+                      id="bio"
+                      value={profile.bio}
                       disabled={!isEditing}
                       onChange={(e) => setProfile({...profile, bio: e.target.value})}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="location">Location</Label>
-                    <Input 
-                      id="location" 
-                      value={profile.location} 
+                    <Input
+                      id="location"
+                      value={profile.location}
                       disabled={!isEditing}
                       onChange={(e) => setProfile({...profile, location: e.target.value})}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="website">Website</Label>
-                    <Input 
-                      id="website" 
-                      value={profile.website} 
+                    <Input
+                      id="website"
+                      value={profile.website}
                       disabled={!isEditing}
                       onChange={(e) => setProfile({...profile, website: e.target.value})}
                     />
                   </div>
                 </CardContent>
               </Card>
-
               <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-0 shadow-lg">
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">

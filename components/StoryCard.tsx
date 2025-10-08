@@ -1,12 +1,13 @@
-"use client";
+'use client';
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from '@/components/ui/badge';
 import { toast } from "react-hot-toast";
 import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import iStoryTokenABI from "@/lib/abis/iStoryToken.json"; 
+import iStoryTokenABI from "@/lib/abis/iStoryToken.json";
 import { parseEther } from "viem";
 import Image from "next/image";
 import { Clock, Heart, MessageCircle, Share2 } from "lucide-react";
@@ -24,7 +25,7 @@ interface StoryCardProps {
     };
     title: string;
     content: string;
-    teaser?: string; // For paywall
+    teaser?: string;
     timestamp: string;
     likes: number;
     comments: number;
@@ -33,8 +34,8 @@ interface StoryCardProps {
     isLiked: boolean;
     mood: string;
     tags: string[];
-    paywallAmount: number; // 0 = free
-    isPaid?: boolean; // User has paid (mock or from Convex)
+    paywallAmount: number;
+    isPaid?: boolean;
   };
   onLike?: (id: number) => void;
   onFollow?: (username: string) => void;
@@ -43,6 +44,7 @@ interface StoryCardProps {
 }
 
 const ISTORY_TOKEN_ADDRESS = "0xYouriStoryTokenAddress"; // Update after deploy
+const DEFAULT_AVATAR = "https://placeholder.com/150"; // Fix missing src
 
 export function StoryCard({
   story,
@@ -54,12 +56,11 @@ export function StoryCard({
   const [tipAmount, setTipAmount] = useState(5);
   const [isPaying, setIsPaying] = useState(false);
   const [isTipping, setIsTipping] = useState(false);
-
   const { writeContract, data: tipHash } = useWriteContract();
   const { writeContract: payContract, data: payHash } = useWriteContract();
 
   useWaitForTransactionReceipt({
-    hash: tipHash || payHash, // Tracks latest tx
+    hash: tipHash || payHash,
     onSuccess: () => {
       toast.success('Transaction confirmed!');
       setIsTipping(false);
@@ -102,11 +103,11 @@ export function StoryCard({
   return (
     <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-300">
       <CardHeader>
-        {/* Author Header - Same as before */}
+        {/* Author Header */}
         <div className="flex items-start justify-between">
           <div className="flex items-start space-x-3">
             <Avatar className="w-12 h-12">
-              <Image src={story.author.avatar} alt={story.author.name} height={12} width={12} />
+              <Image src={story.author.avatar || DEFAULT_AVATAR} alt={story.author.name} height={12} width={12} /> {/* Fixed missing src */}
               <AvatarFallback>
                 {story.author.name
                   .split(" ")

@@ -1,4 +1,5 @@
 'use client';
+
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTheme } from 'next-themes';
@@ -12,10 +13,12 @@ import {
   User,
   Moon,
   Sun,
+  Wallet,
+  LogOut,
   Coins
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { ConnectButton } from '@rainbow-me/rainbowkit'; // RainbowKit button
+import { ConnectButton } from '@rainbow-me/rainbowkit';
 
 const navigation = [
   { name: 'Home', href: '/', icon: Home },
@@ -28,7 +31,7 @@ const navigation = [
 export function Navigation() {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
-  const { user } = useApp(); // For storyTokens/badges
+  const { user } = useApp();
 
   return (
     <nav className="sticky top-0 z-50 backdrop-blur-lg bg-white/70 dark:bg-gray-900/70 border-b border-gray-200 dark:border-gray-700">
@@ -70,7 +73,7 @@ export function Navigation() {
           {/* Right Side Actions */}
           <div className="flex items-center space-x-4">
             {user && (
-              <div className="flex items-center space-x-2 text-sm bg-emerald-100 dark:bg-emerald-900 px-3 py-1 rounded-full">
+              <div className="flex items-center space-x-2 text-sm bg-emerald-100 dark:bg-emerald-900 px-3 py-1 rounded-full" suppressHydrationWarning> {/* Fixed hydration */}
                 <Coins className="w-4 h-4 text-emerald-600" />
                 <span className="font-medium text-emerald-600">{user.storyTokens} $STORY</span>
               </div>
@@ -84,8 +87,7 @@ export function Navigation() {
               <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
               <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
             </Button>
-            {/* RainbowKit ConnectButton - Custom Theme */}        
-            <ConnectButton  showBalance={false} />
+            <ConnectButton showBalance={false}/>
           </div>
         </div>
       </div>

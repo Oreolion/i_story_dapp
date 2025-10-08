@@ -5,6 +5,7 @@ import { Inter } from 'next/font/google';
 import { Providers } from '../components/Provider';
 import { Navigation } from '../components/Navigation';
 import { Toaster } from 'react-hot-toast';
+import { createSupabaseServerClient } from '@/app/utils/supabase/supabaseServer';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -12,19 +13,22 @@ export const metadata: Metadata = {
   title: 'IStory - AI-Powered Blockchain Journaling',
   description: 'Record your life stories with AI transcription, store them on blockchain, and monetize your creativity.',
   keywords: 'journaling, blockchain, NFT, AI, speech-to-text, Web3',
-  authors: [{ name: 'Istory Team' }],
+  authors: [{ name: 'StoryChain Team' }],
   openGraph: {
-    title: 'Istory - AI-Powered Blockchain Journaling',
+    title: 'IStory - AI-Powered Blockchain Journaling',
     description: 'Record your life stories with AI transcription, store them on blockchain, and monetize your creativity.',
     type: 'website',
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const supabase = createSupabaseServerClient();
+  const { data: { session } } = await supabase.auth.getSession(); // Get server session (for auth checks)
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
@@ -34,7 +38,7 @@ export default function RootLayout({
             <main className="container mx-auto px-4 py-8">
               {children}
             </main>
-            <Toaster 
+            <Toaster
               position="top-right"
               toastOptions={{
                 duration: 4000,
