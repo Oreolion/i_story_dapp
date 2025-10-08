@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "react-hot-toast";
-import { useWriteContract, useWaitForTransaction, useWaitForTransactionReceipt } from 'wagmi';
-import iStoryTokenABI from "@/lib/abis/StoryToken.json"; // Update path if needed
+import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import iStoryTokenABI from "@/lib/abis/iStoryToken.json"; 
 import { parseEther } from "viem";
 import Image from "next/image";
 import { Clock, Heart, MessageCircle, Share2 } from "lucide-react";
