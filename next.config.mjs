@@ -22,6 +22,10 @@ const nextConfig = {
           hostname: "images.pexels.com",
         },
         {
+          protocol: "https",
+          hostname: "placehold.co",
+        },
+        {
             protocol: 'https',
             hostname: 'clever-dove-968.convex.cloud',
             pathname: '/api/storage/**',

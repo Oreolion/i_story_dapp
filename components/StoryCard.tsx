@@ -1,42 +1,51 @@
-'use client';
+"use client";
 
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from '@/components/ui/badge';
+import { Badge } from "@/components/ui/badge";
 import { toast } from "react-hot-toast";
-import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import iStoryTokenABI from "@/lib/abis/iStoryToken.json";
 import { parseEther } from "viem";
 import Image from "next/image";
 import { Clock, Heart, MessageCircle, Share2 } from "lucide-react";
 
+// The author_walletProfile and StoryType interfaces should be imported from a central file
+// (like StoryFetcher.tsx or a types file), but for a single-file context,
+// they are defined here for clarity and consistency with the data structure.
+
+interface AuthorProfile {
+  name: string;
+  username: string;
+  avatar: string;
+  badges: string[];
+  followers: number;
+  isFollowing: boolean;
+}
+
+interface StoryDataType {
+  id: number;
+  numeric_id: string;
+  author_wallet: AuthorProfile;
+  title: string;
+  content: string;
+  teaser?: string;
+  timestamp: string;
+  likes: number;
+  comments: number;
+  shares: number;
+  hasAudio: boolean;
+  isLiked: boolean;
+  mood: string;
+  tags: string[];
+  paywallAmount: number;
+  isPaid?: boolean;
+}
+
 interface StoryCardProps {
-  story: {
-    id: number;
-    author: {
-      name: string;
-      username: string;
-      avatar: string;
-      badges: string[];
-      followers: number;
-      isFollowing: boolean;
-    };
-    title: string;
-    content: string;
-    teaser?: string;
-    timestamp: string;
-    likes: number;
-    comments: number;
-    shares: number;
-    hasAudio: boolean;
-    isLiked: boolean;
-    mood: string;
-    tags: string[];
-    paywallAmount: number;
-    isPaid?: boolean;
-  };
+  story: StoryDataType;
   onLike?: (id: number) => void;
   onFollow?: (username: string) => void;
   onShare?: (id: number) => void;
@@ -44,7 +53,7 @@ interface StoryCardProps {
 }
 
 const ISTORY_TOKEN_ADDRESS = "0xYouriStoryTokenAddress"; // Update after deploy
-const DEFAULT_AVATAR = "https://placeholder.com/150"; // Fix missing src
+const DEFAULT_AVATAR = "https://placehold.co/48x48/6366f1/ffffff?text=U"; // Using a simple placeholder URL
 
 export function StoryCard({
   story,
@@ -62,7 +71,7 @@ export function StoryCard({
   useWaitForTransactionReceipt({
     hash: tipHash || payHash,
     onSuccess: () => {
-      toast.success('Transaction confirmed!');
+      toast.success("Transaction confirmed!");
       setIsTipping(false);
       setIsPaying(false);
       if (payHash) onUnlock?.(story.id);
@@ -76,7 +85,7 @@ export function StoryCard({
       abi: iStoryTokenABI.abi,
       functionName: "tipCreator",
       args: [
-        story.author.username as `0x${string}`,
+        story.author_wallet.username as `0x${string}`,
         parseEther(tipAmount.toString()),
         BigInt(story.id),
       ],
@@ -91,7 +100,7 @@ export function StoryCard({
       abi: iStoryTokenABI.abi,
       functionName: "payPaywall",
       args: [
-        story.author.username as `0x${string}`,
+        story.author_wallet.username as `0x${string}`,
         parseEther(story.paywallAmount.toString()),
         BigInt(story.id),
       ],
@@ -103,13 +112,20 @@ export function StoryCard({
   return (
     <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-300">
       <CardHeader>
-        {/* Author Header */}
+        {/* author_wallet Header */}
         <div className="flex items-start justify-between">
           <div className="flex items-start space-x-3">
             <Avatar className="w-12 h-12">
-              <Image src={story.author.avatar || DEFAULT_AVATAR} alt={story.author.name} height={12} width={12} /> {/* Fixed missing src */}
+              {/* Ensure image src exists, falling back to DEFAULT_AVATAR */}
+              <Image
+                src={story.author_wallet?.avatar || DEFAULT_AVATAR}
+                alt={story.author_wallet?.name || "avatar"}
+                height={48}
+                width={48}
+                unoptimized
+              />
               <AvatarFallback>
-                {story.author.name
+                {(story.author_wallet?.name || "U")
                   .split(" ")
                   .map((n) => n[0])
                   .join("")}
@@ -118,13 +134,13 @@ export function StoryCard({
             <div className="space-y-1">
               <div className="flex items-center space-x-2">
                 <span className="font-semibold text-gray-900 dark:text-white">
-                  {story.author.name}
+                  {story.author_wallet?.name}
                 </span>
                 <span className="text-sm text-gray-500">
-                  @{story.author.username}
+                  @{story.author_wallet?.username}
                 </span>
                 <div className="flex space-x-1">
-                  {story.author.badges.map((badge) => (
+                  {story.author_wallet?.badges?.map((badge) => (
                     <Badge key={badge}>{badge}</Badge>
                   ))}
                 </div>
@@ -134,16 +150,16 @@ export function StoryCard({
                   <Clock className="w-3 h-3 inline mr-1" />
                   {story.timestamp}
                 </div>
-                <div>{story.author.followers} followers</div>
+                <div>{story.author_wallet?.followers} followers</div>
               </div>
             </div>
           </div>
           <Button
             size="sm"
-            variant={story.author.isFollowing ? "secondary" : "default"}
-            onClick={() => onFollow?.(story.author.username)}
+            variant={story.author_wallet?.isFollowing ? "secondary" : "default"}
+            onClick={() => onFollow?.(story.author_wallet?.username)}
           >
-            {story.author.isFollowing ? "Following" : "Follow"}
+            {story.author_wallet?.isFollowing ? "Following" : "Follow"}
           </Button>
         </div>
       </CardHeader>
@@ -172,7 +188,7 @@ export function StoryCard({
           </p>
         )}
         <div className="flex flex-wrap gap-2">
-          {story.tags.map((tag) => (
+          {story.tags?.map((tag) => (
             <Badge key={tag} variant="outline">
               #{tag}
             </Badge>

@@ -5,7 +5,7 @@ import { Inter } from 'next/font/google';
 import { Providers } from '../components/Provider';
 import { Navigation } from '../components/Navigation';
 import { Toaster } from 'react-hot-toast';
-import { createSupabaseServerClient } from '@/app/utils/supabase/supabaseServer';
+import { createSupabaseServerClient } from "@/app/utils/supabase/supabaseServer";
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -26,7 +26,7 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const { data: { session } } = await supabase.auth.getSession(); // Get server session (for auth checks)
 
   return (
