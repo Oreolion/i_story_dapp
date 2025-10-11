@@ -35,7 +35,7 @@ import { toast } from 'react-hot-toast';
 import { useSignMessage } from 'wagmi';
 import { createSupabaseClient } from '@/app/utils/supabase/supabaseClient';
 
-const achievements = [
+const fallbackAchievements = [
   { id: 1, name: "First Story", description: "Recorded your first journal entry", earned: true, date: "2025-01-15" },
   { id: 2, name: "10-Day Streak", description: "Recorded entries for 10 consecutive days", earned: true, date: "2025-01-20" },
   { id: 3, name: "Community Star", description: "Received 100+ likes on a single story", earned: true, date: "2025-01-18" },
@@ -44,7 +44,7 @@ const achievements = [
   { id: 6, name: "Top Writer", description: "Ranked in top 10% of writers", earned: false, date: null }
 ];
 
-const activityData = [
+const fallbackActivityData = [
   { date: "2025-01-20", entries: 2, likes: 24, views: 156 },
   { date: "2025-01-19", entries: 1, likes: 18, views: 89 },
   { date: "2025-01-18", entries: 3, likes: 67, views: 298 },
@@ -53,16 +53,21 @@ const activityData = [
   { date: "2025-01-15", entries: 1, likes: 8, views: 45 },
 ];
 
+const fallbackProfile = {
+  name: "Alex Johnson",
+  bio: "Digital storyteller sharing life's moments on the blockchain. Passionate about mindfulness, travel, and human connections.",
+  location: "San Francisco, CA",
+  website: "alexjohnson.eth",
+  joinDate: "January 2025",
+  avatar: "https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2"
+};
+
 export default function ProfilePage() {
   const { user, isConnected } = useApp();
   const [isEditing, setIsEditing] = useState(false);
-  const [profile, setProfile] = useState({
-    name: "Alex Johnson",
-    bio: "Digital storyteller sharing life's moments on the blockchain. Passionate about mindfulness, travel, and human connections.",
-    location: "San Francisco, CA",
-    website: "alexjohnson.eth",
-    joinDate: "January 2025"
-  });
+  const [profile, setProfile] = useState(fallbackProfile);
+  const [achievements, setAchievements] = useState(fallbackAchievements);
+  const [activityData, setActivityData] = useState(fallbackActivityData);
   const [isSignedIn, setIsSignedIn] = useState(false); 
   const { signMessageAsync } = useSignMessage();
 
@@ -76,7 +81,59 @@ export default function ProfilePage() {
       if (session.session && user?.address) {
         const { data, error } = await supabase.from('users').select('*').eq('wallet_address', user.address).single();
         console.log('Profile fetch:', data, error); // Debug log
-        if (data) setProfile({...profile, name: data.name || profile.name, bio: data.bio || profile.bio});
+        if (data) {
+          // Merge with fallback for all fields
+          setProfile({
+            ...fallbackProfile,
+            name: data.name || fallbackProfile.name,
+            bio: data.bio || fallbackProfile.bio,
+            location: data.location || fallbackProfile.location,
+            website: data.website || fallbackProfile.website,
+            joinDate: data.created_at ? new Date(data.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : fallbackProfile.joinDate,
+            avatar: data.avatar_url || fallbackProfile.avatar
+          });
+        } else {
+          // No user data, use full fallback
+          setProfile(fallbackProfile);
+        }
+      } else {
+        // No session or address, use fallback
+        setProfile(fallbackProfile);
+      }
+
+      // Fetch achievements with fallback (assume 'user_achievements' table; adjust if needed)
+      if (session.session && user?.address) {
+        const { data: achData, error: achError } = await supabase
+          .from('user_achievements') // Adjust table name if different
+          .select('*')
+          .eq('wallet_address', user.address)
+          .order('date', { ascending: false });
+        console.log('Achievements fetch:', achData, achError);
+        if (achData && !achError) {
+          setAchievements(achData.length > 0 ? achData : fallbackAchievements);
+        } else {
+          setAchievements(fallbackAchievements);
+        }
+      } else {
+        setAchievements(fallbackAchievements);
+      }
+
+      // Fetch activity with fallback (assume 'user_activity' table; adjust if needed)
+      if (session.session && user?.address) {
+        const { data: actData, error: actError } = await supabase
+          .from('user_activity') // Adjust table name if different
+          .select('*')
+          .eq('wallet_address', user.address)
+          .order('date', { ascending: false })
+          .limit(6);
+        console.log('Activity fetch:', actData, actError);
+        if (actData && !actError) {
+          setActivityData(actData.length > 0 ? actData : fallbackActivityData);
+        } else {
+          setActivityData(fallbackActivityData);
+        }
+      } else {
+        setActivityData(fallbackActivityData);
       }
     };
     fetchProfile();
@@ -95,6 +152,20 @@ export default function ProfilePage() {
       if (data.success) {
         setIsSignedIn(true);
         toast.success('Signed in with wallet!');
+        // Re-fetch profile after sign-in
+        const supabase = createSupabaseClient();
+        const { data: userData } = await supabase.from('users').select('*').eq('wallet_address', user.address).single();
+        if (userData) {
+          setProfile({
+            ...fallbackProfile,
+            name: userData.name || fallbackProfile.name,
+            bio: userData.bio || fallbackProfile.bio,
+            location: userData.location || fallbackProfile.location,
+            website: userData.website || fallbackProfile.website,
+            joinDate: userData.created_at ? new Date(userData.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : fallbackProfile.joinDate,
+            avatar: userData.avatar_url || fallbackProfile.avatar
+          });
+        }
       }
     } catch (error) {
       toast.error('Sign-in failed');
@@ -108,7 +179,13 @@ export default function ProfilePage() {
       return;
     }
     const supabase = createSupabaseClient();
-    const { error } = await supabase.from('users').update({ name: profile.name, bio: profile.bio }).eq('wallet_address', user?.address);
+    const { error } = await supabase.from('users').update({ 
+      name: profile.name, 
+      bio: profile.bio,
+      location: profile.location,
+      website: profile.website,
+      avatar_url: profile.avatar  // If updating avatar
+    }).eq('wallet_address', user?.address);
     console.log('Save profile error:', error); // Debug log
     if (error) {
       toast.error('Save failed');
@@ -159,7 +236,7 @@ export default function ProfilePage() {
           <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-0 shadow-xl">
             <CardHeader className="text-center">
               <Avatar className="w-24 h-24 mx-auto">
-                <AvatarImage src={profile.avatar || "https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2"} />
+                <AvatarImage src={profile.avatar} />
                 <AvatarFallback>AJ</AvatarFallback>
               </Avatar>
               <div className="space-y-2">
