@@ -28,7 +28,7 @@ import { useLikeSystem } from "../hooks/useLikeSystem";
 import { useStorybookNFT } from "../hooks/useStoryBookNFT";
 import { useAccount, useSignMessage } from "wagmi";
 import { parseEther } from "viem";
-import { createSupabaseClient } from "@/app/utils/supabase/supabaseClient";
+import { supabaseClient } from "@/app/utils/supabase/supabaseClient";
 // --- CORRECTED TYPE DEFINITIONS ---
 // This defines the structure of the 'author' object
 interface AuthorProfile {
@@ -116,7 +116,7 @@ export default function SocialPage() {
   const likeSystem = useLikeSystem();
   const storybookNFT = useStorybookNFT();
   // read client-side flag (must set NEXT_PUBLIC_DEV_BYPASS_SIG=true in .env.local)
-  const DEV_BYPASS_CLIENT = process.env.NEXT_PUBLIC_DEV_BYPASS_SIG === "true";
+  //   const DEV_BYPASS_CLIENT = process.env.NEXT_PUBLIC_DEV_BYPASS_SIG === "true";
   const { signMessageAsync } = useSignMessage();
   useEffect(() => {
     const syncUser = async () => {
@@ -124,18 +124,35 @@ export default function SocialPage() {
       const message = "Welcome to StoryChain";
 
       let signature = "";
-
-      if (DEV_BYPASS_CLIENT) {
-        signature = "0x" + "d".repeat(130);
+      if (process.env.NEXT_PUBLIC_DEV_BYPASS_SIG === "true") {
+        signature = "0x" + "d".repeat(130); // Dev fake
       } else {
-        // ✅ use wagmi to sign message with connected wallet
         signature = await signMessageAsync({ message });
+      }
+
+      // Now call /api/auth to complete sign-in and create/link user
+      const res = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address, message, signature }),
+      });
+
+      if (!res.ok) {
+        console.error("Sign-in failed:", await res.text());
+        return;
+      }
+
+      const data = await res.json();
+      if (data.success) {
+        console.log("Wallet signed in and user linked/created");
+        // Optionally refresh session
+        await supabase.auth.refreshSession();
       }
     };
     syncUser();
   }, [address]);
   // Memoize supabase client to avoid multiples (fixes "Multiple GoTrueClient")
-  const supabase = useMemo(() => createSupabaseClient(), []);
+  const supabase = useMemo(() => supabaseClient, []);
   // 🔹 Fetch data from Supabase (users, stories, etc.)
   useEffect(() => {
     const fetchSupabaseData = async () => {

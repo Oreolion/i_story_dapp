@@ -39,7 +39,7 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useSignMessage } from "wagmi";
-import { createSupabaseClient } from "@/app/utils/supabase/supabaseClient";
+import { supabaseClient } from "@/app/utils/supabase/supabaseClient";
 import { Textarea } from "@/components/ui/textarea";
 
 // --- Fallback data (unchanged, kept for safety) ---
@@ -119,7 +119,7 @@ export default function ProfilePage() {
   const { signMessageAsync } = useSignMessage();
 
   // Helper: create supabase client once (client-side)
-  const supabase = createSupabaseClient();
+  const supabase = supabaseClient;
 
   // Fetch profile & related data from Supabase (client-side)
   useEffect(() => {
@@ -200,11 +200,10 @@ export default function ProfilePage() {
               .order("date", { ascending: false })
               .limit(6);
 
-            if (!actErr && actData && actData.length > 0) {
-              setActivityData(actData);
-            } else {
-              setActivityData(fallbackActivityData);
-            }
+            if (actErr) throw actErr; // Will catch 404 as error
+            setActivityData(
+              actData?.length > 0 ? actData : fallbackActivityData
+            );
           } catch (err) {
             console.warn("Activity fetch failed:", err);
             setActivityData(fallbackActivityData);
@@ -229,7 +228,7 @@ export default function ProfilePage() {
     return () => {
       mounted = false;
     };
-  }, [user?.address]); // re-run when wallet address changes
+  }, [user?.address, supabase]); // re-run when wallet address changes
 
   // Web3 sign-in handler (uses wagmi signMessage)
   const handleWeb3SignIn = async () => {
@@ -265,7 +264,7 @@ export default function ProfilePage() {
         // re-fetch profile now that user exists server-side
         // small pause recommended to allow auth/session propagation
         setTimeout(async () => {
-          const sup = createSupabaseClient();
+          const sup = supabaseClient;
           const { data: userData } = await sup
             .from("users")
             .select("*")
@@ -308,7 +307,7 @@ export default function ProfilePage() {
       return;
     }
     try {
-      const sup = createSupabaseClient();
+      const sup = supabaseClient;
       const updates = {
         name: profile.name,
         bio: profile.bio,
@@ -370,28 +369,6 @@ export default function ProfilePage() {
         <div className="lg:col-span-1">
           <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-0 shadow-xl">
             <CardHeader className="text-center">
-              {/* <Avatar className="w-24 h-24 mx-auto">
-                <AvatarImage src={profile.avatar} />
-                <AvatarFallback>AJ</AvatarFallback>
-              </Avatar>
-              <div className="space-y-2">
-                <CardTitle className="text-xl">{profile.name}</CardTitle>
-                <CardDescription>{profile.bio}</CardDescription>
-              </div>
-              <div className="flex flex-wrap gap-2 justify-center">
-                {Array.isArray(user?.badges) && user.badges.length > 0
-                  ? user.badges.map((badge: string) => (
-                      <Badge
-                        key={badge}
-                        variant="secondary"
-                        className="bg-purple-100 dark:bg-purple-900"
-                      >
-                        <Award className="w-3 h-3 mr-1" />
-                        {badge}
-                      </Badge>
-                    ))
-                  : null}
-              </div> */}
               <Avatar className="h-24 w-24 mx-auto">
                 <AvatarImage
                   src={profile.avatar || "/default-avatar.png"}

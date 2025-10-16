@@ -1,11 +1,12 @@
-'use client';
-import { ThemeProvider } from 'next-themes';
-import { createContext, useContext, ReactNode } from 'react';
-import { WagmiProvider } from 'wagmi';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit'; // RainbowKit
-import { config } from '@/lib/wagmi.config';
-import { useAccount, useBalance } from 'wagmi';
+"use client";
+import { ThemeProvider } from "next-themes";
+import { createContext, useContext, ReactNode } from "react";
+import { WagmiProvider } from "wagmi";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { RainbowKitProvider, darkTheme } from "@rainbow-me/rainbowkit"; // RainbowKit
+import { config } from "@/lib/wagmi.config";
+import { useAccount, useBalance } from "wagmi";
+import { AuthProvider } from "./AuthProvider";
 // import { useReadContract } from 'wagmi'; // Uncomment later
 // import { iStoryTokenABI } from '@/lib/abis/iStoryToken.json';
 
@@ -30,7 +31,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export function useApp() {
   const context = useContext(AppContext);
   if (context === undefined) {
-    throw new Error('useApp must be used within AppProvider');
+    throw new Error("useApp must be used within AppProvider");
   }
   return context;
 }
@@ -47,17 +48,25 @@ function AppInner({ children }: { children: ReactNode }) {
   //   chainId: sepolia.id,
   // });
 
-
-
-  const user: User | null = isConnected && address ? {
-    address: `${address.slice(0, 6)}...${address.slice(-4)}`,
-    balance: ethBalance?.formatted || '0',
-    storyTokens: 150, // Mock until uncommented
-    badges: ['Early Adopter', '10-Day Streak'],
-  } : null;
+  const user: User | null =
+    isConnected && address
+      ? {
+          address: `${address.slice(0, 6)}...${address.slice(-4)}`,
+          balance: ethBalance?.formatted || "0",
+          storyTokens: 150, // Mock until uncommented
+          badges: ["Early Adopter", "10-Day Streak"],
+        }
+      : null;
 
   return (
-    <AppContext.Provider value={{ user, isConnected, connectWallet: () => {}, disconnectWallet: () => {} }}>
+    <AppContext.Provider
+      value={{
+        user,
+        isConnected,
+        connectWallet: () => {},
+        disconnectWallet: () => {},
+      }}
+    >
       {children}
     </AppContext.Provider>
   );
@@ -65,11 +74,15 @@ function AppInner({ children }: { children: ReactNode }) {
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <WagmiProvider config={config} >
+    <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider theme={darkTheme()}> {/* RainbowKit wraps app */}
+        <RainbowKitProvider theme={darkTheme()}>
+          {" "}
+          {/* RainbowKit wraps app */}
           <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-            <AppInner>{children}</AppInner>
+            <AuthProvider>
+              <AppInner>{children}</AppInner>
+            </AuthProvider>
           </ThemeProvider>
         </RainbowKitProvider>
       </QueryClientProvider>

@@ -1,9 +1,9 @@
 'use client';
-
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { useApp } from './Provider';
+import { useAuth } from './AuthProvider';
 import { Button } from '@/components/ui/button';
 import {
   Home,
@@ -32,6 +32,10 @@ export function Navigation() {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const { user } = useApp();
+    const userInfo = useAuth(); 
+  console.log("User in Nav:", user);
+  console.log("User in Nav:", userInfo);
+
 
   return (
     <nav className="sticky top-0 z-50 backdrop-blur-lg bg-white/70 dark:bg-gray-900/70 border-b border-gray-200 dark:border-gray-700">
@@ -75,9 +79,12 @@ export function Navigation() {
             {user && (
               <div className="flex items-center space-x-2 text-sm bg-emerald-100 dark:bg-emerald-900 px-3 py-1 rounded-full" suppressHydrationWarning> {/* Fixed hydration */}
                 <Coins className="w-4 h-4 text-emerald-600" />
-                <span className="font-medium text-emerald-600">{user.storyTokens} $STORY</span>
+                {/* <span className="font-medium text-emerald-600">{user.storyTokens} $STORY</span> */}
               </div>
             )}
+
+
+            
             <Button
               variant="ghost"
               size="sm"
