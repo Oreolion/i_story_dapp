@@ -1,60 +1,100 @@
-// app/api/auth/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/app/utils/supabase/supabaseServer";
 import { createSupabaseAdminClient } from "@/app/utils/supabase/supabaseAdmin";
-import { verifyMessage } from "viem";
+import { verifyMessage, type Address, isHex, User } from "viem";
+import { SupabaseClient } from "@supabase/supabase-js";
+
+/**
+ * Finds a user by iterating through all paginated results from Supabase Auth.
+ * This is necessary because `listUsers` is paginated (default 50 per page).
+ *
+ * @param admin - The Supabase admin client.
+ * @param walletEmail - The deterministic email generated from the wallet address.
+ * @param walletAddress - The user's wallet address.
+ * @returns The found user object or null if not found.
+ */
+async function findUserInPaginatedList(
+  admin: SupabaseClient,
+  walletEmail: string,
+  walletAddress: string
+) {
+  let page = 1;
+  const perPage = 100; // Fetch 100 users per page for better efficiency
+  while (true) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
+    if (error) throw error;
+
+    const foundUser = data.users.find(
+      (u) =>
+        u.email === walletEmail ||
+        (u.user_metadata && u.user_metadata.wallet_address === walletAddress)
+    );
+
+    if (foundUser) {
+      return foundUser;
+    }
+
+    // If this page was the last one, stop the loop
+    if (data.users.length < perPage) {
+      break;
+    }
+
+    page++;
+  }
+  return null;
+}
+
 
 /**
  * Wallet login route (server)
- * Expects JSON body: { address, signature, message }
  *
- * Behaviour:
- *  - verifies signature
- *  - finds a Supabase auth user by:
- *      1) email === walletEmail OR
- *      2) user_metadata.wallet_address === address
- *  - if an OAuth user exists without wallet metadata, update that user's metadata to include the wallet address
- *  - otherwise create a new deterministic auth user for the wallet
- *  - upsert into public.users using the auth user id
- *  - returns profile
- *
- * Note: For synthetic emails like 0x...@wallet.local we DO NOT attempt to sign-in-with-otp (magic link).
- * Session creation (cookie) is left to client or a separate secure flow if you want an automatic server session.
+ * This version includes a critical fix for finding users in a paginated list,
+ * which resolves the "Database error creating new user" error when the user
+ * count exceeds the default page size (50).
  */
-
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { address, signature, message } = body ?? {};
+
+    // 1. Rigorous runtime validation for the signature format.
     if (!address || !signature || !message) {
       return NextResponse.json(
-        { error: "Missing wallet data" },
+        { error: "Missing address, signature, or message." },
         { status: 400 }
       );
     }
-    // 1. Verify wallet signature
-    const isValid = await verifyMessage({ address, message, signature });
-    if (!isValid) {
-      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+
+    if (typeof signature !== 'string' || !isHex(signature)) {
+        console.error("Invalid signature format received from client:", signature);
+        return NextResponse.json(
+            { error: "The provided signature was not a valid hexadecimal string." },
+            { status: 400 }
+        );
     }
+    const validatedSignature = signature as `0x${string}`;
+    const validatedAddress = address as Address;
+
+    // 2. Verify wallet signature using the validated inputs
+    const isValid = await verifyMessage({
+      address: validatedAddress,
+      message,
+      signature: validatedSignature,
+    });
+
+    if (!isValid) {
+      return NextResponse.json({ error: "Signature verification failed." }, { status: 401 });
+    }
+
     const admin = createSupabaseAdminClient();
-    const walletAddress = address.toLowerCase();
+    const walletAddress = validatedAddress.toLowerCase();
     const walletEmail = `${walletAddress}@wallet.local`;
-    // 2. List auth users and try to find by:
-    //    - exact wallet-email (for previously created wallet users)
-    //    - OR user_metadata.wallet_address === walletAddress (for oauth users we've linked previously)
-    const { data: usersList, error: listErr } =
-      await admin.auth.admin.listUsers();
-    if (listErr) throw listErr;
-    const foundUser =
-      usersList?.users.find(
-        (u) =>
-          u.email === walletEmail ||
-          (u.user_metadata && u.user_metadata.wallet_address === walletAddress)
-      ) ?? null;
+
+    // 3. Find existing Supabase auth user using the paginated helper function
+    const foundUser = await findUserInPaginatedList(admin, walletEmail, walletAddress);
+
     let authUser;
     if (!foundUser) {
-      // 3a. No existing user found — create new deterministic wallet auth user
+      // 4a. No existing user found — create a new one.
       const { data: createData, error: createErr } =
         await admin.auth.admin.createUser({
           email: walletEmail,
@@ -64,11 +104,9 @@ export async function POST(req: NextRequest) {
       if (createErr) throw createErr;
       authUser = createData.user;
     } else {
-      // 3b. User exists (possibly from OAuth). If it lacks wallet metadata, attach it.
+      // 4b. User exists. If they don't have wallet metadata, add it.
       authUser = foundUser;
-      const userHasWalletInMetadata = !!authUser.user_metadata?.wallet_address;
-      if (!userHasWalletInMetadata) {
-        // Update the existing auth user to add wallet metadata so next lookups match.
+      if (!authUser.user_metadata?.wallet_address) {
         const { data: updated, error: updateErr } =
           await admin.auth.admin.updateUserById(authUser.id, {
             user_metadata: {
@@ -77,37 +115,36 @@ export async function POST(req: NextRequest) {
             },
           });
         if (updateErr) {
-          // non-fatal: log and continue, but surface the error when appropriate
-          console.warn(
-            "Failed to attach wallet metadata to existing user:",
-            updateErr
-          );
+          console.warn("Failed to attach wallet metadata:", updateErr);
         } else {
           authUser = updated.user ?? authUser;
         }
       }
     }
-    // 4. Upsert into public.users table (server client, respecting cookies/session)
-    const supabase = await createSupabaseServerClient();
-    const { data: profile, error: upsertError } = await supabase
+
+    // 5. Upsert into public.users (using admin client to bypass RLS for initial creation)
+    const { data: profile, error: upsertError } = await admin  // Changed to admin here
       .from("users")
       .upsert(
         {
           id: authUser.id,
           wallet_address: walletAddress,
-          name: authUser.user_metadata?.name ?? "Anonymous User",
-          email: authUser.email ?? walletEmail,
-          avatar_url: authUser.user_metadata?.avatar_url ?? null,
+          name: authUser.user_metadata?.name ?? authUser.user_metadata?.full_name ?? null,
+          email: authUser.email,
+          avatar: authUser.user_metadata?.avatar_url ?? null,
         },
-        { onConflict: "id" }
+        { onConflict: "id", ignoreDuplicates: false }
       )
       .select()
       .single();
+
     if (upsertError) throw upsertError;
-    // 5. Return final profile (client should handle session creation / navigation)
+
+    // 6. Return the final, updated profile
     return NextResponse.json({ success: true, user: profile });
-  } catch (err) {
-    console.error("Wallet auth route error:", err);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+
+  } catch (err: any) {
+    console.error("Wallet auth route error:", err.message, err.stack);
+    return NextResponse.json({ error: err.message || "An internal server error occurred" }, { status: 500 });
   }
 }

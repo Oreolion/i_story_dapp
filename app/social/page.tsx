@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,8 +29,7 @@ import { useStorybookNFT } from "../hooks/useStoryBookNFT";
 import { useAccount, useSignMessage } from "wagmi";
 import { parseEther } from "viem";
 import { supabaseClient } from "@/app/utils/supabase/supabaseClient";
-// --- CORRECTED TYPE DEFINITIONS ---
-// This defines the structure of the 'author' object
+
 interface AuthorProfile {
   name: string;
   username: string;
@@ -39,7 +38,7 @@ interface AuthorProfile {
   followers: number;
   isFollowing: boolean;
 }
-// This now correctly defines the structure of a single item in the 'stories' array
+
 export interface StoryType {
   id: number;
   numeric_id: string;
@@ -66,7 +65,6 @@ export interface FeaturedWriterType {
   stories: number;
   speciality: string;
 }
-// Note: mockStories now correctly uses the unwrapped StoryType[]
 
 const featuredWriters = [
   {
@@ -103,7 +101,6 @@ const moodColors = {
   adventurous: "bg-blue-100 dark:bg-blue-900 text-blue-600",
 };
 export default function SocialPage() {
-  // State initialization uses the corrected StoryType[]
   const [stories, setStories] = useState<StoryType[]>([]);
   const [activeTab, setActiveTab] = useState("feed");
   const [unlockedStories, setUnlockedStories] = useState<Set<number>>(
@@ -117,42 +114,8 @@ export default function SocialPage() {
   const storybookNFT = useStorybookNFT();
   // read client-side flag (must set NEXT_PUBLIC_DEV_BYPASS_SIG=true in .env.local)
   //   const DEV_BYPASS_CLIENT = process.env.NEXT_PUBLIC_DEV_BYPASS_SIG === "true";
-  const { signMessageAsync } = useSignMessage();
-  useEffect(() => {
-    const syncUser = async () => {
-      if (!address) return;
-      const message = "Welcome to StoryChain";
-
-      let signature = "";
-      if (process.env.NEXT_PUBLIC_DEV_BYPASS_SIG === "true") {
-        signature = "0x" + "d".repeat(130); // Dev fake
-      } else {
-        signature = await signMessageAsync({ message });
-      }
-
-      // Now call /api/auth to complete sign-in and create/link user
-      const res = await fetch("/api/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address, message, signature }),
-      });
-
-      if (!res.ok) {
-        console.error("Sign-in failed:", await res.text());
-        return;
-      }
-
-      const data = await res.json();
-      if (data.success) {
-        console.log("Wallet signed in and user linked/created");
-        // Optionally refresh session
-        await supabase.auth.refreshSession();
-      }
-    };
-    syncUser();
-  }, [address]);
-  // Memoize supabase client to avoid multiples (fixes "Multiple GoTrueClient")
   const supabase = useMemo(() => supabaseClient, []);
+
   // 🔹 Fetch data from Supabase (users, stories, etc.)
   useEffect(() => {
     const fetchSupabaseData = async () => {
@@ -171,6 +134,7 @@ export default function SocialPage() {
     };
     fetchSupabaseData();
   }, [supabase]);
+
   const handleUnlock = async (storyId: string) => {
     if (!iStoryToken || !address) {
       toast.error("Wallet not connected");
@@ -325,6 +289,7 @@ export default function SocialPage() {
     );
     toast.success("Following status updated");
   };
+
   const handleShare = (storyId: number) => {
     toast.success("Story shared! +2 $STORY tokens earned");
   };

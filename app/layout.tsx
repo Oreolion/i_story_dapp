@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   title: 'IStory - AI-Powered Blockchain Journaling',
   description: 'Record your life stories with AI transcription, store them on blockchain, and monetize your creativity.',
   keywords: 'journaling, blockchain, NFT, AI, speech-to-text, Web3',
-  authors: [{ name: 'StoryChain Team' }],
+  authors: [{ name: 'iStoryChain Team' }],
   openGraph: {
     title: 'IStory - AI-Powered Blockchain Journaling',
     description: 'Record your life stories with AI transcription, store them on blockchain, and monetize your creativity.',

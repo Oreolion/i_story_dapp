@@ -34,7 +34,7 @@ export function Navigation() {
   const { user } = useApp();
     const userInfo = useAuth(); 
   console.log("User in Nav:", user);
-  console.log("User in Nav:", userInfo);
+  console.log("UserInfo in Nav:", userInfo);
 
 
   return (
