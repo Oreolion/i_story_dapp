@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { useApp } from './Provider';
-import { useAuth } from './AuthProvider';
+// import { useAuth } from './AuthProvider';
 import { Button } from '@/components/ui/button';
 import {
   Home,
@@ -32,9 +32,9 @@ export function Navigation() {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const { user } = useApp();
-    const userInfo = useAuth(); 
+    // const userInfo = useAuth(); 
   console.log("User in Nav:", user);
-  console.log("UserInfo in Nav:", userInfo);
+//   console.log("UserInfo in Nav:", userInfo);
 
 
   return (

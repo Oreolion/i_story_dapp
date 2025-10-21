@@ -22,6 +22,7 @@ interface User {
 interface AppContextType {
   user: User | null;
   isConnected: boolean;
+  isDisconnected: boolean;
   connectWallet: () => void;
   disconnectWallet: () => void;
 }
@@ -37,7 +38,7 @@ export function useApp() {
 }
 
 function AppInner({ children }: { children: ReactNode }) {
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, isDisconnected } = useAccount();
   const { data: ethBalance } = useBalance({ address });
 
   // const { data: storyTokens } = useReadContract({ // Uncomment after deploy
@@ -45,7 +46,7 @@ function AppInner({ children }: { children: ReactNode }) {
   //   abi: iStoryTokenABI.default,
   //   functionName: 'balanceOf',
   //   args: [address as `0x${string}`],
-  //   chainId: sepolia.id,
+  //   chainId: baseSepolia.id,
   // });
 
   const user: User | null =
@@ -63,6 +64,7 @@ function AppInner({ children }: { children: ReactNode }) {
       value={{
         user,
         isConnected,
+        isDisconnected,
         connectWallet: () => {},
         disconnectWallet: () => {},
       }}
