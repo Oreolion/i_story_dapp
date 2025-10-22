@@ -157,64 +157,44 @@ export default function ProfilePage() {
   const supabase = supabaseClient;
 
   // Fetch Supabase profile data when wallet is connected
+// Fetch Supabase profile data when wallet is connected
   useEffect(() => {
-    // Only fetch if connected and we have an address from useApp
+    let isMounted = true;
     if (isConnected && user?.address) {
-      console.log(
-        "[PROFILE PAGE LOG] Wallet connected via useApp. Fetching Supabase profile for:",
-        user.address
-      );
-      setLoading(true);
+      console.log("[PROFILE PAGE LOG] Fetching profile for:", user.address);
+      setLoading(true); setProfileData(null); // Clear previous
+
       const fetchDbProfile = async () => {
         try {
-          // Fetch profile using the wallet address
-          // IMPORTANT: Ensure 'wallet_address' column is lowercase in DB or use .ilike for case-insensitive match
           const { data, error } = await supabaseClient
             .from("users")
-            .select(
-              "id, name, username, bio, location, website, avatar, story_tokens, badges, created_at"
-            ) // Select all needed fields
-            .eq("wallet_address", user.address.toLowerCase()) // Match wallet address
-            .maybeSingle(); // Expect only one profile per address
+            .select("id, name, username, bio, location, website, avatar, story_tokens, badges, created_at")
+            .eq("wallet_address", user.address.toLowerCase())
+            .maybeSingle(); // Use maybeSingle
 
-          if (error) {
-            // Handle case where profile might not exist yet after connection
-            if (error.code === "PGRST116") {
-              // Error code for zero rows returned
-              console.warn(
-                "[PROFILE PAGE LOG] No Supabase profile found for address:",
-                user.address
-              );
-              // Optionally set default/empty state or rely on form placeholders
-              setProfileData(null); // Explicitly set to null if not found
-            } else {
-              throw error; // Throw other errors
-            }
-          } else if (data) {
-            console.log("[PROFILE PAGE LOG] Supabase profile fetched:", data);
+          if (!isMounted) return;
+          if (error) throw error; // Let outer catch handle DB errors
+
+          if (data) {
+            console.log("[PROFILE PAGE LOG] Profile fetched:", data);
             setProfileData(data as UserProfileData);
+          } else {
+            console.warn("[PROFILE PAGE LOG] No profile found for address:", user.address);
+            setProfileData(null); // Explicitly null if not found
           }
         } catch (err: any) {
-          console.error(
-            "[PROFILE PAGE LOG] Error fetching Supabase profile:",
-            err
-          );
-          toast.error("Failed to load profile data.");
-          setProfileData(null); // Clear data on error
-        } finally {
-          setLoading(false);
-        }
+          if (!isMounted) return;
+          console.error("[PROFILE PAGE LOG] Error fetching profile:", err);
+          toast.error(`Failed to load profile: ${err.message}`);
+          setProfileData(null);
+        } finally { if (isMounted) setLoading(false); }
       };
       fetchDbProfile();
     } else {
-      // If wallet disconnects, clear profile data and stop loading
-      console.log(
-        "[PROFILE PAGE LOG] Wallet not connected via useApp. Clearing profile data."
-      );
-      setProfileData(null);
-      setLoading(false);
+      setProfileData(null); setLoading(false); // Clear if disconnected
     }
-  }, [isConnected, user?.address]); // Re-run when connection or address changes
+    return () => { isMounted = false; };
+  }, [isConnected, user?.address]);
 
 //   useEffect(() => {
 //     let mounted = true;
@@ -247,7 +227,7 @@ export default function ProfilePage() {
 //           }
 
 //           if (userData) {
-//             // Merge DB fields with fallback
+            // Merge DB fields with fallback
 //             setProfile({
 //               ...fallbackProfile,
 //               name: userData.name || fallbackProfile.name,
@@ -263,11 +243,11 @@ export default function ProfilePage() {
 //               avatar: userData.avatar_url || fallbackProfile.avatar,
 //             });
 //           } else {
-//             // No DB record yet — keep fallback
+             // No DB record yet — keep fallback
 //             setProfile(fallbackProfile);
 //           }
 
-//           // Achievements (if table exists)
+         // Achievements (if table exists)
 //           try {
 //             const { data: achData, error: achErr } = await supabase
 //               .from("user_achievements")
@@ -285,7 +265,7 @@ export default function ProfilePage() {
 //             setAchievements(fallbackAchievements);
 //           }
 
-//           // Activity
+         // Activity
 //           try {
 //             const { data: actData, error: actErr } = await supabase
 //               .from("user_activity")
@@ -303,7 +283,7 @@ export default function ProfilePage() {
 //             setActivityData(fallbackActivityData);
 //           }
 //         } else {
-//           // No connected wallet -> use fallback
+           // No connected wallet -> use fallback
 //           setProfile(fallbackProfile);
 //           setAchievements(fallbackAchievements);
 //           setActivityData(fallbackActivityData);
@@ -352,75 +332,6 @@ export default function ProfilePage() {
     }
   }, [profileData]);
 
-  // Web3 sign-in handler (uses wagmi signMessage)
-  const handleWeb3SignIn = async () => {
-    if (!user?.address) {
-      toast.error("Connect your wallet first");
-      return;
-    }
-    try {
-      const message = "Sign in to iStory with wallet";
-      // signMessageAsync throws if user rejects
-      const signature = await signMessageAsync({ message });
-
-      // POST to your auth API route (server handles verification/upsert)
-      const res = await fetch("/api/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: user.address, message, signature }),
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        console.error("Sign-in failed:", res.status, text);
-        toast.error("Sign-in failed");
-        return;
-      }
-
-      const data = await res.json();
-      console.log("Sign-in response:", data);
-      if (data?.success) {
-        toast.success("Signed in with wallet!");
-        setIsSignedIn(true);
-
-        // re-fetch profile now that user exists server-side
-        // small pause recommended to allow auth/session propagation
-        setTimeout(async () => {
-          const sup = supabaseClient;
-          const { data: userData } = await sup
-            .from("users")
-            .select("*")
-            .eq("wallet_address", (user.address as string).toLowerCase())
-            .maybeSingle();
-          if (userData) {
-            setProfile({
-              ...fallbackProfile,
-              name: userData.name || fallbackProfile.name,
-              bio: userData.bio || fallbackProfile.bio,
-              location: userData.location || fallbackProfile.location,
-              website: userData.website || fallbackProfile.website,
-              joinDate: userData.created_at
-                ? new Date(userData.created_at).toLocaleDateString("en-US", {
-                    month: "long",
-                    year: "numeric",
-                  })
-                : fallbackProfile.joinDate,
-              avatar: userData.avatar_url || fallbackProfile.avatar,
-            });
-          }
-        }, 500);
-      } else {
-        toast.error("Sign-in failed");
-      }
-    } catch (error: any) {
-      console.error("Auth error:", error);
-      if (error?.code === "ACTION_REJECTED") {
-        toast.error("Signature rejected");
-      } else {
-        toast.error("Sign-in failed");
-      }
-    }
-  };
 
   // Save profile updates (client-side)
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -522,7 +433,7 @@ export default function ProfilePage() {
             <CardHeader className="text-center">
               <Avatar className="h-24 w-24 mx-auto">
                 <AvatarImage
-                  src={profileData?.avatar || "/default-avatar.png"}
+                  src={profileData?.avatar || "/default_avatar.png"}
                   alt={profileData?.name || "User"}
                 />
                 <AvatarFallback>
@@ -542,7 +453,7 @@ export default function ProfilePage() {
                       <Input
                         value={profileData?.name || ""}
                         onChange={(e) =>
-                          setProfileData({ ...profileData, name: e.target.value })
+                          setProfileData(data as UserProfileData)
                         }
                         placeholder="Enter your name"
                       />
@@ -660,7 +571,7 @@ export default function ProfilePage() {
                     Member Since
                   </span>
                   <span className="text-sm text-gray-900 dark:text-white">
-                    {profileData?.created_at}
+                    {profileData?.created_at ? new Date(profileData.created_at).toLocaleDateString("en-US", { month: "long", year: "numeric" }) : "N/A"}
                   </span>
                 </div>
               </div>

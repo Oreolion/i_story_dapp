@@ -1,10 +1,12 @@
 interface AuthorProfile {
-  name: string;
-  username: string;
-  avatar: string;
-  badges: string[];
-  followers: number;
-  isFollowing: boolean;
+  id?: string; // Optional: Supabase ID
+  name: string | null;
+  username: string | null; // Used as identifier in some contract calls? Be careful.
+  avatar: string | null;
+  wallet_address: string | null; 
+  badges: string[] | null;
+  followers: number; 
+  isFollowing: boolean; // Managed client-side
 }
 
 interface StoryDataType {
@@ -26,7 +28,7 @@ interface StoryDataType {
   isPaid?: boolean;
 }
 
-interface StoryCardProps {
+export interface StoryCardProps {
   story: StoryDataType; // Now explicitly using the consistent data type
   onLike?: (id: number) => void;
   onFollow?: (username: string) => void;
@@ -44,7 +46,7 @@ export interface FeaturedWriterType {
 }
 
 // Note: mockStories now correctly uses the unwrapped StoryType[]
-const mockStories: StoryDataType[] = [
+export const mockStories: StoryDataType[] = [
   {
     id: 1,
     numeric_id: "001",
@@ -126,7 +128,7 @@ const mockStories: StoryDataType[] = [
   },
 ];
 
-const featuredWriters = [
+export const featuredWriters = [
   {
     name: "David Kim",
     username: "@davidk",
@@ -156,7 +158,7 @@ const featuredWriters = [
   },
 ];
 
-const moodColors = {
+export const moodColors = {
   peaceful: "bg-green-100 dark:bg-green-900 text-green-600",
   inspiring: "bg-yellow-100 dark:bg-yellow-900 text-yellow-600",
   adventurous: "bg-blue-100 dark:bg-blue-900 text-blue-600",

@@ -17,15 +17,17 @@ import { Clock, Heart, MessageCircle, Share2 } from "lucide-react";
 // they are defined here for clarity and consistency with the data structure.
 
 interface AuthorProfile {
-  name: string;
-  username: string;
-  avatar: string;
-  badges: string[];
-  followers: number;
-  isFollowing: boolean;
+  id?: string; // Optional: Supabase ID
+  name: string | null;
+  username: string | null; // Used as identifier in some contract calls? Be careful.
+  avatar: string | null;
+  wallet_address: string | null;
+  badges: string[] | null;
+  followers: number; 
+  isFollowing: boolean; // Managed client-side
 }
 
-interface StoryDataType {
+export interface StoryDataType {
   id: number;
   numeric_id: string;
   author_wallet: AuthorProfile;

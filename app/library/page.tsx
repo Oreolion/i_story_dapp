@@ -1,18 +1,25 @@
-'use client';
+// app/library/page.tsx
+"use client";
 
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { useApp } from '@/components/Provider';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  BookOpen, 
-  Search, 
-  Calendar, 
-  Heart, 
+import { useState, useEffect } from "react"; // Added useEffect
+import { motion } from "framer-motion";
+import { useApp } from "@/components/Provider"; // <-- USE useApp
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  BookOpen,
+  Search,
+  Calendar,
+  Heart,
   Eye,
   Download,
   Share2,
@@ -20,61 +27,67 @@ import {
   Plus,
   Sparkles,
   FileText,
-  Volume2
-} from 'lucide-react';
+  Volume2,
+  Loader2, // Added Loader2
+} from "lucide-react";
 
+// Mock data remains the same
 const mockEntries = [
   {
     id: 1,
     title: "Morning Walk Reflections",
-    content: "Today was an incredible day. I woke up early and went for a walk in the park. The morning mist was still hanging over the lake...",
+    content:
+      "Today was an incredible day. I woke up early and went for a walk in the park. The morning mist was still hanging over the lake...",
     date: "2025-01-20",
     likes: 24,
     views: 156,
     hasAudio: true,
     mood: "peaceful",
     tags: ["nature", "reflection", "morning"],
-    type: "entry"
+    type: "entry",
   },
   {
     id: 2,
     title: "My First Digital Book",
-    content: "A collection of stories from my summer adventures, compiled into a beautiful digital book NFT.",
+    content:
+      "A collection of stories from my summer adventures, compiled into a beautiful digital book NFT.",
     date: "2025-01-18",
     likes: 89,
     views: 342,
     hasAudio: false,
     mood: "excited",
     tags: ["adventure", "summer", "travel"],
-    type: "book"
+    type: "book",
   },
   {
     id: 3,
     title: "Grandmother's Stories",
-    content: "Recording the beautiful stories my grandmother shared about her youth and the old country...",
+    content:
+      "Recording the beautiful stories my grandmother shared about her youth and the old country...",
     date: "2025-01-15",
     likes: 156,
     views: 523,
     hasAudio: true,
     mood: "nostalgic",
     tags: ["family", "history", "memories"],
-    type: "entry"
+    type: "entry",
   },
   {
     id: 4,
     title: "Career Reflections",
-    content: "A deep dive into my professional journey, lessons learned, and dreams for the future.",
+    content:
+      "A deep dive into my professional journey, lessons learned, and dreams for the future.",
     date: "2025-01-12",
     likes: 67,
     views: 298,
     hasAudio: false,
     mood: "thoughtful",
     tags: ["career", "growth", "future"],
-    type: "entry"
-  }
+    type: "entry",
+  },
 ];
-
-const moodColors = {
+const moodColors: { [key: string]: string } = {
+  // Added index signature
   peaceful: "bg-green-100 dark:bg-green-900 text-green-600",
   excited: "bg-yellow-100 dark:bg-yellow-900 text-yellow-600",
   nostalgic: "bg-purple-100 dark:bg-purple-900 text-purple-600",
@@ -82,23 +95,45 @@ const moodColors = {
 };
 
 export default function LibraryPage() {
-  const { user, isConnected } = useApp();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState('all');
+  const { user, isConnected } = useApp(); // <-- Use useApp for connection status
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeFilter, setActiveFilter] = useState("all");
+  const [isLoading, setIsLoading] = useState(true); // Basic loading state
 
-  const filteredEntries = mockEntries.filter(entry => {
-    const matchesSearch = entry.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         entry.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         entry.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-    
-    const matchesFilter = activeFilter === 'all' || 
-                         (activeFilter === 'entries' && entry.type === 'entry') ||
-                         (activeFilter === 'books' && entry.type === 'book') ||
-                         (activeFilter === 'audio' && entry.hasAudio);
-    
+  // Simulate loading (can be removed if only checking isConnected)
+  useEffect(() => {
+    // Give Provider a moment to determine connection status
+    const timer = setTimeout(() => setIsLoading(false), 50);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const filteredEntries = mockEntries.filter((entry) => {
+    const matchesSearch =
+      entry.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      entry.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      entry.tags.some((tag) =>
+        tag.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+
+    const matchesFilter =
+      activeFilter === "all" ||
+      (activeFilter === "entries" && entry.type === "entry") ||
+      (activeFilter === "books" && entry.type === "book") ||
+      (activeFilter === "audio" && entry.hasAudio);
+
     return matchesSearch && matchesFilter;
   });
+  // Auth Guard using isConnected from useApp()
+  // Show loading spinner first
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="w-12 h-12 animate-spin text-purple-600" />
+      </div>
+    );
+  }
 
+  // If loading is done and not connected, show message
   if (!isConnected) {
     return (
       <div className="text-center space-y-8 py-16">
@@ -106,15 +141,18 @@ export default function LibraryPage() {
           <BookOpen className="w-12 h-12 text-purple-600" />
         </div>
         <div className="space-y-4">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Connect Your Wallet</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            Connect Your Wallet
+          </h1>
           <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-            Connect your Web3 wallet to access your personal story library.
+            Connect your wallet to access your personal story library.
           </p>
         </div>
       </div>
     );
   }
 
+  // --- Main Render (Wallet is connected) ---
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       {/* Header */}
@@ -133,14 +171,29 @@ export default function LibraryPage() {
           All your journal entries and compiled books in one place
         </p>
       </div>
-
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Total Entries', value: mockEntries.filter(e => e.type === 'entry').length, icon: FileText },
-          { label: 'Books Created', value: mockEntries.filter(e => e.type === 'book').length, icon: BookOpen },
-          { label: 'Total Likes', value: mockEntries.reduce((sum, e) => sum + e.likes, 0), icon: Heart },
-          { label: 'Total Views', value: mockEntries.reduce((sum, e) => sum + e.views, 0), icon: Eye },
+          {
+            label: "Total Entries",
+            value: mockEntries.filter((e) => e.type === "entry").length,
+            icon: FileText,
+          },
+          {
+            label: "Books Created",
+            value: mockEntries.filter((e) => e.type === "book").length,
+            icon: BookOpen,
+          },
+          {
+            label: "Total Likes",
+            value: mockEntries.reduce((sum, e) => sum + e.likes, 0),
+            icon: Heart,
+          },
+          {
+            label: "Total Views",
+            value: mockEntries.reduce((sum, e) => sum + e.views, 0),
+            icon: Eye,
+          },
         ].map((stat, index) => {
           const Icon = stat.icon;
           return (
@@ -153,15 +206,18 @@ export default function LibraryPage() {
               <Card className="text-center bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border-0 shadow-lg">
                 <CardContent className="pt-6">
                   <Icon className="w-6 h-6 mx-auto mb-2 text-purple-600" />
-                  <div className="text-xl font-bold text-gray-900 dark:text-white">{stat.value}</div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">{stat.label}</div>
+                  <div className="text-xl font-bold text-gray-900 dark:text-white">
+                    {stat.value}
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    {stat.label}
+                  </div>
                 </CardContent>
               </Card>
             </motion.div>
           );
         })}
       </div>
-
       {/* Search and Filters */}
       <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-0 shadow-lg">
         <CardContent className="pt-6">
@@ -175,18 +231,29 @@ export default function LibraryPage() {
                 className="pl-10"
               />
             </div>
-            <Tabs value={activeFilter} onValueChange={setActiveFilter} className="w-full md:w-auto">
+            <Tabs
+              value={activeFilter}
+              onValueChange={setActiveFilter}
+              className="w-full md:w-auto"
+            >
               <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="all" className="text-xs">All</TabsTrigger>
-                <TabsTrigger value="entries" className="text-xs">Entries</TabsTrigger>
-                <TabsTrigger value="books" className="text-xs">Books</TabsTrigger>
-                <TabsTrigger value="audio" className="text-xs">Audio</TabsTrigger>
+                <TabsTrigger value="all" className="text-xs">
+                  All
+                </TabsTrigger>
+                <TabsTrigger value="entries" className="text-xs">
+                  Entries
+                </TabsTrigger>
+                <TabsTrigger value="books" className="text-xs">
+                  Books
+                </TabsTrigger>
+                <TabsTrigger value="audio" className="text-xs">
+                  Audio
+                </TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
         </CardContent>
       </Card>
-
       {/* Stories Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {filteredEntries.map((entry, index) => (
@@ -201,7 +268,7 @@ export default function LibraryPage() {
                 <div className="flex items-start justify-between">
                   <div className="space-y-2">
                     <div className="flex items-center space-x-2">
-                      {entry.type === 'book' ? (
+                      {entry.type === "book" ? (
                         <BookOpen className="w-5 h-5 text-indigo-600" />
                       ) : (
                         <FileText className="w-5 h-5 text-purple-600" />
@@ -214,9 +281,11 @@ export default function LibraryPage() {
                       {entry.title}
                     </CardTitle>
                   </div>
-                  <Badge 
-                    variant="secondary" 
-                    className={moodColors[entry.mood as keyof typeof moodColors]}
+                  <Badge
+                    variant="secondary"
+                    className={
+                      moodColors[entry.mood as keyof typeof moodColors]
+                    }
                   >
                     {entry.mood}
                   </Badge>
@@ -240,7 +309,7 @@ export default function LibraryPage() {
                 <p className="text-gray-600 dark:text-gray-300 line-clamp-3">
                   {entry.content}
                 </p>
-                
+
                 <div className="flex flex-wrap gap-2">
                   {entry.tags.map((tag) => (
                     <Badge key={tag} variant="outline" className="text-xs">
@@ -260,8 +329,11 @@ export default function LibraryPage() {
                       Share
                     </Button>
                   </div>
-                  {entry.type === 'book' && (
-                    <Button size="sm" className="bg-gradient-to-r from-purple-600 to-indigo-600">
+                  {entry.type === "book" && (
+                    <Button
+                      size="sm"
+                      className="bg-gradient-to-r from-purple-600 to-indigo-600"
+                    >
                       <Download className="w-4 h-4 mr-1" />
                       Download
                     </Button>
@@ -272,23 +344,22 @@ export default function LibraryPage() {
           </motion.div>
         ))}
       </div>
-
       {/* Empty State */}
       {filteredEntries.length === 0 && (
         <div className="text-center py-16 space-y-4">
           <div className="w-24 h-24 mx-auto bg-gradient-to-r from-purple-100 to-indigo-100 dark:from-purple-900 dark:to-indigo-900 rounded-full flex items-center justify-center">
             <Search className="w-12 h-12 text-purple-600" />
           </div>
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white">No stories found</h3>
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+            No stories found
+          </h3>
           <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto">
-            {searchQuery ? 
-              `No stories match "${searchQuery}". Try adjusting your search or filters.` :
-              'Start creating your first story to see it here.'
-            }
+            {searchQuery
+              ? `No stories match "${searchQuery}". Try adjusting your search or filters.`
+              : "Start creating your first story to see it here."}
           </p>
         </div>
       )}
-
       {/* Quick Actions */}
       <Card className="bg-gradient-to-r from-purple-500/10 to-indigo-500/10 border-purple-200 dark:border-purple-800">
         <CardContent className="pt-6">
@@ -313,7 +384,7 @@ export default function LibraryPage() {
             </div>
           </div>
         </CardContent>
-      </Card>
+      </Card>{" "}
     </div>
   );
 }

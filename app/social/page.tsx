@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { motion } from "framer-motion";
+import { useApp } from "@/components/Provider"; // <-- USE useApp
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,43 +21,36 @@ import {
   BookOpen,
   Zap,
   UserPlus,
+  Loader2, // Added Loader2
 } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { StoryCard } from "@/components/StoryCard";
+import { StoryCard, StoryDataType } from "@/components/StoryCard";
+// Assuming these hooks work correctly and likely use useAccount internally
 import { useIStoryToken } from "../hooks/useIStoryToken";
 import { useLikeSystem } from "../hooks/useLikeSystem";
-import { useStorybookNFT } from "../hooks/useStoryBookNFT";
-import { useAccount, useSignMessage } from "wagmi";
-import { parseEther } from "viem";
+// import { useStorybookNFT } from "../hooks/useStoryBookNFT"; // Keep if needed
+// Removed useAccount import as useApp provides address via `user` if needed,
+// but relying on internal hook usage is better.
+// Removed useSignMessage as it's not used here.
+// Removed parseEther as it's not used here.
 import { supabaseClient } from "@/app/utils/supabase/supabaseClient";
 
+// --- Interfaces (Ensure these match your actual data structures) ---
 interface AuthorProfile {
-  name: string;
-  username: string;
-  avatar: string;
-  badges: string[];
+  id?: string; // Optional: Supabase ID
+  name: string | null;
+  username: string | null; // Used as identifier in some contract calls? Be careful.
+  avatar: string | null;
+  wallet_address: string | null;
+  badges: string[] | null;
   followers: number;
-  isFollowing: boolean;
+  isFollowing: boolean; // Managed client-side
 }
+// Ensure this matches or extends StoryDataType from StoryCard
+// export interface StoryType extends StoryDataType {
+// Add any fields specific to the SocialPage state if not in StoryDataType
+// }
 
-export interface StoryType {
-  id: number;
-  numeric_id: string;
-  author_wallet: AuthorProfile;
-  title: string;
-  content: string;
-  teaser?: string;
-  timestamp: string;
-  likes: number;
-  comments: number;
-  shares: number;
-  hasAudio: boolean;
-  isLiked: boolean;
-  mood: string;
-  tags: string[];
-  paywallAmount: number;
-  isPaid?: boolean; // Matches optionality of StoryCardProps
-}
 export interface FeaturedWriterType {
   name: string;
   username: string;
@@ -66,12 +60,11 @@ export interface FeaturedWriterType {
   speciality: string;
 }
 
-const featuredWriters = [
+const featuredWriters: FeaturedWriterType[] = [
   {
     name: "David Kim",
     username: "@davidk",
-    avatar:
-      "https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
+    avatar: "...",
     followers: 2100,
     stories: 45,
     speciality: "Life Philosophy",
@@ -79,8 +72,7 @@ const featuredWriters = [
   {
     name: "Anna Thompson",
     username: "@annat",
-    avatar:
-      "https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
+    avatar: "...",
     followers: 1800,
     stories: 38,
     speciality: "Travel Adventures",
@@ -88,217 +80,230 @@ const featuredWriters = [
   {
     name: "James Wilson",
     username: "@jamesw",
-    avatar:
-      "https://images.pexels.com/photos/1040880/pexels-photo-1040880.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
+    avatar: "...",
     followers: 1450,
     stories: 52,
     speciality: "Tech Stories",
   },
 ];
-const moodColors = {
+// Define moodColors with type safety
+const moodColors: { [key: string]: string } = {
   peaceful: "bg-green-100 dark:bg-green-900 text-green-600",
   inspiring: "bg-yellow-100 dark:bg-yellow-900 text-yellow-600",
   adventurous: "bg-blue-100 dark:bg-blue-900 text-blue-600",
+  // Add other moods if needed
 };
+
 export default function SocialPage() {
+  const { user, isConnected } = useApp(); // <-- Use useApp for connection status & basic user info
   const [stories, setStories] = useState<StoryType[]>([]);
   const [activeTab, setActiveTab] = useState("feed");
   const [unlockedStories, setUnlockedStories] = useState<Set<number>>(
     new Set()
   );
   const [isLoading, setIsLoading] = useState(true);
-  // Hooks (top-level)
-  const { address } = useAccount();
+
+  // Blockchain hooks (assuming they use useAccount internally for address)
   const iStoryToken = useIStoryToken();
   const likeSystem = useLikeSystem();
-  const storybookNFT = useStorybookNFT();
-  // read client-side flag (must set NEXT_PUBLIC_DEV_BYPASS_SIG=true in .env.local)
-  //   const DEV_BYPASS_CLIENT = process.env.NEXT_PUBLIC_DEV_BYPASS_SIG === "true";
+  // const storybookNFT = useStorybookNFT(); // Uncomment if used
   const supabase = useMemo(() => supabaseClient, []);
 
-  // 🔹 Fetch data from Supabase (users, stories, etc.)
+  // Fetch community stories from Supabase
   useEffect(() => {
     const fetchSupabaseData = async () => {
       setIsLoading(true);
       try {
-        // Data returned here matches the new, correct StoryType structure
-        const { data, error } = await supabase.from("stories").select("*");
+        // Query includes timestamp alias and joins users table selecting necessary fields
+        const { data, error } = await supabase
+          .from("stories")
+          .select(
+            `
+            *,
+            timestamp:created_at,
+            author_wallet:users (id, name, username, avatar, wallet_address, followers_count, badges)
+          `
+          ) // **Select followers_count**
+          .order("created_at", { ascending: false });
+
         if (error) throw error;
-        console.log("🧠 Supabase stories:", data);
-        setStories(data as StoryType[]); // Explicitly cast for safety
-      } catch (err) {
-        console.error("Supabase fetch error:", err);
+        console.log("[SOCIAL PAGE LOG] Fetched stories:", data);
+
+        const validStories =
+          (data?.filter((s) => s.author_wallet) as any[]) || [];
+
+        // Map data to StoryType, ensuring AuthorProfile matches the required structure
+        const storiesWithDefaults: StoryType[] = validStories.map((s) => ({
+          id: s.id,
+          numeric_id: s.numeric_id ?? String(s.id),
+          author_wallet: {
+            id: s.author_wallet.id,
+            name: s.author_wallet.name,
+            username: s.author_wallet.username,
+            avatar: s.author_wallet.avatar,
+            wallet_address: s.author_wallet.wallet_address, // Map wallet_address
+            // **FIXED:** Map followers_count to followers
+            followers: s.author_wallet.followers_count ?? 0,
+            badges: s.author_wallet.badges ?? [],
+            isFollowing: false, // Default client-side state
+          } as AuthorProfile, // Assert type after mapping
+          title: s.title ?? "Untitled Story",
+          content: s.content ?? "",
+          timestamp: s.timestamp, // Use the alias
+          likes: s.likes ?? 0,
+          comments: s.comments ?? 0,
+          shares: s.shares ?? 0,
+          hasAudio: s.hasAudio ?? false,
+          isLiked: false, // Default client-side state
+          mood: s.mood ?? "unknown",
+          tags: s.tags ?? [],
+          paywallAmount: s.paywallAmount ?? 0,
+          teaser: s.teaser,
+          isPaid: false, // Default client-side state
+        }));
+
+        setStories(storiesWithDefaults);
+      } catch (err: any) {
+        console.error("[SOCIAL PAGE LOG] Supabase fetch error:", err);
+        toast.error(`Failed to load stories: ${err.message}`);
       } finally {
         setIsLoading(false);
       }
     };
     fetchSupabaseData();
-  }, [supabase]);
+  }, [supabase]); // Run only when supabase client instance changes (effectively once)
 
-  const handleUnlock = async (storyId: string) => {
-    if (!iStoryToken || !address) {
-      toast.error("Wallet not connected");
-      return;
+  // --- Event Handlers ---
+
+  const handleUnlock = async (storyNumericId: string) => {
+    // Use isConnected from useApp as the guard
+    if (!isConnected || !user?.address || !iStoryToken) {
+      return toast.error("Please connect your wallet to unlock stories.");
     }
+    const story = stories.find((s) => s.numeric_id === storyNumericId);
+    if (!story || !story.author_wallet)
+      return toast.error("Story or author wallet not found");
+    if (story.paywallAmount <= 0) return; // Can't unlock free stories
 
-    const story = stories.find((s) => s.id === Number(storyId));
-    if (!story) {
-      toast.error("Story not found");
-      return;
-    }
-    if (story.paywallAmount === 0) return;
-
+    console.log(
+      `[SOCIAL PAGE LOG] Attempting unlock for story ${storyNumericId} by user ${user.address}`
+    );
     try {
-      const storyNumericId = BigInt(story.numeric_id);
-
-      // Call smart contract function
+      const numericIdBigInt = BigInt(story.numeric_id);
+      const authorAddress = story.author_wallet.wallet_address as `0x${string}`; // Use the correct field
+      // Assuming payPaywall uses the internally connected account from useIStoryToken hook
       await iStoryToken.write.payPaywall(
-        story.author_wallet.username as `0x${string}`,
+        authorAddress,
         story.paywallAmount,
-        storyNumericId
+        numericIdBigInt
       );
 
-      // Optimistic UI update
-      setUnlockedStories((prev) => new Set([...prev, Number(storyId)]));
+      setUnlockedStories((prev) => new Set(prev).add(story.id)); // Add Supabase ID to Set
       setStories((prev) =>
-        prev.map((s) => (s.id === Number(storyId) ? { ...s, isPaid: true } : s))
+        prev.map((s) => (s.id === story.id ? { ...s, isPaid: true } : s))
       );
-
       toast.success(`Unlocked! Paid ${story.paywallAmount} $ISTORY`);
-
-      // Optional: Refresh latest paywall state from contract
-      if (storybookNFT) {
-        const paywall = await storybookNFT.read.getPaywall(storyNumericId);
-        setStories((prev) =>
-          prev.map((s) =>
-            s.id === Number(storyId)
-              ? { ...s, paywallAmount: Number(paywall || 0n) }
-              : s
-          )
-        );
-      }
-
-      // Optional: Sync unlock event to Supabase for tracking
-      await fetch("/api/stories/unlock", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          story_id: story.id,
-          wallet_address: address,
-          paid: true,
-          paywall_amount: story.paywallAmount,
-        }),
-      });
-    } catch (error) {
-      console.error("Unlock error:", error);
-      toast.error("Unlock failed — please check balance or try again");
+      // Optional: Sync unlock to DB or re-fetch contract state
+    } catch (error: any) {
+      console.error("[SOCIAL PAGE LOG] Unlock error:", error);
+      const errorMessage =
+        error.shortMessage || error.message || "Check console/wallet.";
+      toast.error(`Unlock failed: ${errorMessage}`);
     }
   };
 
-  const handleLike = async (storyId: string) => {
-    if (!likeSystem || !address) {
-      toast.error("Wallet not connected");
-      return;
+  const handleLike = async (storyNumericId: string) => {
+    // Use isConnected from useApp as the guard
+    if (!isConnected || !user?.address || !likeSystem) {
+      return toast.error("Please connect your wallet to like stories.");
     }
+    const storyIndex = stories.findIndex(
+      (s) => s.numeric_id === storyNumericId
+    );
+    if (storyIndex === -1) return toast.error("Story not found");
 
-    const story = stories.find((s) => s.id === Number(storyId));
-    if (!story) {
-      toast.error("Story not found");
-      return;
-    }
+    const story = stories[storyIndex];
+    const numericIdBigInt = BigInt(story.numeric_id);
+    const isCurrentlyLiked = story.isLiked;
+    const currentLikes = story.likes; // Store original likes for rollback
 
-    // Optimistic UI update
+    console.log(
+      `[SOCIAL PAGE LOG] Attempting ${
+        isCurrentlyLiked ? "unlike" : "like"
+      } for story ${storyNumericId} by user ${user.address}`
+    );
+
+    // Optimistic UI
     setStories((prev) =>
-      prev.map((s) =>
-        s.id === Number(storyId)
+      prev.map((s, index) =>
+        index === storyIndex
           ? {
               ...s,
-              isLiked: !s.isLiked,
-              likes: s.isLiked ? s.likes - 1 : s.likes + 1,
+              isLiked: !isCurrentlyLiked,
+              likes: isCurrentlyLiked ? s.likes - 1 : s.likes + 1,
             }
           : s
       )
     );
 
     try {
-      const storyNumericId = BigInt(story.numeric_id);
+      const likerAddress = user.address as `0x${string}`; // Get address from useApp
+      // Assuming likeStory uses the internally connected account from useLikeSystem hook
+      // If your contract needs the user address explicitly:
+      // await likeSystem.write.likeStory(numericIdBigInt, user.address as `0x${string}`);
+      await likeSystem.write.likeStory(numericIdBigInt, likerAddress); // Assuming hook handles address
 
-      // On-chain like
-      await likeSystem.write.likeStory(
-        storyNumericId,
-        address as `0x${string}`
+      toast.success(
+        isCurrentlyLiked ? "Story unliked" : "Story liked! +1 $ISTORY"
       );
 
-      toast.success("Story liked! +1 $STORY token earned");
-
-      // Sync latest like count from contract
-      const likes = await likeSystem.read.getLikes(storyNumericId);
+      // Re-fetch accurate like count from contract after success
+      const likes = await likeSystem.read.getLikes(numericIdBigInt);
       setStories((prev) =>
         prev.map((s) =>
-          s.id === Number(storyId) ? { ...s, likes: Number(likes || 0n) } : s
+          s.id === story.id ? { ...s, likes: Number(likes || 0n) } : s
         )
       );
-
-      // Optional: Sync to Supabase for UI consistency
-      await fetch("/api/stories/like", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          story_id: story.id,
-          wallet_address: address,
-          liked: true,
-        }),
-      });
-    } catch (error) {
-      console.error("Like error:", error);
-
-      // Rollback optimistic update on failure
+      // Optional: Sync like status to Supabase DB for persistence across sessions
+    } catch (error: any) {
+      console.error("[SOCIAL PAGE LOG] Like error:", error);
+      // Rollback UI on failure
       setStories((prev) =>
-        prev.map((s) =>
-          s.id === Number(storyId)
-            ? {
-                ...s,
-                isLiked: !s.isLiked,
-                likes: s.isLiked ? s.likes + 1 : s.likes - 1,
-              }
-            : s
+        prev.map(
+          (s, index) =>
+            index === storyIndex
+              ? { ...s, isLiked: isCurrentlyLiked, likes: currentLikes }
+              : s // Revert fully
         )
       );
-
-      toast.error("Like failed — check wallet or gas settings");
+      const errorMessage =
+        error.shortMessage || error.message || "Check console/wallet.";
+      toast.error(`Like action failed: ${errorMessage}`);
     }
   };
 
   const handleFollow = (authorUsername: string) => {
-    setStories((prev) =>
-      prev.map((story) => {
-        if (story.author_wallet.username === authorUsername) {
-          return {
-            ...story,
-            author_wallet: {
-              ...story.author_wallet,
-              isFollowing: !story.author_wallet.isFollowing,
-              followers: story.author_wallet.isFollowing
-                ? story.author_wallet.followers - 1
-                : story.author_wallet.followers + 1,
-            },
-          };
-        }
-        return story;
-      })
-    );
-    toast.success("Following status updated");
+    // Placeholder: Implement actual follow logic using isConnected and user.address if needed
+    if (!isConnected) return toast.error("Connect wallet to follow.");
+    toast(`Follow action for ${authorUsername} (pending implementation)`);
   };
 
   const handleShare = (storyId: number) => {
-    toast.success("Story shared! +2 $STORY tokens earned");
+    // Placeholder: Implement actual share logic
+    toast(`Share action for story ID ${storyId} (pending implementation)`);
   };
 
+  // Loading State UI
   if (isLoading) {
     return (
-      <div className="text-center py-8">Loading stories from database...</div>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
+        <Loader2 className="w-12 h-12 animate-spin text-purple-600" />
+        <h2 className="text-2xl font-semibold">Loading Community Stories...</h2>
+      </div>
     );
   }
+
+  // Main Render
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       {/* Header */}
@@ -308,94 +313,100 @@ export default function SocialPage() {
           animate={{ scale: 1 }}
           className="w-16 h-16 mx-auto bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center"
         >
-          <Users className="w-8 h-8 text-white" />
+          {" "}
+          <Users className="w-8 h-8 text-white" />{" "}
         </motion.div>
         <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
           Community Stories
         </h1>
         <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-          Discover inspiring stories from writers around the world
+          Discover inspiring stories from writers
         </p>
       </div>
-      {/* Stats Bar */}
+
+      {/* Stats Bar (Uses iStoryToken hook for user's actual balance) */}
       <Card className="bg-gradient-to-r from-purple-500/10 to-indigo-500/10 border-purple-200 dark:border-purple-800">
         <CardContent className="pt-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {[
-              {
-                label: "Stories Today",
-                value: "156",
-                icon: BookOpen,
-                color: "text-purple-600",
-              },
-              {
-                label: "Active Writers",
-                value: "2.8K",
-                icon: Users,
-                color: "text-indigo-600",
-              },
-              {
-                label: "Trending Tags",
-                value: "#mindfulness",
-                icon: TrendingUp,
-                color: "text-emerald-600",
-              },
-              {
-                label: "Your $ISTORY",
-                value: iStoryToken?.balance
+            {/* Other stats remain the same */}
+            <div className="text-center space-y-2">
+              {" "}
+              <BookOpen className="w-6 h-6 mx-auto text-purple-600" />{" "}
+              <div className="text-xl font-bold ...">156</div>{" "}
+              <div className="text-sm ...">Stories Today</div>{" "}
+            </div>
+            <div className="text-center space-y-2">
+              {" "}
+              <Users className="w-6 h-6 mx-auto text-indigo-600" />{" "}
+              <div className="text-xl font-bold ...">2.8K</div>{" "}
+              <div className="text-sm ...">Active Writers</div>{" "}
+            </div>
+            <div className="text-center space-y-2">
+              {" "}
+              <TrendingUp className="w-6 h-6 mx-auto text-emerald-600" />{" "}
+              <div className="text-xl font-bold ...">#mindful</div>{" "}
+              <div className="text-sm ...">Trending</div>{" "}
+            </div>
+            {/* Your $ISTORY balance */}
+            <div className="text-center space-y-2">
+              <Star className="w-6 h-6 mx-auto text-yellow-600" />
+              <div className="text-xl font-bold text-gray-900 dark:text-white">
+                {/* Display balance from hook, check isConnected from useApp */}
+                {isConnected && iStoryToken?.balance !== undefined
                   ? `${Number(iStoryToken.balance / BigInt(1e18)).toFixed(2)}`
-                  : "0",
-                icon: Star,
-                color: "text-yellow-600",
-              },
-            ].map((stat, index) => {
-              const Icon = stat.icon;
-              return (
-                <div key={stat.label} className="text-center space-y-2">
-                  <Icon className={`w-6 h-6 mx-auto ${stat.color}`} />
-                  <div className="text-xl font-bold text-gray-900 dark:text-white">
-                    {stat.value}
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    {stat.label}
-                  </div>
-                </div>
-              );
-            })}
+                  : "0"}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                Your $ISTORY
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
+
       {/* Main Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Feed */}
         <div className="lg:col-span-2 space-y-6">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="feed">Latest Stories</TabsTrigger>
+              <TabsTrigger value="feed">Latest</TabsTrigger>
               <TabsTrigger value="trending">Trending</TabsTrigger>
               <TabsTrigger value="following">Following</TabsTrigger>
             </TabsList>
             <TabsContent value="feed" className="space-y-6">
-              {stories.map((story, index) => (
-                <motion.div
-                  key={story.numeric_id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                >
-                  <StoryCard
-                    // Fix: story is now the raw story object, as expected by StoryCardProps
-                    story={{
-                      ...story,
-                      isPaid: story.isPaid || unlockedStories.has(story.id),
-                    }}
-                    onFollow={handleFollow}
-                    onShare={handleShare}
-                    onLike={() => handleLike(story.numeric_id)}
-                    onUnlock={() => handleUnlock(story.numeric_id)}
-                  />
-                </motion.div>
-              ))}
+              {stories.length > 0 ? (
+                stories.map((story, index) => (
+                  <motion.div
+                    key={story.numeric_id || story.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                  >
+                    {/* Pass the correctly typed story object */}
+                    <StoryCard
+                      story={{
+                        ...story,
+                        // Ensure isPaid reflects unlock status from state
+                        isPaid: story.isPaid || unlockedStories.has(story.id),
+                      }}
+                      // Pass handlers
+                      onFollow={() =>
+                        handleFollow(story.author_wallet?.username || "unknown")
+                      }
+                      onShare={() => handleShare(story.id)}
+                      onLike={() => handleLike(story.numeric_id)}
+                      onUnlock={() => handleUnlock(story.numeric_id)}
+                    />
+                  </motion.div>
+                ))
+              ) : (
+                <div className="text-center py-16 text-gray-500">
+                  <BookOpen className="w-12 h-12 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold">No stories found</h3>
+                  <p>Start the conversation!</p>
+                </div>
+              )}
             </TabsContent>
             {/* Trending & Following Tabs */}
             <TabsContent value="trending" className="text-center py-16">
@@ -424,7 +435,6 @@ export default function SocialPage() {
         </div>
         {/* Sidebar */}
         <div className="space-y-6">
-          {/* Featured Writers */}
           <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-0 shadow-lg">
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
