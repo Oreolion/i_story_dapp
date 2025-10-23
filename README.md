@@ -160,6 +160,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 *Preserve your truth. Mint your legacy. Speak Your Story.*
 
+TODO: USER SHOULD BE ABLE TO CREATE SPECIFIC PAST INTERESTING LIFE STORIES WITH DATE
 
 ### Target Customer for Speak Your Story (iStory)
 
