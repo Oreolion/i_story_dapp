@@ -1,5 +1,4 @@
 "use client";
-
 import {
   createContext,
   useContext,
@@ -7,10 +6,9 @@ import {
   useState,
   ReactNode,
 } from "react";
-import { useAccount, useBalance, useSignMessage } from "wagmi";  // Add useSignMessage
+import { useAccount, useBalance } from "wagmi";  // Removed useSignMessage (no longer needed)
 import { supabaseClient } from "@/app/utils/supabase/supabaseClient";
 import type { User, Session } from "@supabase/supabase-js";
-
 // A unified profile that includes both database and live wallet data
 export interface UnifiedUserProfile {
   // From Supabase `users` table
@@ -25,18 +23,14 @@ export interface UnifiedUserProfile {
   // Supabase Auth object
   supabaseUser: User | null;
 }
-
 const AuthContext = createContext<UnifiedUserProfile | null>(null);
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const supabase = supabaseClient;
   const [profile, setProfile] = useState<UnifiedUserProfile | null>(null);
-
+  const [isSigningIn, setIsSigningIn] = useState(false);
   // Get live wallet data from Wagmi
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, chainId } = useAccount();  // Added chainId to deps for connector readiness
   const { data: ethBalance } = useBalance({ address });
-  const { signMessageAsync } = useSignMessage();  // For signing
-
   // Fetch initial session on mount
   useEffect(() => {
     const fetchInitialSession = async () => {
@@ -50,10 +44,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       await handleSession(session);
     };
-
     fetchInitialSession();
   }, [supabase]); // Run once on mount
-
   // Listen for auth changes
   useEffect(() => {
     const {
@@ -61,54 +53,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
       await handleSession(session);
     });
-
     return () => {
       subscription.unsubscribe();
     };
   }, [isConnected, address, ethBalance, supabase]);
-
-  // Sync wallet on address/connect change (centralized here)
+  // Sync wallet on connect/address change (now uses built-in Supabase Web3 auth)
   useEffect(() => {
     const syncUser = async () => {
-      if (!isConnected || !address) return;
-      const message = "Welcome to StoryChain";
-
-      let signature;
-      try {
-        signature = await signMessageAsync({ message });
-        console.log("Generated signature:", signature.substring(0, 10) + "...");
-      } catch (err) {
-        console.error("Signature generation failed:", err);
+      // Check if session already exists before signing
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        console.log("Session already exists, skipping sign-in.");
         return;
       }
-
+      if (!isConnected || !address || chainId === undefined) {
+        console.log("Wallet not fully connected or chainId not ready, skipping.");
+        return;
+      }
+      setIsSigningIn(true);
       try {
-        const res = await fetch("/api/auth", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ address, message, signature }),
+        const { data, error } = await supabase.auth.signInWithWeb3({
+          chain: 'ethereum',
+          statement: 'Welcome to IStory - AI-Powered Blockchain Journaling DApp. Sign this message to authenticate.',
         });
-
-        if (!res.ok) {
-          const errorText = await res.text();
-          console.error("Sign-in failed:", errorText);
-          return;
-        }
-
-        const data = await res.json();
-        if (data.success) {
-          console.log("Wallet signed in and user linked/created:", data.user);
-          // Refresh session to update profile
-          await supabase.auth.refreshSession();
-        }
+        if (error) throw error;
+        console.log("Web3 sign-in successful:", data);
+        // Session is automatically set and persisted by Supabase
       } catch (err) {
-        console.error("Error during wallet sign-in:", err);
+        console.error("Web3 sign-in failed:", err);
+      } finally {
+        setIsSigningIn(false);
       }
     };
-
     syncUser();
-  }, [isConnected, address, signMessageAsync, supabase]);  // Trigger on connect/address change
-
+  }, [isConnected, address, chainId, supabase]);  // Added chainId to deps (re-runs when connector fully ready)
   // Shared handler for session (initial or change)
   const handleSession = async (session: Session | null) => {
     // Force re-fetch after 1s to ensure DB sync
@@ -137,10 +115,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .from("users")
         .select("*")
         .eq("id", session.user.id)
-        .single();
-
+        .maybeSingle();
       console.log("Fetched User Profile:", userProfile);
-
       if (error || !userProfile) {
         console.warn(
           "No user profile found or fetch error; creating one:",
@@ -163,8 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .from("users")
           .insert(insertData)
           .select("*")
-          .single();
-
+          .maybeSingle();
         if (insertError) {
           console.error(
             "Error creating user profile:",
@@ -187,7 +162,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         userProfile = newProfile;
       }
-
       // Set combined profile
       setProfile({
         ...userProfile,
@@ -204,10 +178,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         supabaseUser: session.user,
       });
     } else {
-      setProfile(null);
+      if (isSigningIn) {
+        console.log("Sign-in in progress; skipping fallback fetch.");
+        return;
+      }
+      // No session: Fall back to direct DB fetch by wallet_address if connected
+      if (isConnected && address) {
+        const { data: userProfile, error } = await supabase
+          .from("users")
+          .select("*")
+          .eq("wallet_address", address.toLowerCase())
+          .maybeSingle();
+        if (error) {
+          console.error("Error fetching profile by wallet_address:", error.message);
+          setProfile(null);
+          return;
+        }
+        if (userProfile) {
+          console.log("Fetched User Profile by wallet_address:", userProfile);
+          setProfile({
+            ...userProfile,
+            isConnected,
+            balance: ethBalance?.formatted ?? "0",
+            wallet_address: address.toLowerCase(),
+            supabaseUser: null, // No session
+          });
+        } else {
+          console.warn("No profile found by wallet_address; sign-in required to create.");
+          setProfile(null);
+        }
+      } else {
+        setProfile(null);
+      }
     }
   };
-
   // Auto-link wallet if missing
   useEffect(() => {
     if (profile && isConnected && address && !profile.wallet_address) {
@@ -226,12 +230,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
     }
   }, [profile, isConnected, address, supabase]);
-
   return (
     <AuthContext.Provider value={profile}>{children}</AuthContext.Provider>
   );
 }
-
 export const useAuth = () => {
   return useContext(AuthContext);
 };

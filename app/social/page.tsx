@@ -96,7 +96,7 @@ const moodColors: { [key: string]: string } = {
 
 export default function SocialPage() {
   const { user, isConnected } = useApp(); // <-- Use useApp for connection status & basic user info
-  const [stories, setStories] = useState<StoryType[]>([]);
+  const [stories, setStories] = useState<StoryDataType[]>([]);
   const [activeTab, setActiveTab] = useState("feed");
   const [unlockedStories, setUnlockedStories] = useState<Set<number>>(
     new Set()
@@ -133,7 +133,7 @@ export default function SocialPage() {
           (data?.filter((s) => s.author_wallet) as any[]) || [];
 
         // Map data to StoryType, ensuring AuthorProfile matches the required structure
-        const storiesWithDefaults: StoryType[] = validStories.map((s) => ({
+        const storiesWithDefaults: StoryDataType[] = validStories.map((s) => ({
           id: s.id,
           numeric_id: s.numeric_id ?? String(s.id),
           author_wallet: {

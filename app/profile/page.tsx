@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useApp } from "@/components/Provider";
-import { supabaseClient } from "@/app/utils/supabase/supabaseClient"; 
+import { supabaseClient } from "@/app/utils/supabase/supabaseClient";
 import {
   Card,
   CardContent,
@@ -145,8 +145,9 @@ export default function ProfilePage() {
   });
   const [isSaving, setIsSaving] = useState(false);
   const [loading, setLoading] = useState(true); // Loading state for Supabase fetch
-  const [isSignedIn, setIsSignedIn] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
+  
+  // FIX: Add state to control the active tab
+  const [currentTab, setCurrentTab] = useState("overview");
 
   // Mocks for UI elements not yet connected to DB
   const [achievements, setAchievements] = useState(fallbackAchievements);
@@ -156,30 +157,32 @@ export default function ProfilePage() {
   // Helper: create supabase client once (client-side)
   const supabase = supabaseClient;
 
-  // Fetch Supabase profile data when wallet is connected
-// Fetch Supabase profile data when wallet is connected
+  // FIX: REMOVED the duplicate useEffect. This is the single, correct one.
   useEffect(() => {
     let isMounted = true;
     if (isConnected && user?.address) {
       console.log("[PROFILE PAGE LOG] Fetching profile for:", user.address);
-      setLoading(true); setProfileData(null); // Clear previous
-
+      setLoading(true);
+      setProfileData(null); // Clear previous
       const fetchDbProfile = async () => {
         try {
-          const { data, error } = await supabaseClient
+          const { data, error } = await supabase
             .from("users")
-            .select("id, name, username, bio, location, website, avatar, story_tokens, badges, created_at")
+            .select(
+              "id, name, username, bio, location, website, avatar, story_tokens, badges, created_at"
+            )
             .eq("wallet_address", user.address.toLowerCase())
             .maybeSingle(); // Use maybeSingle
-
           if (!isMounted) return;
           if (error) throw error; // Let outer catch handle DB errors
-
           if (data) {
             console.log("[PROFILE PAGE LOG] Profile fetched:", data);
             setProfileData(data as UserProfileData);
           } else {
-            console.warn("[PROFILE PAGE LOG] No profile found for address:", user.address);
+            console.warn(
+              "[PROFILE PAGE LOG] No profile found for address:",
+              user.address
+            );
             setProfileData(null); // Explicitly null if not found
           }
         } catch (err: any) {
@@ -187,122 +190,19 @@ export default function ProfilePage() {
           console.error("[PROFILE PAGE LOG] Error fetching profile:", err);
           toast.error(`Failed to load profile: ${err.message}`);
           setProfileData(null);
-        } finally { if (isMounted) setLoading(false); }
+        } finally {
+          if (isMounted) setLoading(false);
+        }
       };
       fetchDbProfile();
     } else {
-      setProfileData(null); setLoading(false); // Clear if disconnected
+      setProfileData(null);
+      setLoading(false); // Clear if disconnected
     }
-    return () => { isMounted = false; };
-  }, [isConnected, user?.address]);
-
-//   useEffect(() => {
-//     let mounted = true;
-//     const fetchProfile = async () => {
-//       setLoading(true);
-//       try {
-//         // Get session (client-side)
-//         const { data: sessionData, error: sessionErr } =
-//           await supabase.auth.getSession();
-//         if (sessionErr) {
-//           console.warn("Supabase getSession error:", sessionErr);
-//         }
-//         const session = sessionData?.session ?? null;
-//         setIsSignedIn(!!session);
-
-//         // If wallet address is available via your app provider, fetch user data
-//         if (user?.address) {
-//           // Normalize address to lowercase (consistency)
-//           const wallet = (user.address as string).toLowerCase();
-
-//           // Users table
-//           const { data: userData, error: userErr } = await supabase
-//             .from("users")
-//             .select("*")
-//             .eq("wallet_address", wallet)
-//             .maybeSingle();
-
-//           if (userErr) {
-//             console.warn("Profile fetch user error:", userErr);
-//           }
-
-//           if (userData) {
-            // Merge DB fields with fallback
-//             setProfile({
-//               ...fallbackProfile,
-//               name: userData.name || fallbackProfile.name,
-//               bio: userData.bio || fallbackProfile.bio,
-//               location: userData.location || fallbackProfile.location,
-//               website: userData.website || fallbackProfile.website,
-//               joinDate: userData.created_at
-//                 ? new Date(userData.created_at).toLocaleDateString("en-US", {
-//                     month: "long",
-//                     year: "numeric",
-//                   })
-//                 : fallbackProfile.joinDate,
-//               avatar: userData.avatar_url || fallbackProfile.avatar,
-//             });
-//           } else {
-             // No DB record yet — keep fallback
-//             setProfile(fallbackProfile);
-//           }
-
-         // Achievements (if table exists)
-//           try {
-//             const { data: achData, error: achErr } = await supabase
-//               .from("user_achievements")
-//               .select("*")
-//               .eq("wallet_address", wallet)
-//               .order("date", { ascending: false });
-
-//             if (!achErr && achData && achData.length > 0) {
-//               setAchievements(achData);
-//             } else {
-//               setAchievements(fallbackAchievements);
-//             }
-//           } catch (err) {
-//             console.warn("Achievements fetch failed:", err);
-//             setAchievements(fallbackAchievements);
-//           }
-
-         // Activity
-//           try {
-//             const { data: actData, error: actErr } = await supabase
-//               .from("user_activity")
-//               .select("*")
-//               .eq("wallet_address", wallet)
-//               .order("date", { ascending: false })
-//               .limit(6);
-
-//             if (actErr) throw actErr; // Will catch 404 as error
-//             setActivityData(
-//               actData?.length > 0 ? actData : fallbackActivityData
-//             );
-//           } catch (err) {
-//             console.warn("Activity fetch failed:", err);
-//             setActivityData(fallbackActivityData);
-//           }
-//         } else {
-           // No connected wallet -> use fallback
-//           setProfile(fallbackProfile);
-//           setAchievements(fallbackAchievements);
-//           setActivityData(fallbackActivityData);
-//         }
-//       } catch (err) {
-//         console.error("Profile fetch error:", err);
-//         setProfile(fallbackProfile);
-//         setAchievements(fallbackAchievements);
-//         setActivityData(fallbackActivityData);
-//       } finally {
-//         if (mounted) setLoading(false);
-//       }
-//     };
-
-//     fetchProfile();
-//     return () => {
-//       mounted = false;
-//     };
-//   }, [user?.address, supabase]); // re-run when wallet address changes
+    return () => {
+      isMounted = false;
+    };
+  }, [isConnected, user?.address, supabase]);
 
   // Sync form data when fetched profileData changes
   useEffect(() => {
@@ -332,7 +232,6 @@ export default function ProfilePage() {
     }
   }, [profileData]);
 
-
   // Save profile updates (client-side)
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -360,11 +259,9 @@ export default function ProfilePage() {
         throw error;
       }
       toast.success("Profile updated!");
-      // Optionally re-fetch profile data after save to update display immediately
-      // Or rely on next page load/re-render
-      // Example re-fetch:
-      // const { data: updatedData } = await supabaseClient.from("users").select(...).eq("id", profileData.id).single();
-      // if (updatedData) setProfileData(updatedData as UserProfileData);
+      // Re-set profileData state to reflect the saved changes
+      setProfileData((prev) => (prev ? { ...prev, ...updates } : null));
+      setCurrentTab("overview"); // Switch back to overview tab
     } catch (err: any) {
       console.error("Save profile error:", err);
       toast.error(`Save failed: ${err.message}`);
@@ -444,100 +341,36 @@ export default function ProfilePage() {
             <CardContent className="space-y-6">
               {/* Avatar + Basic Info */}
               <div className="flex flex-col items-center space-y-3">
-                {isEditing ? (
-                  <div className="w-full space-y-3 text-left">
-                    <div>
-                      <Label className="text-sm text-gray-600 dark:text-gray-300">
-                        Name
-                      </Label>
-                      <Input
-                        value={profileData?.name || ""}
-                        onChange={(e) =>
-                          setProfileData(data as UserProfileData)
-                        }
-                        placeholder="Enter your name"
-                      />
-                    </div>
-
-                    <div>
-                      <Label className="text-sm text-gray-600 dark:text-gray-300">
-                        Bio
-                      </Label>
-                      <Textarea
-                        value={profileData?.bio || ""}
-                        onChange={(e) =>
-                          setProfileData({ ...profileData, bio: e.target.value })
-                        }
-                        placeholder="Tell your story..."
-                      />
-                    </div>
-
-                    <div>
-                      <Label className="text-sm text-gray-600 dark:text-gray-300">
-                        Location
-                      </Label>
-                      <Input
-                        value={profileData?.location || ""}
-                        onChange={(e) =>
-                          setProfileData({ ...profileData, location: e.target.value })
-                        }
-                        placeholder="City, Country"
-                      />
-                    </div>
-
-                    <div>
-                      <Label className="text-sm text-gray-600 dark:text-gray-300">
-                        Website
-                      </Label>
-                      <Input
-                        value={profileData?.website || ""}
-                        onChange={(e) =>
-                          setProfileData({ ...profileData, website: e.target.value })
-                        }
-                        placeholder="https://yourwebsite.com"
-                      />
-                    </div>
-
-                    <div>
-                      <Label className="text-sm text-gray-600 dark:text-gray-300">
-                        Avatar URL
-                      </Label>
-                      <Input
-                        value={profileData?.avatar || ""}
-                        onChange={(e) =>
-                          setProfileData({ ...profileData, avatar: e.target.value })
-                        }
-                        placeholder="https://..."
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                      {profileData?.name || "Unnamed User"}
-                    </h2>
-                    {profileData?.bio && (
-                      <p className="text-sm text-muted-foreground text-center max-w-xs">
-                        {profileData?.bio}
-                      </p>
-                    )}
-                    {profileData?.location && (
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        📍 {profileData?.location}
-                      </p>
-                    )}
-                    {profileData?.website && (
-                      <a
-                        href={profileData?.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-blue-500 hover:underline"
-                      >
-                        🌐 {profileData?.website.replace(/^https?:\/\//, "")}
-                      </a>
-                    )}
-                  </>
-                )}
+                {/* FIX: Removed the 'isEditing' logic block here. This card now only displays data. */}
+                <>
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                    {profileData?.name || "Unnamed User"}
+                  </h2>
+                  {profileData?.bio && (
+                    <p className="text-sm text-muted-foreground text-center max-w-xs">
+                      {profileData?.bio}
+                    </p>
+                  )}
+                  {profileData?.location && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      📍 {profileData?.location}
+                    </p>
+                  )}
+                  {profileData?.website && (
+                    <a
+                      href={
+                        profileData?.website?.startsWith("http")
+                          ? profileData.website
+                          : `https://${profileData.website}`
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-500 hover:underline"
+                    >
+                      🌐 {profileData?.website.replace(/^https?:\/\//, "")}
+                    </a>
+                  )}
+                </>
               </div>
 
               {/* Wallet + Token Info */}
@@ -571,30 +404,25 @@ export default function ProfilePage() {
                     Member Since
                   </span>
                   <span className="text-sm text-gray-900 dark:text-white">
-                    {profileData?.created_at ? new Date(profileData.created_at).toLocaleDateString("en-US", { month: "long", year: "numeric" }) : "N/A"}
+                    {profileData?.created_at
+                      ? new Date(profileData.created_at).toLocaleDateString(
+                          "en-US",
+                          { month: "long", year: "numeric" }
+                        )
+                      : "N/A"}
                   </span>
                 </div>
               </div>
 
-
+              {/* FIX: Button now switches to the "settings" tab */}
               <Button
-                onClick={() => setIsEditing(!isEditing)}
+                onClick={() => setCurrentTab("settings")}
                 className="w-full bg-gradient-to-r from-purple-600 to-indigo-600"
               >
                 <Edit3 className="w-4 h-4 mr-2" />
-                {isEditing ? "Cancel" : "Edit Profile"}
+                Edit Profile
               </Button>
-
-              {isEditing && (
-                <Button
-                  onClick={handleSaveProfile}
-                  variant="secondary"
-                  className="w-full"
-                >
-                  <Save className="w-4 h-4 mr-2" />
-                  Save
-                </Button>
-              )}
+              {/* FIX: Removed the conditional "Save" button */}
             </CardContent>
           </Card>
 
@@ -651,7 +479,12 @@ export default function ProfilePage() {
 
         {/* Main Content Tabs */}
         <div className="lg:col-span-2">
-          <Tabs defaultValue="overview" className="space-y-6">
+          {/* FIX: Controlled Tabs component */}
+          <Tabs
+            value={currentTab}
+            onValueChange={setCurrentTab}
+            className="space-y-6"
+          >
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="achievements">Achievements</TabsTrigger>
@@ -871,7 +704,7 @@ export default function ProfilePage() {
               </Card>
             </TabsContent>
 
-            {/* Settings Tab (Functional Form using formData state) */}
+            {/* FIX: Settings Tab with corrected form logic */}
             <TabsContent value="settings" className="space-y-6">
               <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-0 shadow-lg">
                 <CardHeader>
@@ -880,51 +713,75 @@ export default function ProfilePage() {
                     <span>Profile Settings</span>
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Display Name</Label>
-                    <Input
-                      id="name"
-                      value={profileData?.name}
-                      disabled={!isEditing}
-                      onChange={(e) =>
-                        setProfileData({ ...profileData, name: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="bio">Bio</Label>
-                    <Input
-                      id="bio"
-                      value={profileData?.bio}
-                      disabled={!isEditing}
-                      onChange={(e) =>
-                        setProfileData({ ...profileData, bio: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="location">Location</Label>
-                    <Input
-                      id="location"
-                      value={profileData?.location}
-                      disabled={!isEditing}
-                      onChange={(e) =>
-                        setProfileData({ ...profileData, location: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="website">Website</Label>
-                    <Input
-                      id="website"
-                      value={profileData?.website}
-                      disabled={!isEditing}
-                      onChange={(e) =>
-                        setProfileData({ ...profileData, website: e.target.value })
-                      }
-                    />
-                  </div>
+                <CardContent>
+                  <form onSubmit={handleSaveProfile} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Display Name</Label>
+                      <Input
+                        id="name"
+                        value={formData.name}
+                        onChange={handleInputChange}
+                        placeholder="Your display name"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="username">Username</Label>
+                      <Input
+                        id="username"
+                        value={formData.username}
+                        onChange={handleInputChange}
+                        placeholder="@yourusername"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="bio">Bio</Label>
+                      <Textarea
+                        id="bio"
+                        value={formData.bio}
+                        onChange={handleInputChange}
+                        placeholder="Tell us about yourself..."
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="location">Location</Label>
+                      <Input
+                        id="location"
+                        value={formData.location}
+                        onChange={handleInputChange}
+                        placeholder="City, Country"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="website">Website</Label>
+                      <Input
+                        id="website"
+                        value={formData.website}
+                        onChange={handleInputChange}
+                        placeholder="https://your-site.com"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="avatar">Avatar URL</Label>
+                      <Input
+                        id="avatar"
+                        value={formData.avatar}
+                        onChange={handleInputChange}
+                        placeholder="https://image-url.com/avatar.png"
+                      />
+                    </div>
+                    <Button
+                      type="submit"
+                      disabled={isSaving}
+                      className="w-full bg-gradient-to-r from-purple-600 to-indigo-600"
+                    >
+                      {isSaving ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Save className="w-4 h-4 mr-2" />
+                      )}
+                      Save Changes
+                    </Button>
+                  </form>
                 </CardContent>
               </Card>
               <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-0 shadow-lg">

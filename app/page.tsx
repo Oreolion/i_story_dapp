@@ -67,6 +67,7 @@ const stats = [
 
 export default function HomePage() {
   const { user, isConnected, connectWallet } = useApp();
+  
 
   return (
     <div className="space-y-16">

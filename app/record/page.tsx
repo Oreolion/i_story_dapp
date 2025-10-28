@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 export default function RecordPage() {
   const { user, isConnected } = useApp(); // Use useApp for connection status and basic UI data
   const authInfo = useAuth(); // Use useAuth to get the real Supabase user ID for database operations
+  console.log(authInfo)
 
   const [isRecording, setIsRecording] = useState(false);
   const [transcribedText, setTranscribedText] = useState("");
