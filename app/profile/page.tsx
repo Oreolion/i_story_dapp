@@ -35,12 +35,12 @@ import {
   Zap,
   Shield,
   Loader2,
-  Gift,
+//   Gift,
   Edit3,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { Textarea } from "@/components/ui/textarea";
-import { useSignMessage } from "wagmi";
+// import { useSignMessage } from "wagmi";
 
 // Interface for the profile data fetched from Supabase
 interface UserProfileData {
@@ -121,15 +121,15 @@ const fallbackActivityData = [
   { date: "2025-01-15", entries: 1, likes: 8, views: 45 },
 ];
 
-const fallbackProfile = {
-  name: "Alex Johnson",
-  bio: "Digital storyteller sharing life's moments on the blockchain. Passionate about mindfulness, travel, and human connections.",
-  location: "San Francisco, CA",
-  website: "alexjohnson.eth",
-  joinDate: "January 2025",
-  avatar:
-    "https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
-};
+// const fallbackProfile = {
+//   name: "Alex Johnson",
+//   bio: "Digital storyteller sharing life's moments on the blockchain. Passionate about mindfulness, travel, and human connections.",
+//   location: "San Francisco, CA",
+//   website: "alexjohnson.eth",
+//   joinDate: "January 2025",
+//   avatar:
+//     "https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
+// };
 
 export default function ProfilePage() {
   const { user, isConnected } = useApp(); // <-- Use useApp for connection status and basic user data
@@ -150,9 +150,9 @@ export default function ProfilePage() {
   const [currentTab, setCurrentTab] = useState("overview");
 
   // Mocks for UI elements not yet connected to DB
-  const [achievements, setAchievements] = useState(fallbackAchievements);
-  const [activityData, setActivityData] = useState(fallbackActivityData);
-  const { signMessageAsync } = useSignMessage();
+  const [achievements] = useState(fallbackAchievements);
+  const [activityData] = useState(fallbackActivityData);
+//   const { signMessageAsync } = useSignMessage();
 
   // Helper: create supabase client once (client-side)
   const supabase = supabaseClient;
@@ -548,7 +548,7 @@ export default function ProfilePage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {activityData.slice(0, 5).map((day, index) => (
+                    {activityData.slice(0, 5).map((day) => (
                       <div
                         key={day.date}
                         className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
@@ -660,7 +660,7 @@ export default function ProfilePage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {activityData.map((day, index) => (
+                    {activityData.map((day) => (
                       <div
                         key={day.date}
                         className="border-l-4 border-purple-200 dark:border-purple-800 pl-4 py-2"

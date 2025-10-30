@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { useApp } from "@/components/Provider"; // <-- USE useApp
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,19 +8,17 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Heart,
-  MessageCircle,
-  Share2,
+
   TrendingUp,
   Users,
   Star,
-  Clock,
-  Award,
-  Volume2,
-  Eye,
+//   Clock,
+//   Award,
+//   Volume2,
+//   Eye,
   BookOpen,
   Zap,
-  UserPlus,
+//   UserPlus,
   Loader2, // Added Loader2
 } from "lucide-react";
 import { toast } from "react-hot-toast";

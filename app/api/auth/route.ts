@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/app/utils/supabase/supabaseAdmin";
-import { verifyMessage, type Address, isHex, User } from "viem";
+import { verifyMessage, type Address, isHex } from "viem";
 import { SupabaseClient } from "@supabase/supabase-js";
 
 /**

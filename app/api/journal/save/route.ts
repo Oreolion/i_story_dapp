@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
-    const { title, content, mood, tags, hasAudio, audioBlob } = await request.json();
+    const { title, content, mood, tags, hasAudio } = await request.json();
     
     // Validate input
     if (!content || content.trim().length === 0) {
