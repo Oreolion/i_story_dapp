@@ -330,7 +330,7 @@ export default function ProfilePage() {
             <CardHeader className="text-center">
               <Avatar className="h-24 w-24 mx-auto">
                 <AvatarImage
-                  src={profileData?.avatar || "/default_avatar.png"}
+                  src={profileData?.avatar || "/public/default_avatar.png"}
                   alt={profileData?.name || "User"}
                 />
                 <AvatarFallback>

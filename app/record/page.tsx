@@ -1,5 +1,4 @@
 "use client";
-
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "@/components/Provider"; // For connection status
@@ -18,7 +17,6 @@ export default function RecordPage() {
   const { user, isConnected } = useApp(); // Use useApp for connection status and basic UI data
   const authInfo = useAuth(); // Use useAuth to get the real Supabase user ID for database operations
   console.log(authInfo)
-
   const [isRecording, setIsRecording] = useState(false);
   const [transcribedText, setTranscribedText] = useState("");
   const [entryTitle, setEntryTitle] = useState("");
@@ -82,7 +80,7 @@ export default function RecordPage() {
     }, 1500);
   };
 
-  // *** UPDATED saveEntry FUNCTION ***
+  // *** FIXED saveEntry FUNCTION ***
   const saveEntry = async () => {
     // Guard clauses
     if (!isConnected || !authInfo) {
@@ -91,65 +89,58 @@ export default function RecordPage() {
     if (!transcribedText.trim() || !entryTitle.trim()) {
       return toast.error("Please provide a title and content for your story.");
     }
-
     setIsProcessing(true);
-
     const savingPromise = new Promise(async (resolve, reject) => {
       let audioUrl = null;
       const userId = authInfo.id; // Get the real user ID (UUID) from AuthProvider
-
       // Step 1: Upload audio if it exists
       if (audioBlob) {
         console.log("Uploading audio blob...");
         const fileName = `${userId}/${new Date().toISOString()}.webm`;
         const { data: uploadData, error: uploadError } = await supabaseClient.storage
-          .from('story-audio') // Ensure you have a bucket named 'story-audio'
-          .upload(fileName, audioBlob);
-
+          .from('story-audio') // Bucket name
+          .upload(fileName, audioBlob, { contentType: "audio/webm" });
         if (uploadError) {
           console.error("Audio upload error:", uploadError);
-          return reject(`Audio upload failed: ${uploadError.message}`);
+          toast.error("Failed to upload audio. Saving text only.");
+          // Continue with text-only save
+        } else {
+          // Get the public URL of the uploaded file
+          const { data: urlData } = supabaseClient.storage
+            .from('story-audio')
+            .getPublicUrl(uploadData.path);
+          audioUrl = urlData.publicUrl;
+          console.log("Audio uploaded successfully:", audioUrl);
         }
-
-        // Get the public URL of the uploaded file
-        const { data: urlData } = supabaseClient.storage
-          .from('story-audio')
-          .getPublicUrl(uploadData.path);
-        audioUrl = urlData.publicUrl;
-        console.log("Audio uploaded successfully:", audioUrl);
+      } else {
+        console.log("No audio; saving text-only entry.");
       }
-
       // Step 2: Prepare the story data for the database
       const storyData = {
         author_id: userId, // Foreign key to the 'users' table
         title: entryTitle,
         content: transcribedText,
-        hasAudio: !!audioBlob,
-        audio_url: audioUrl,
+        has_audio: !!audioBlob,
+        audio_url: audioUrl, // Null if no audio or upload failed
         // You can add default values for other columns here if needed
         likes: 0,
-        comments: 0,
+        comments_count: 0,
         shares: 0,
         tags: [], // Default empty array
         mood: 'neutral' // Default mood
       };
-
       console.log("Inserting story data into database:", storyData);
-
       // Step 3: Insert the story data into the 'stories' table
       const { error: insertError } = await supabaseClient
         .from('stories')
         .insert([storyData]);
-
       if (insertError) {
         console.error("Database insert error:", insertError);
         return reject(`Database save failed: ${insertError.message}`);
       }
-
       console.log("Story saved successfully to database.");
       resolve("Story saved successfully!");
     });
-
     toast.promise(savingPromise, {
       loading: 'Saving your story to the blockchain...',
       success: (message) => {
@@ -182,7 +173,9 @@ export default function RecordPage() {
           <Mic className="w-12 h-12 text-purple-600" />
         </div>
         <div className="space-y-4">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Connect Your Wallet</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            Connect Your Wallet
+          </h1>
           <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
             Please connect your Web3 wallet to start recording stories.
           </p>
@@ -196,29 +189,209 @@ export default function RecordPage() {
     <div className="max-w-4xl mx-auto space-y-8">
       {/* Header */}
       <div className="text-center space-y-4">
-        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-16 h-16 mx-auto bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center"> <Mic className="w-8 h-8 text-white" /> </motion.div>
-        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">Record Your Story</h1>
-        <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">Capture thoughts and experiences with AI transcription</p>
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          className="w-16 h-16 mx-auto bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center"
+        >
+          {" "}
+          <Mic className="w-8 h-8 text-white" />{" "}
+        </motion.div>
+        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
+          Record Your Story
+        </h1>
+        <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+          Capture thoughts and experiences with AI transcription
+        </p>
       </div>
-
       {/* Recording Controls */}
       <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-0 shadow-xl">
-        <CardHeader className="text-center"> <CardTitle className="flex items-center justify-center space-x-2"><Volume2 className="w-5 h-5" /><span>Audio Recording</span></CardTitle> <CardDescription>Speak naturally and let AI handle transcription</CardDescription> </CardHeader>
-        <CardContent className="space-y-6"> <div className="text-center space-y-4"> <AnimatePresence> {isRecording && ( <motion.div initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.5 }} className="inline-flex items-center space-x-2 bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300 px-4 py-2 rounded-full"> <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" /> <span className="font-medium">Recording</span> <Clock className="w-4 h-4" /> <span className="font-mono">{formatDuration(recordingDuration)}</span> </motion.div> )} </AnimatePresence> <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}> <Button size="lg" onClick={isRecording ? stopRecording : startRecording} disabled={isProcessing} className={`w-32 h-32 rounded-full text-white shadow-xl ${ isRecording ? "bg-red-500 hover:bg-red-600" : "bg-gradient-to-r from-purple-600 to-indigo-600" }`}> {isRecording ? <Square className="w-8 h-8" /> : <Mic className="w-8 h-8" />} </Button> </motion.div> <div className="flex items-center justify-center space-x-6 text-sm text-gray-600 dark:text-gray-400"> <div className="flex items-center space-x-2"><Languages className="w-4 h-4" /><span>Multi-language</span></div> <div className="flex items-center space-x-2"><Zap className="w-4 h-4" /><span>AI Transcription</span></div> </div> </div> </CardContent>
+        <CardHeader className="text-center">
+          {" "}
+          <CardTitle className="flex items-center justify-center space-x-2">
+            <Volume2 className="w-5 h-5" />
+            <span>Audio Recording</span>
+          </CardTitle>{" "}
+          <CardDescription>
+            Speak naturally and let AI handle transcription
+          </CardDescription>{" "}
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {" "}
+          <div className="text-center space-y-4">
+            {" "}
+            <AnimatePresence>
+              {" "}
+              {isRecording && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.5 }}
+                  className="inline-flex items-center space-x-2 bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300 px-4 py-2 rounded-full"
+                >
+                  {" "}
+                  <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />{" "}
+                  <span className="font-medium">Recording</span>{" "}
+                  <Clock className="w-4 h-4" />{" "}
+                  <span className="font-mono">
+                    {formatDuration(recordingDuration)}
+                  </span>{" "}
+                </motion.div>
+              )}{" "}
+            </AnimatePresence>{" "}
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              {" "}
+              <Button
+                size="lg"
+                onClick={isRecording ? stopRecording : startRecording}
+                disabled={isProcessing}
+                className={`w-32 h-32 rounded-full text-white shadow-xl ${
+                  isRecording
+                    ? "bg-red-500 hover:bg-red-600"
+                    : "bg-gradient-to-r from-purple-600 to-indigo-600"
+                }`}
+              >
+                {" "}
+                {isRecording ? (
+                  <Square className="w-8 h-8" />
+                ) : (
+                  <Mic className="w-8 h-8" />
+                )}{" "}
+              </Button>{" "}
+            </motion.div>{" "}
+            <div className="flex items-center justify-center space-x-6 text-sm text-gray-600 dark:text-gray-400">
+              {" "}
+              <div className="flex items-center space-x-2">
+                <Languages className="w-4 h-4" />
+                <span>Multi-language</span>
+              </div>{" "}
+              <div className="flex items-center space-x-2">
+                <Zap className="w-4 h-4" />
+                <span>AI Transcription</span>
+              </div>{" "}
+            </div>{" "}
+          </div>{" "}
+        </CardContent>
       </Card>
-
       {/* Transcription & Title */}
       <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-0 shadow-xl">
-        <CardHeader><CardTitle className="text-lg">Entry Title</CardTitle></CardHeader>
-        <CardContent className="space-y-4 pb-0"> <Input placeholder="Give your story a title..." value={entryTitle} onChange={(e) => setEntryTitle(e.target.value)} className="text-lg" disabled={isProcessing}/> </CardContent>
-        <CardHeader> <div className="flex items-center justify-between"> <CardTitle className="flex items-center space-x-2"><FileText className="w-5 h-5" /><span>Transcription</span></CardTitle> <div className="flex items-center space-x-2"> {audioBlob && <Badge variant="secondary" className="bg-emerald-100 dark:bg-emerald-900 text-emerald-600">Audio Captured</Badge>} {isProcessing && <Badge variant="secondary" className="bg-blue-100 dark:bg-blue-900 text-blue-600"><Loader2 className="w-3 h-3 mr-1 animate-spin" />Processing...</Badge>} </div> </div> </CardHeader>
-        <CardContent className="space-y-4"> <Textarea placeholder="Your transcribed text will appear here, or you can type directly..." value={transcribedText} onChange={(e) => setTranscribedText(e.target.value)} className="min-h-[200px] text-base leading-relaxed resize-none" disabled={isProcessing}/> <Separator /> <div className="flex flex-col sm:flex-row gap-4"> <Button onClick={enhanceText} disabled={!transcribedText.trim() || isProcessing} variant="outline" className="flex-1"><Wand2 className="w-4 h-4 mr-2" />Enhance with AI</Button> <Button onClick={saveEntry} disabled={!transcribedText.trim() || !entryTitle.trim() || isProcessing} className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600"> {isProcessing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />} Save Entry </Button> </div> </CardContent>
+        <CardHeader>
+          <CardTitle className="text-lg">Entry Title</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 pb-0">
+          {" "}
+          <Input
+            placeholder="Give your story a title..."
+            value={entryTitle}
+            onChange={(e) => setEntryTitle(e.target.value)}
+            className="text-lg"
+            disabled={isProcessing}
+          />{" "}
+        </CardContent>
+        <CardHeader>
+          {" "}
+          <div className="flex items-center justify-between">
+            {" "}
+            <CardTitle className="flex items-center space-x-2">
+              <FileText className="w-5 h-5" />
+              <span>Transcription</span>
+            </CardTitle>{" "}
+            <div className="flex items-center space-x-2">
+              {" "}
+              {audioBlob && (
+                <Badge
+                  variant="secondary"
+                  className="bg-emerald-100 dark:bg-emerald-900 text-emerald-600"
+                >
+                  Audio Captured
+                </Badge>
+              )}{" "}
+              {isProcessing && (
+                <Badge
+                  variant="secondary"
+                  className="bg-blue-100 dark:bg-blue-900 text-blue-600"
+                >
+                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                  Processing...
+                </Badge>
+              )}{" "}
+            </div>{" "}
+          </div>{" "}
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {" "}
+          <Textarea
+            placeholder="Your transcribed text will appear here, or you can type directly..."
+            value={transcribedText}
+            onChange={(e) => setTranscribedText(e.target.value)}
+            className="min-h-[200px] text-base leading-relaxed resize-none"
+            disabled={isProcessing}
+          />{" "}
+          <Separator />{" "}
+          <div className="flex flex-col sm:flex-row gap-4">
+            {" "}
+            <Button
+              onClick={enhanceText}
+              disabled={!transcribedText.trim() || isProcessing}
+              variant="outline"
+              className="flex-1"
+            >
+              <Wand2 className="w-4 h-4 mr-2" />
+              Enhance with AI
+            </Button>{" "}
+            <Button
+              onClick={saveEntry}
+              disabled={
+                !transcribedText.trim() || !entryTitle.trim() || isProcessing
+              }
+              className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600"
+            >
+              {" "}
+              {isProcessing ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4 mr-2" />
+              )}{" "}
+              Save Entry{" "}
+            </Button>{" "}
+          </div>{" "}
+        </CardContent>
       </Card>
-
       {/* Recording Tips */}
       <Card className="bg-gradient-to-r from-purple-500/10 to-indigo-500/10 border-purple-200 dark:border-purple-800">
-         <CardHeader><CardTitle className="text-lg">Recording Tips</CardTitle></CardHeader>
-         <CardContent> <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600 dark:text-gray-400"> <div className="flex items-start space-x-3"><div className="w-6 h-6 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"><span className="text-xs font-bold text-purple-600">1</span></div><p>Speak clearly and moderately</p></div> <div className="flex items-start space-x-3"><div className="w-6 h-6 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"><span className="text-xs font-bold text-purple-600">2</span></div><p>Find a quiet environment</p></div> <div className="flex items-start space-x-3"><div className="w-6 h-6 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"><span className="text-xs font-bold text-purple-600">3</span></div><p>You can edit the text before saving</p></div> <div className="flex items-start space-x-3"><div className="w-6 h-6 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"><span className="text-xs font-bold text-purple-600">4</span></div><p>Stories saved securely on blockchain</p></div> </div> </CardContent>
+        <CardHeader>
+          <CardTitle className="text-lg">Recording Tips</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {" "}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600 dark:text-gray-400">
+            {" "}
+            <div className="flex items-start space-x-3">
+              <div className="w-6 h-6 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-xs font-bold text-purple-600">1</span>
+              </div>
+              <p>Speak clearly and moderately</p>
+            </div>{" "}
+            <div className="flex items-start space-x-3">
+              <div className="w-6 h-6 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-xs font-bold text-purple-600">2</span>
+              </div>
+              <p>Find a quiet environment</p>
+            </div>{" "}
+            <div className="flex items-start space-x-3">
+              <div className="w-6 h-6 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-xs font-bold text-purple-600">3</span>
+              </div>
+              <p>You can edit the text before saving</p>
+            </div>{" "}
+            <div className="flex items-start space-x-3">
+              <div className="w-6 h-6 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-xs font-bold text-purple-600">4</span>
+              </div>
+              <p>Stories saved securely on blockchain</p>
+            </div>{" "}
+          </div>{" "}
+        </CardContent>
       </Card>
     </div>
   );
