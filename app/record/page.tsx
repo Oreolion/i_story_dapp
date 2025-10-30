@@ -5,18 +5,39 @@ import { useApp } from "@/components/Provider"; // For connection status
 import { useAuth } from "@/components/AuthProvider"; // For getting the user's real Supabase ID
 import { supabaseClient } from "@/app/utils/supabase/supabaseClient"; // For DB/Storage operations
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Mic, MicOff, Square, Save, Wand2, Volume2, Languages, Clock, Upload, Sparkles, FileText, Zap, Loader2, User } from "lucide-react";
+import {
+  Mic,
+  MicOff,
+  Square,
+  Save,
+  Wand2,
+  Volume2,
+  Languages,
+  Clock,
+  Upload,
+  Sparkles,
+  FileText,
+  Zap,
+  Loader2,
+  User,
+} from "lucide-react";
 import { toast } from "react-hot-toast";
 import { Input } from "@/components/ui/input";
 
 export default function RecordPage() {
   const { user, isConnected } = useApp(); // Use useApp for connection status and basic UI data
   const authInfo = useAuth(); // Use useAuth to get the real Supabase user ID for database operations
-  console.log(authInfo)
+  console.log(authInfo);
   const [isRecording, setIsRecording] = useState(false);
   const [transcribedText, setTranscribedText] = useState("");
   const [entryTitle, setEntryTitle] = useState("");
@@ -26,37 +47,60 @@ export default function RecordPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // --- startRecording, stopRecording, enhanceText ---
+  // (These functions are unchanged from your code)
   const startRecording = async () => {
-    // This function remains the same as your provided code
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 16000 }});
-      const mediaRecorder = new MediaRecorder(stream); mediaRecorderRef.current = mediaRecorder;
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 16000,
+        },
+      });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
       const chunks: Blob[] = [];
-      mediaRecorder.ondataavailable = (event) => { if (event.data.size > 0) chunks.push(event.data); };
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) chunks.push(event.data);
+      };
       mediaRecorder.onstop = async () => {
         const blob = new Blob(chunks, { type: "audio/webm" }); // Use webm, it's well-supported
         setAudioBlob(blob);
         setIsProcessing(true);
         toast.promise(
-          new Promise(resolve => setTimeout(resolve, 1500)), {
-            loading: 'Transcribing (mock)...',
+          new Promise((resolve) => setTimeout(resolve, 1500)),
+          {
+            loading: "Transcribing (mock)...",
             success: () => {
-              setTranscribedText("This is a mock transcription of your recorded audio. In a real app, this would come from an AI speech-to-text service.");
-              if (!entryTitle) setEntryTitle("My Recorded Story " + new Date().toLocaleTimeString());
+              setTranscribedText(
+                "This is a mock transcription of your recorded audio. In a real app, this would come from an AI speech-to-text service."
+              );
+              if (!entryTitle)
+                setEntryTitle(
+                  "My Recorded Story " + new Date().toLocaleTimeString()
+                );
               setIsProcessing(false);
               return "Transcription complete!";
             },
-            error: 'Transcription failed'
+            error: "Transcription failed",
           }
         );
         stream.getTracks().forEach((track) => track.stop());
       };
-      mediaRecorder.start(); setIsRecording(true); setRecordingDuration(0);
-      durationIntervalRef.current = setInterval(() => setRecordingDuration((prev) => prev + 1), 1000);
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingDuration(0);
+      durationIntervalRef.current = setInterval(
+        () => setRecordingDuration((prev) => prev + 1),
+        1000
+      );
       toast.success("Recording started");
     } catch (error) {
       console.error("Error starting recording:", error);
-      toast.error("Failed to start recording. Please check microphone permissions.");
+      toast.error(
+        "Failed to start recording. Please check microphone permissions."
+      );
     }
   };
 
@@ -64,85 +108,123 @@ export default function RecordPage() {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
-      if (durationIntervalRef.current) clearInterval(durationIntervalRef.current);
+      if (durationIntervalRef.current)
+        clearInterval(durationIntervalRef.current);
       durationIntervalRef.current = null;
       toast.success("Recording stopped");
     }
   };
 
   const enhanceText = () => {
-    // This function remains a mock as per your code
     setIsProcessing(true);
     setTimeout(() => {
-      setTranscribedText( prev => prev + "\n\n[AI Enhanced]: This is an AI suggestion added to enhance your story." );
+      setTranscribedText(
+        (prev) =>
+          prev +
+          "\n\n[AI Enhanced]: This is an AI suggestion added to enhance your story."
+      );
       setIsProcessing(false);
       toast.success("Text enhanced with AI!");
     }, 1500);
   };
 
-  // *** FIXED saveEntry FUNCTION ***
+  // *** REFACTORED saveEntry FUNCTION ***
   const saveEntry = async () => {
-    // Guard clauses
     if (!isConnected || !authInfo) {
       return toast.error("You must be signed in to save a story.");
+    }
+    if (!authInfo.id) {
+      console.error("AuthInfo is present, but user ID is missing.", authInfo);
+      return toast.error("User ID is missing, cannot save.");
     }
     if (!transcribedText.trim() || !entryTitle.trim()) {
       return toast.error("Please provide a title and content for your story.");
     }
+
     setIsProcessing(true);
-    const savingPromise = new Promise(async (resolve, reject) => {
+
+    // We define the async function that toast.promise will track
+    const promiseToSave = async () => {
       let audioUrl = null;
-      const userId = authInfo.id; // Get the real user ID (UUID) from AuthProvider
-      // Step 1: Upload audio if it exists
-      if (audioBlob) {
-        console.log("Uploading audio blob...");
-        const fileName = `${userId}/${new Date().toISOString()}.webm`;
-        const { data: uploadData, error: uploadError } = await supabaseClient.storage
-          .from('story-audio') // Bucket name
-          .upload(fileName, audioBlob, { contentType: "audio/webm" });
-        if (uploadError) {
-          console.error("Audio upload error:", uploadError);
-          toast.error("Failed to upload audio. Saving text only.");
-          // Continue with text-only save
+      const userId = authInfo.id; // Get the real user ID (UUID)
+
+    
+      try {
+        // Step 1: Upload audio if it exists
+        if (audioBlob) {
+          console.log("Uploading audio blob...");
+          const fileName = `${userId}/${new Date().toISOString()}.webm`;
+          const { data: uploadData, error: uploadError } =
+            await supabaseClient.storage
+              .from("story-audio") // Bucket name
+              .upload(fileName, audioBlob, { contentType: "audio/webm" });
+
+          if (uploadError) {
+            // This is a "soft" failure. We toast it, but continue.
+            console.error("Audio upload error:", uploadError);
+            toast.error("Failed to upload audio. Saving text only.");
+            audioUrl = null; // Ensure audioUrl is null
+          } else {
+            // Get the public URL of the uploaded file
+            const { data: urlData } = supabaseClient.storage
+              .from("story-audio")
+              .getPublicUrl(uploadData.path);
+            audioUrl = urlData.publicUrl;
+            console.log("Audio uploaded successfully:", audioUrl);
+          }
         } else {
-          // Get the public URL of the uploaded file
-          const { data: urlData } = supabaseClient.storage
-            .from('story-audio')
-            .getPublicUrl(uploadData.path);
-          audioUrl = urlData.publicUrl;
-          console.log("Audio uploaded successfully:", audioUrl);
+          console.log("No audio; saving text-only entry.");
         }
-      } else {
-        console.log("No audio; saving text-only entry.");
+
+        // Step 2: Prepare the story data for the database
+        const storyData = {
+          author_id: userId, // Foreign key to the 'users' table
+          author_wallet: authInfo.wallet_address,
+          title: entryTitle,
+          content: transcribedText,
+          has_audio: !!audioBlob && !!audioUrl, // Only true if audio exists AND upload succeeded
+          audio_url: audioUrl, // Null if no audio or upload failed
+          likes: 0,
+          comments_count: 0,
+          shares: 0,
+          tags: [], // Default empty array
+          mood: "neutral", // Default mood
+          // We are NOT sending `token_id`, which is correct.
+        };
+
+        console.log("Inserting story data into database:", storyData);
+
+        // Step 3: Insert the story data into the 'stories' table
+        const { error: insertError } = await supabaseClient
+          .from("stories")
+          .insert([storyData]); // Note: insert still expects an array
+
+        if (insertError) {
+          // This is a "hard" failure. We must stop and reject the promise.
+          console.error("Database insert error:", insertError);
+          // Throw an error, which will be caught by toast.promise's `error` block
+          throw new Error(`Database save failed: ${insertError.message}`);
+        }
+
+        // If we get here, everything worked.
+        console.log("Story saved successfully to database.");
+        // This is the message that will be passed to the `success` handler
+        return "Story saved successfully!";
+      } catch (err) {
+        // This is the safety net. It catches the `throw new Error` above
+        // OR any other unexpected error (e.g., network timeout)
+        console.error("An unexpected error occurred during save:", err);
+        // Re-throw the error so toast.promise can catch it.
+        if (err instanceof Error) {
+          throw err; // Pass the original error message
+        }
+        throw new Error("An unknown error occurred while saving.");
       }
-      // Step 2: Prepare the story data for the database
-      const storyData = {
-        author_id: userId, // Foreign key to the 'users' table
-        title: entryTitle,
-        content: transcribedText,
-        has_audio: !!audioBlob,
-        audio_url: audioUrl, // Null if no audio or upload failed
-        // You can add default values for other columns here if needed
-        likes: 0,
-        comments_count: 0,
-        shares: 0,
-        tags: [], // Default empty array
-        mood: 'neutral' // Default mood
-      };
-      console.log("Inserting story data into database:", storyData);
-      // Step 3: Insert the story data into the 'stories' table
-      const { error: insertError } = await supabaseClient
-        .from('stories')
-        .insert([storyData]);
-      if (insertError) {
-        console.error("Database insert error:", insertError);
-        return reject(`Database save failed: ${insertError.message}`);
-      }
-      console.log("Story saved successfully to database.");
-      resolve("Story saved successfully!");
-    });
-    toast.promise(savingPromise, {
-      loading: 'Saving your story to the blockchain...',
+    };
+
+    // Pass the *execution* of your async function to toast.promise
+    toast.promise(promiseToSave(), {
+      loading: "Saving your story...", // Changed message to be more accurate
       success: (message) => {
         setIsProcessing(false);
         // Reset the form on success
@@ -154,19 +236,22 @@ export default function RecordPage() {
       },
       error: (err) => {
         setIsProcessing(false);
-        return String(err);
+        // `err` is the Error object we threw.
+        // `err.message` will contain the clean error string.
+        return err.message;
       },
     });
   };
 
   const formatDuration = (seconds: number) => {
+    // ... (unchanged)
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  // Auth Guard using isConnected from useApp()
   if (!isConnected) {
+    // ... (unchanged)
     return (
       <div className="text-center space-y-8 py-16">
         <div className="w-24 h-24 mx-auto bg-gradient-to-r from-purple-100 to-indigo-100 dark:from-purple-900 dark:to-indigo-900 rounded-full flex items-center justify-center">
@@ -185,6 +270,7 @@ export default function RecordPage() {
   }
 
   // --- Main Render ---
+  // (This is unchanged from your code)
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       {/* Header */}
