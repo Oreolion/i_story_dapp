@@ -34,7 +34,7 @@ export function Navigation() {
   const { theme, setTheme } = useTheme();
   const { user } = useApp();
   // const userInfo = useAuth();
-  console.log("User in Nav:", user);
+//   console.log("User in Nav:", user);
   //   console.log("UserInfo in Nav:", userInfo);
 
   // FIX: Add client-side mount state

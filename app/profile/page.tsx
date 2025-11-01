@@ -1,4 +1,3 @@
-// app/profile/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -132,9 +131,9 @@ const fallbackActivityData = [
 // };
 
 export default function ProfilePage() {
-  const { user, isConnected } = useApp(); // <-- Use useApp for connection status and basic user data
+  const { user, isConnected } = useApp();
 
-  const [profileData, setProfileData] = useState<UserProfileData | null>(null); // State for fetched Supabase data
+  const [profileData, setProfileData] = useState<UserProfileData | null>(null);
   const [formData, setFormData] = useState<ProfileFormData>({
     name: "",
     username: "",

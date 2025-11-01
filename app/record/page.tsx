@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "@/components/Provider"; // For connection status
 import { useAuth } from "@/components/AuthProvider"; // For getting the user's real Supabase ID

@@ -1,4 +1,3 @@
-// app/library/page.tsx
 "use client";
 
 import { useState, useEffect } from "react"; // Added useEffect
