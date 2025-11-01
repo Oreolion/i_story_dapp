@@ -244,14 +244,12 @@ export default function RecordPage() {
   };
 
   const formatDuration = (seconds: number) => {
-    // ... (unchanged)
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   if (!isConnected) {
-    // ... (unchanged)
     return (
       <div className="text-center space-y-8 py-16">
         <div className="w-24 h-24 mx-auto bg-gradient-to-r from-purple-100 to-indigo-100 dark:from-purple-900 dark:to-indigo-900 rounded-full flex items-center justify-center">
@@ -270,7 +268,6 @@ export default function RecordPage() {
   }
 
   // --- Main Render ---
-  // (This is unchanged from your code)
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       {/* Header */}

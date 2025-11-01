@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { useApp } from "@/components/Provider"; // <-- USE useApp
+import { useApp } from "@/components/Provider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +19,7 @@ import {
   BookOpen,
   Zap,
 //   UserPlus,
-  Loader2, // Added Loader2
+  Loader2, 
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { StoryCard, StoryDataType } from "@/components/StoryCard";
@@ -33,9 +33,8 @@ import { useLikeSystem } from "../hooks/useLikeSystem";
 // Removed parseEther as it's not used here.
 import { supabaseClient } from "@/app/utils/supabase/supabaseClient";
 
-// --- Interfaces (Ensure these match your actual data structures) ---
 interface AuthorProfile {
-  id?: string; // Optional: Supabase ID
+  id?: string;
   name: string | null;
   username: string | null; // Used as identifier in some contract calls? Be careful.
   avatar: string | null;
@@ -93,7 +92,7 @@ const moodColors: { [key: string]: string } = {
 };
 
 export default function SocialPage() {
-  const { user, isConnected } = useApp(); // <-- Use useApp for connection status & basic user info
+  const { user, isConnected } = useApp();  info
   const [stories, setStories] = useState<StoryDataType[]>([]);
   const [activeTab, setActiveTab] = useState("feed");
   const [unlockedStories, setUnlockedStories] = useState<Set<number>>(

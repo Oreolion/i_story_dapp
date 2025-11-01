@@ -1,12 +1,24 @@
-import { http, createConfig } from "wagmi";
+import { getDefaultConfig } from "@rainbow-me/rainbowkit";
 import { baseSepolia, sepolia } from "wagmi/chains";
-import { injected, metaMask, safe } from "wagmi/connectors";
 
-export const config = createConfig({
+const projectId = process.env.NEXT_PUBLIC_PROJECT_ID;
+
+// This is a safety check. If the ID is missing, it will warn you in the build logs.
+if (!projectId) {
+  console.warn(
+    "Warning: NEXT_PUBLIC_PROJECT_ID is not set in your environment variables."
+  );
+  console.warn("WalletConnect will not work in production.");
+}
+
+// Create the Wagmi config using RainbowKit's helper
+export const config = getDefaultConfig({
+  appName: "IStory DApp",
+  
+  projectId: projectId || "",
+
   chains: [baseSepolia, sepolia],
-  connectors: [injected(), metaMask(), safe()],
-  transports: {
-      [baseSepolia.id]: http("https://sepolia.base.org"), // Base Sepolia RPC
-      [sepolia.id]: http("https://rpc.sepolia.org") //  Sepolia RPC
-  },
+
+  // Configure wallet connectors
+  ssr: true, // Enable SSR support for Next.js
 });
