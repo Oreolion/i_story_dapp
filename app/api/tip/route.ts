@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { writeContract } from '@wagmi/core'; // Server-side viem
 import  iStoryTokenABI  from '@/lib/abis/iStoryToken.json';
-import { config } from '@/lib/wagmi.config';
+import { config } from '@/lib/wagmi.config.server';
 
 export async function POST(req: NextRequest) {
   try {
