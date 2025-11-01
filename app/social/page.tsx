@@ -92,7 +92,7 @@ const moodColors: { [key: string]: string } = {
 };
 
 export default function SocialPage() {
-  const { user, isConnected } = useApp();  info
+  const { user, isConnected } = useApp(); 
   const [stories, setStories] = useState<StoryDataType[]>([]);
   const [activeTab, setActiveTab] = useState("feed");
   const [unlockedStories, setUnlockedStories] = useState<Set<number>>(
