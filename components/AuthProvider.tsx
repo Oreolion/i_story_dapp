@@ -5,12 +5,10 @@ import {
   useEffect,
   useState,
   ReactNode,
-  useCallback, // We'll use this to stabilize functions
+  useCallback,
 } from "react";
-import { useAccount, useBalance, type Config } from "wagmi";
-import { signMessage } from "wagmi/actions"; // We'll use wagmi's signer
-import { config as wagmiConfig } from "@/lib/wagmi.config"; // Import your client-side wagmi config
-import { supabaseClient } from "@/app/utils/supabase/supabaseClient";
+import { useAccount, useBalance } from "wagmi";
+import { supabaseClient } from "../app/utils/supabase/supabaseClient";
 import type { User, Session } from "@supabase/supabase-js";
 
 export interface UnifiedUserProfile {
@@ -39,7 +37,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // We wrap handleSession in useCallback so it's a stable dependency
   const handleSession = useCallback(
     async (session: Session | null) => {
-      // Removed the 1-second setTimeout, it's no longer needed
       if (session?.user) {
         let { data: userProfile, error } = await supabase
           .from("users")
@@ -132,20 +129,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         
         // Standard profile set
-        setProfile({
-          ...userProfile,
-          isConnected,
-          balance: ethBalance?.formatted ?? "0",
-          wallet_address: address?.toLowerCase() ?? userProfile?.wallet_address,
-          supabaseUser: session.user,
-        });
-        console.log("Unified Profile Set:", {
-          ...userProfile,
-          isConnected,
-          balance: ethBalance?.formatted ?? "0",
-          wallet_address: address?.toLowerCase() ?? userProfile?.wallet_address,
-          supabaseUser: session.user,
-        });
+        if (userProfile) { // Check if userProfile is not null before setting
+          setProfile({
+            ...userProfile,
+            isConnected,
+            balance: ethBalance?.formatted ?? "0",
+            wallet_address: address?.toLowerCase() ?? userProfile?.wallet_address,
+            supabaseUser: session.user,
+          });
+          console.log("Unified Profile Set:", {
+            ...userProfile,
+            isConnected,
+            balance: ethBalance?.formatted ?? "0",
+            wallet_address: address?.toLowerCase() ?? userProfile?.wallet_address,
+            supabaseUser: session.user,
+          });
+        }
 
       } else {
         // No session, check for public profile
@@ -212,32 +211,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // This is the *only* time we should ask the user to sign.
       console.log("No session found. Starting sign-in flow...");
 
-      // This is the FIX for the "URI not allowed" error:
-      // We use wagmi's signMessage and your /api/auth route,
-      // which is more flexible than supabase.auth.signInWithWeb3.
-      const message = "Welcome to StoryChain";
-
+      // This is the OFFICIAL Supabase method.
       try {
-        const signature = await signMessage(wagmiConfig as Config, {
-          message,
+        const { error: web3Error } = await supabase.auth.signInWithWeb3({
+          chain: 'ethereum',
+          statement: 'Welcome to IStory - AI-Powered Blockchain Journaling DApp. Sign this message to authenticate.',
         });
 
-        // Call your custom API route
-        const res = await fetch("/api/auth", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ address, message, signature }),
-        });
-
-        if (!res.ok) {
-          const errorText = await res.text();
-          throw new Error(errorText || "Sign-in API request failed");
-        }
-
+        if (web3Error) throw web3Error;
+        
         // Success! The onAuthStateChange listener will now
         // automatically pick up the new session and run handleSession.
-        console.log("Sign-in API call successful. Waiting for auth state change...");
+        console.log("Sign-in successful. Waiting for auth state change...");
       } catch (err: any) {
+        // This will now correctly log the "URI not allowed" error
+        // until you fix the Supabase dashboard settings.
         console.error("Sign-in failed during syncUser:", err.message);
       }
     };
@@ -246,7 +234,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [isSessionLoading, profile, isConnected, address, supabase]);
 
   // This auto-links the wallet if a profile is missing it
-  // (Your original code, left unchanged as it's good logic)
   useEffect(() => {
     if (profile && isConnected && address && !profile.wallet_address) {
       supabase
@@ -271,5 +258,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }
 
 export const useAuth = () => useContext(AuthContext);
-
 
