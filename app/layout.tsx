@@ -2,7 +2,7 @@ import '../app/globals.css';
 import "@rainbow-me/rainbowkit/styles.css";
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
-import { Providers } from '../components/Provider';
+import { ProvidersDynamic } from '../components/ProvidersDynamic';
 import { Navigation } from '../components/Navigation';
 import { Toaster } from 'react-hot-toast';
 // import { createSupabaseServerClient } from "@/app/utils/supabase/supabaseServer";
@@ -32,7 +32,7 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <Providers>
+        <ProvidersDynamic>
           <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50 dark:from-gray-900 dark:via-purple-900 dark:to-indigo-900">
             <Navigation />
             <main className="container mx-auto px-4 py-8">
@@ -46,7 +46,7 @@ export default async function RootLayout({
               }}
             />
           </div>
-        </Providers>
+        </ProvidersDynamic>
       </body>
     </html>
   );

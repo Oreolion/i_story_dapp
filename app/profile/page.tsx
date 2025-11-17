@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { useApp } from "@/components/Provider";
 import { supabaseClient } from "@/app/utils/supabase/supabaseClient";
+import { useAccount } from "wagmi";
 import {
   Card,
   CardContent,
@@ -34,11 +35,12 @@ import {
   Zap,
   Shield,
   Loader2,
-//   Gift,
+  //   Gift,
   Edit3,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { Textarea } from "@/components/ui/textarea";
+import { useBrowserSupabase } from "../hooks/useBrowserSupabase";
 // import { useSignMessage } from "wagmi";
 
 // Interface for the profile data fetched from Supabase
@@ -133,6 +135,8 @@ const fallbackActivityData = [
 export default function ProfilePage() {
   const { user, isConnected } = useApp();
 
+  const { address } = useAccount();
+
   const [profileData, setProfileData] = useState<UserProfileData | null>(null);
   const [formData, setFormData] = useState<ProfileFormData>({
     name: "",
@@ -144,33 +148,37 @@ export default function ProfilePage() {
   });
   const [isSaving, setIsSaving] = useState(false);
   const [loading, setLoading] = useState(true); // Loading state for Supabase fetch
-  
+
   // FIX: Add state to control the active tab
   const [currentTab, setCurrentTab] = useState("overview");
 
   // Mocks for UI elements not yet connected to DB
   const [achievements] = useState(fallbackAchievements);
   const [activityData] = useState(fallbackActivityData);
-//   const { signMessageAsync } = useSignMessage();
+  //   const { signMessageAsync } = useSignMessage();
 
   // Helper: create supabase client once (client-side)
-  const supabase = supabaseClient;
+  const supabase = useBrowserSupabase();
+  useEffect(() => {
+    if (!supabase) return;
+    // fetch using supabase
+  }, [supabase]);
 
   // FIX: REMOVED the duplicate useEffect. This is the single, correct one.
   useEffect(() => {
     let isMounted = true;
-    if (isConnected && user?.address) {
-      console.log("[PROFILE PAGE LOG] Fetching profile for:", user.address);
+    if (isConnected && address) {
+      console.log("[PROFILE PAGE LOG] Fetching profile for:", address);
       setLoading(true);
       setProfileData(null); // Clear previous
       const fetchDbProfile = async () => {
         try {
           const { data, error } = await supabase
-            .from("users")
+            ?.from("users")
             .select(
               "id, name, username, bio, location, website, avatar, story_tokens, badges, created_at"
             )
-            .eq("wallet_address", user.address.toLowerCase())
+            .eq("wallet_address", address?.toLowerCase())
             .maybeSingle(); // Use maybeSingle
           if (!isMounted) return;
           if (error) throw error; // Let outer catch handle DB errors
@@ -180,7 +188,7 @@ export default function ProfilePage() {
           } else {
             console.warn(
               "[PROFILE PAGE LOG] No profile found for address:",
-              user.address
+              address
             );
             setProfileData(null); // Explicitly null if not found
           }
@@ -201,7 +209,7 @@ export default function ProfilePage() {
     return () => {
       isMounted = false;
     };
-  }, [isConnected, user?.address, supabase]);
+  }, [isConnected, address, supabase]);
 
   // Sync form data when fetched profileData changes
   useEffect(() => {
@@ -250,7 +258,7 @@ export default function ProfilePage() {
     try {
       // Use the fetched Supabase user ID (profileData.id) for the update
       const { error } = await supabaseClient
-        .from("users")
+        ?.from("users")
         .update(updates)
         .eq("id", profileData.id); // Use the fetched Supabase ID
 
@@ -329,7 +337,7 @@ export default function ProfilePage() {
             <CardHeader className="text-center">
               <Avatar className="h-24 w-24 mx-auto">
                 <AvatarImage
-                  src={profileData?.avatar || "/public/default_avatar.png"}
+                  src={profileData?.avatar || "/default-avatar.jpg"}
                   alt={profileData?.name || "User"}
                 />
                 <AvatarFallback>

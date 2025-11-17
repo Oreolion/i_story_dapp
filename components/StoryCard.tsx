@@ -36,7 +36,7 @@ export interface StoryDataType {
   teaser?: string;
   timestamp: string;
   likes: number;
-  comments: number;
+//   comments: number;
   shares: number;
   hasAudio: boolean;
   isLiked: boolean;
@@ -213,7 +213,7 @@ export function StoryCard({
             </Button>
             <Button size="sm" variant="ghost">
               <MessageCircle className="w-4 h-4 mr-1" />
-              {story.comments}
+              {/* {story.comments} */}
             </Button>
             <Button
               size="sm"

@@ -1,15 +1,9 @@
+// components/AuthProvider.tsx (replace your file with this)
 "use client";
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  ReactNode,
-  useCallback,
-} from "react";
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useAccount, useBalance } from "wagmi";
-import { supabaseClient } from "../app/utils/supabase/supabaseClient";
 import type { User, Session } from "@supabase/supabase-js";
+import { getBrowserSupabase } from "@/app/utils/supabase/browserClient";
 
 export interface UnifiedUserProfile {
   id: string;
@@ -24,238 +18,120 @@ export interface UnifiedUserProfile {
 
 const AuthContext = createContext<UnifiedUserProfile | null>(null);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const supabase = supabaseClient;
-  const [profile, setProfile] = useState<UnifiedUserProfile | null>(null);
-  
-  // This state is the key to fixing the "sign on reload" bug
-  const [isSessionLoading, setIsSessionLoading] = useState(true);
-
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const supabase = getBrowserSupabase(); // singleton
   const { address, isConnected } = useAccount();
   const { data: ethBalance } = useBalance({ address });
 
-  // We wrap handleSession in useCallback so it's a stable dependency
-  const handleSession = useCallback(
-    async (session: Session | null) => {
-      if (session?.user) {
-        let { data: userProfile, error } = await supabase
-          .from("users")
+  const [profile, setProfile] = useState<UnifiedUserProfile | null>(null);
+  const [isSessionLoading, setIsSessionLoading] = useState(true);
+  const signInAttemptRef = useRef(false); // prevents loops
+
+  // 1) load initial session once
+  useEffect(() => {
+    if (!supabase) { setIsSessionLoading(false); return; }
+    let mounted = true;
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!mounted) return;
+        if (session?.user) {
+          // set profile via helper below
+          await handleSession(session);
+        }
+      } catch (err) {
+        console.error("[AUTH] initial getSession error:", err);
+      } finally {
+        if (mounted) setIsSessionLoading(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [supabase]);
+
+  // 2) subscribe for auth changes (will handle sign-in completion)
+  useEffect(() => {
+    if (!supabase) return;
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      // console.log("[AUTH] onAuthStateChange", _event);
+      handleSession(session || null);
+    });
+    return () => subscription.unsubscribe();
+  }, [supabase]);
+
+  // helper that fetches/creates profile
+  const handleSession = async (session: Session | null) => {
+    if (!supabase) return;
+    if (session?.user) {
+      try {
+        const { data: userProfile, error } = await supabase?.from("users")
           .select("*")
           .eq("id", session.user.id)
           .maybeSingle();
-
-        console.log("Fetched User Profile:", userProfile);
-
-        if (error || !userProfile) {
-          console.log("Creating new profile for user ID:", session.user.id);
-          const insertData = {
-            id: session.user.id,
-            name:
-              session.user.user_metadata?.name ||
-              session.user.user_metadata?.full_name ||
-              "Anonymous User",
-            email: session.user.email ?? null,
-            avatar:
-              session.user.user_metadata?.avatar_url ||
-              session.user.user_metadata?.picture ||
-              null,
-            wallet_address: address?.toLowerCase() ?? null,
-          };
-          const { data: newProfile, error: insertError } = await supabase
-            .from("users")
-            .insert(insertData)
-            .select("*")
-            .maybeSingle();
-
-          if (insertError) {
-            // Your smart merge logic is preserved
-            if (
-              insertError.code === "23505" &&
-              insertError.message.includes("users_wallet_address_key")
-            ) {
-              console.log("Duplicate wallet_address; attempting merge.");
-              try {
-                const res = await fetch("/api/merge-user", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    new_user_id: session.user.id,
-                    wallet_address: address?.toLowerCase(),
-                  }),
-                });
-                if (!res.ok) throw new Error(await res.text());
-                console.log("Merge successful; refreshing profile.");
-                const { data: mergedProfile, error: mergeFetchError } =
-                  await supabase
-                    .from("users")
-                    .select("*")
-                    .eq("id", session.user.id)
-                    .single();
-                if (mergeFetchError) throw mergeFetchError;
-                if (mergedProfile) {
-                  setProfile({
-                    ...mergedProfile,
-                    isConnected,
-                    balance: ethBalance?.formatted ?? "0",
-                    wallet_address:
-                      address?.toLowerCase() ?? mergedProfile.wallet_address,
-                    supabaseUser: session.user,
-                  });
-                  setIsSessionLoading(false); // Mark loading as done
-                  return;
-                }
-              } catch (mergeErr) {
-                console.error("Merge failed:", mergeErr);
-              }
-            }
-            // Fallback for other errors
-            console.error(
-              "Error creating user profile:",
-              insertError.message
-            );
-            setProfile({
-              id: session.user.id,
-              name: "Anonymous User",
-              email: null,
-              avatar: null,
-              wallet_address: null,
-              balance: ethBalance?.formatted ?? "0",
-              isConnected,
-              supabaseUser: session.user,
-            });
-          } else {
-            userProfile = newProfile; // Use the newly created profile
-          }
+        if (error) {
+          console.error("[AUTH] fetch profile error:", error);
+          setProfile(null);
+          return;
         }
-        
-        // Standard profile set
-        if (userProfile) { // Check if userProfile is not null before setting
+        if (userProfile) {
           setProfile({
             ...userProfile,
-            isConnected,
+            isConnected: Boolean(isConnected),
             balance: ethBalance?.formatted ?? "0",
-            wallet_address: address?.toLowerCase() ?? userProfile?.wallet_address,
+            wallet_address: (userProfile.wallet_address ?? address ?? null),
             supabaseUser: session.user,
           });
-          console.log("Unified Profile Set:", {
-            ...userProfile,
-            isConnected,
-            balance: ethBalance?.formatted ?? "0",
-            wallet_address: address?.toLowerCase() ?? userProfile?.wallet_address,
-            supabaseUser: session.user,
-          });
-        }
-
-      } else {
-        // No session, check for public profile
-        if (isConnected && address) {
-          const { data: userProfile, error } = await supabase
-            .from("users")
-            .select("*")
-            .eq("wallet_address", address.toLowerCase())
-            .maybeSingle();
-          if (error) {
-            console.error("Error fetching profile by wallet_address:", error.message);
-            setProfile(null);
-          } else if (userProfile) {
-            console.log("Fetched User Profile by wallet_address:", userProfile);
-            setProfile({
-              ...userProfile,
-              isConnected,
-              balance: ethBalance?.formatted ?? "0",
-              wallet_address: address.toLowerCase(),
-              supabaseUser: null,
-            });
-          } else {
-            setProfile(null);
-          }
         } else {
+          // optional: create profile or leave null
           setProfile(null);
         }
+      } catch (err) {
+        console.error("[AUTH] handleSession unexpected:", err);
+        setProfile(null);
       }
-      // CRITICAL: We are now done loading the session/profile
-      setIsSessionLoading(false);
-    },
-    [supabase, address, isConnected, ethBalance] // Dependencies
-  );
-
-  // This single listener replaces both fetchInitialSession and onAuthStateChange
-  useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log(`Supabase auth event: ${event}`);
-      await handleSession(session);
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [supabase, handleSession]); // Re-subscribes if handleSession changes
-
-  // This hook handles the auto-sign-in logic
-  useEffect(() => {
-    const syncUser = async () => {
-      // This is the FIX for the "sign on reload" bug:
-      // 1. Wait for the session to be checked (isSessionLoading is false)
-      // 2. Only run if we are NOT logged in (profile is null)
-      // 3. Only run if the wallet is connected (isConnected and address exist)
-      if (isSessionLoading || profile || !isConnected || !address) {
-        return;
-      }
-
-      // If we get here, it means:
-      // - Session check is finished.
-      // - Profile is null.
-      // - Wallet is connected.
-      // This is the *only* time we should ask the user to sign.
-      console.log("No session found. Starting sign-in flow...");
-
-      // This is the OFFICIAL Supabase method.
-      try {
-        const { error: web3Error } = await supabase.auth.signInWithWeb3({
-          chain: 'ethereum',
-          statement: 'Welcome to IStory - AI-Powered Blockchain Journaling DApp. Sign this message to authenticate.',
-        });
-
-        if (web3Error) throw web3Error;
-        
-        // Success! The onAuthStateChange listener will now
-        // automatically pick up the new session and run handleSession.
-        console.log("Sign-in successful. Waiting for auth state change...");
-      } catch (err: any) {
-        // This will now correctly log the "URI not allowed" error
-        // until you fix the Supabase dashboard settings.
-        console.error("Sign-in failed during syncUser:", err.message);
-      }
-    };
-
-    syncUser();
-  }, [isSessionLoading, profile, isConnected, address, supabase]);
-
-  // This auto-links the wallet if a profile is missing it
-  useEffect(() => {
-    if (profile && isConnected && address && !profile.wallet_address) {
-      supabase
-        .from("users")
-        .update({ wallet_address: address.toLowerCase() })
-        .eq("id", profile.id)
-        .then(({ error }) => {
-          if (error)
-            console.error(
-              "Failed to link wallet:",
-              error.message,
-              error.details
-            );
-          else console.log("Wallet linked");
-        });
+    } else {
+      setProfile(null);
     }
-  }, [profile, isConnected, address, supabase]);
+  };
 
-  return (
-    <AuthContext.Provider value={profile}>{children}</AuthContext.Provider>
-  );
+  // 3) sync wallet -> supabase: only attempt sign-in once, after initial session check
+  useEffect(() => {
+    if (!supabase) return;
+    if (isSessionLoading) return; // wait for initial session read
+    if (profile) return; // already signed in
+    if (!isConnected || !address) return; // no wallet
+    if (signInAttemptRef.current) return; // already attempted
+
+    // start attempt
+    signInAttemptRef.current = true;
+    (async () => {
+      try {
+        console.log("[AUTH] Triggering signInWithWeb3...");
+        const { error } = await supabase.auth.signInWithWeb3({
+          chain: "ethereum",
+          statement: "Sign to authenticate to IStory.",
+        });
+        if (error) {
+          // if error includes "URI", log and do not retry
+          console.error("[AUTH] signInWithWeb3 error:", error);
+          // optionally show a toast telling dev to set Site URL in Supabase
+        } else {
+          // success — onAuthStateChange will catch it and run handleSession
+          console.log("[AUTH] signInWithWeb3 success (waiting for session event).");
+        }
+      } catch (err: any) {
+        console.error("[AUTH] signInWithWeb3 failed:", err?.message ?? err);
+      } finally {
+        // allow future manual attempts (do not auto-loop)
+        setTimeout(() => {
+          signInAttemptRef.current = false;
+        }, 2000); // small cooldown
+      }
+    })();
+  }, [isSessionLoading, profile, isConnected, address, supabase, ethBalance]);
+
+  return <AuthContext.Provider value={profile}>{children}</AuthContext.Provider>;
 }
 
 export const useAuth = () => useContext(AuthContext);
-

@@ -8,30 +8,22 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-
   TrendingUp,
   Users,
   Star,
-//   Clock,
-//   Award,
-//   Volume2,
-//   Eye,
   BookOpen,
   Zap,
-//   UserPlus,
-  Loader2, 
+  Loader2,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { StoryCard, StoryDataType } from "@/components/StoryCard";
-// Assuming these hooks work correctly and likely use useAccount internally
+// FIX: Changed relative paths to aliased paths
 import { useIStoryToken } from "../hooks/useIStoryToken";
 import { useLikeSystem } from "../hooks/useLikeSystem";
-// import { useStorybookNFT } from "../hooks/useStoryBookNFT"; // Keep if needed
-// Removed useAccount import as useApp provides address via `user` if needed,
-// but relying on internal hook usage is better.
-// Removed useSignMessage as it's not used here.
-// Removed parseEther as it's not used here.
-import { supabaseClient } from "@/app/utils/supabase/supabaseClient";
+// FIX: Import the singleton client
+
+import { useBrowserSupabase } from "../hooks/useBrowserSupabase";
+import { useAccount } from "wagmi";
 
 interface AuthorProfile {
   id?: string;
@@ -43,11 +35,6 @@ interface AuthorProfile {
   followers: number;
   isFollowing: boolean; // Managed client-side
 }
-// Ensure this matches or extends StoryDataType from StoryCard
-// export interface StoryType extends StoryDataType {
-// Add any fields specific to the SocialPage state if not in StoryDataType
-// }
-
 export interface FeaturedWriterType {
   name: string;
   username: string;
@@ -56,7 +43,6 @@ export interface FeaturedWriterType {
   stories: number;
   speciality: string;
 }
-
 const featuredWriters: FeaturedWriterType[] = [
   {
     name: "David Kim",
@@ -84,73 +70,88 @@ const featuredWriters: FeaturedWriterType[] = [
   },
 ];
 // Define moodColors with type safety
-const moodColors: { [key: string]: string } = {
-  peaceful: "bg-green-100 dark:bg-green-900 text-green-600",
-  inspiring: "bg-yellow-100 dark:bg-yellow-900 text-yellow-600",
-  adventurous: "bg-blue-100 dark:bg-blue-900 text-blue-600",
-  // Add other moods if needed
-};
+// const moodColors: { [key: string]: string } = {
+//   peaceful: "bg-green-100 dark:bg-green-900 text-green-600",
+//   inspiring: "bg-yellow-100 dark:bg-yellow-900 text-yellow-600",
+//   adventurous: "bg-blue-100 dark:bg-blue-900 text-blue-600",
+// };
 
 export default function SocialPage() {
-  const { user, isConnected } = useApp(); 
+  const { user, isConnected } = useApp();
+  const { address } = useAccount(); 
   const [stories, setStories] = useState<StoryDataType[]>([]);
   const [activeTab, setActiveTab] = useState("feed");
-  const [unlockedStories, setUnlockedStories] = useState<Set<number>>(
+  const [unlockedStories, setUnlockedStories] = useState<Set<any>>( // Use `any` or `string`
     new Set()
   );
   const [isLoading, setIsLoading] = useState(true);
-
-  // Blockchain hooks (assuming they use useAccount internally for address)
   const iStoryToken = useIStoryToken();
   const likeSystem = useLikeSystem();
-  // const storybookNFT = useStorybookNFT(); // Uncomment if used
-  const supabase = useMemo(() => supabaseClient, []);
+  // FIX: Use the singleton client
+//   const supabase = supabaseClient;
+
+  const supabase = useBrowserSupabase();
+useEffect(() => {
+  if (!supabase) 
+    setIsLoading(false); 
+    return;
+  // fetch using supabase
+}, [supabase]);
+
 
   // Fetch community stories from Supabase
   useEffect(() => {
+    // FIX: Add null check for supabase
+    if (!supabase) {
+      setIsLoading(false); // Stop loading if supabase isn't available
+      return;
+    }
+
     const fetchSupabaseData = async () => {
       setIsLoading(true);
       try {
-        // Query includes timestamp alias and joins users table selecting necessary fields
+        // ---- THIS IS THE MAIN FIX ----
+        // 1. The query now joins on `author_wallet` using the correct foreign key name
+        // 2. The alias for the joined user data is `author`
         const { data, error } = await supabase
           .from("stories")
           .select(
             `
-            *,
-            timestamp:created_at,
-            author_wallet:users (id, name, username, avatar, wallet_address, followers_count, badges)
+            id, numeric_id, title, content, created_at, likes, comments_count, shares, has_audio, mood, tags, paywall_amount, teaser,
+            author:users!stories_author_wallet_fkey (
+              id, name, username, avatar, wallet_address, followers_count, badges
+            )
           `
-          ) // **Select followers_count**
+          )
           .order("created_at", { ascending: false });
 
         if (error) throw error;
         console.log("[SOCIAL PAGE LOG] Fetched stories:", data);
 
-        const validStories =
-          (data?.filter((s) => s.author_wallet) as any[]) || [];
+        // 3. Filter by `s.author` (the alias) not `s.author_wallet`
+        const validStories = (data?.filter((s) => s.author) as any[]) || [];
 
-        // Map data to StoryType, ensuring AuthorProfile matches the required structure
+        // 4. Map data using the `s.author` alias
         const storiesWithDefaults: StoryDataType[] = validStories.map((s) => ({
           id: s.id,
           numeric_id: s.numeric_id ?? String(s.id),
           author_wallet: {
-            id: s.author_wallet.id,
-            name: s.author_wallet.name,
-            username: s.author_wallet.username,
-            avatar: s.author_wallet.avatar,
-            wallet_address: s.author_wallet.wallet_address, // Map wallet_address
-            // **FIXED:** Map followers_count to followers
-            followers: s.author_wallet.followers_count ?? 0,
-            badges: s.author_wallet.badges ?? [],
+            id: s.author.id,
+            name: s.author.name,
+            username: s.author.username,
+            avatar: s.author.avatar,
+            wallet_address: s.author.wallet_address,
+            followers: s.author.followers_count ?? 0,
+            badges: s.author.badges ?? [],
             isFollowing: false, // Default client-side state
           } as AuthorProfile, // Assert type after mapping
           title: s.title ?? "Untitled Story",
           content: s.content ?? "",
-          timestamp: s.timestamp, // Use the alias
+          timestamp: s.created_at, // Use the actual column name
           likes: s.likes ?? 0,
-          comments: s.comments ?? 0,
+          comments: s.comments_count ?? 0,
           shares: s.shares ?? 0,
-          hasAudio: s.hasAudio ?? false,
+          hasAudio: s.has_audio ?? false,
           isLiked: false, // Default client-side state
           mood: s.mood ?? "unknown",
           tags: s.tags ?? [],
@@ -158,7 +159,6 @@ export default function SocialPage() {
           teaser: s.teaser,
           isPaid: false, // Default client-side state
         }));
-
         setStories(storiesWithDefaults);
       } catch (err: any) {
         console.error("[SOCIAL PAGE LOG] Supabase fetch error:", err);
@@ -171,7 +171,6 @@ export default function SocialPage() {
   }, [supabase]); // Run only when supabase client instance changes (effectively once)
 
   // --- Event Handlers ---
-
   const handleUnlock = async (storyNumericId: string) => {
     // Use isConnected from useApp as the guard
     if (!isConnected || !user?.address || !iStoryToken) {
@@ -181,9 +180,8 @@ export default function SocialPage() {
     if (!story || !story.author_wallet)
       return toast.error("Story or author wallet not found");
     if (story.paywallAmount <= 0) return; // Can't unlock free stories
-
     console.log(
-      `[SOCIAL PAGE LOG] Attempting unlock for story ${storyNumericId} by user ${user.address}`
+      `[SOCIAL PAGE LOG] Attempting unlock for story ${storyNumericId} by user ${address}`
     );
     try {
       const numericIdBigInt = BigInt(story.numeric_id);
@@ -194,7 +192,6 @@ export default function SocialPage() {
         story.paywallAmount,
         numericIdBigInt
       );
-
       setUnlockedStories((prev) => new Set(prev).add(story.id)); // Add Supabase ID to Set
       setStories((prev) =>
         prev.map((s) => (s.id === story.id ? { ...s, isPaid: true } : s))
@@ -208,7 +205,6 @@ export default function SocialPage() {
       toast.error(`Unlock failed: ${errorMessage}`);
     }
   };
-
   const handleLike = async (storyNumericId: string) => {
     // Use isConnected from useApp as the guard
     if (!isConnected || !user?.address || !likeSystem) {
@@ -218,18 +214,15 @@ export default function SocialPage() {
       (s) => s.numeric_id === storyNumericId
     );
     if (storyIndex === -1) return toast.error("Story not found");
-
     const story = stories[storyIndex];
     const numericIdBigInt = BigInt(story.numeric_id);
     const isCurrentlyLiked = story.isLiked;
     const currentLikes = story.likes; // Store original likes for rollback
-
     console.log(
       `[SOCIAL PAGE LOG] Attempting ${
         isCurrentlyLiked ? "unlike" : "like"
-      } for story ${storyNumericId} by user ${user.address}`
+      } for story ${storyNumericId} by user ${address}`
     );
-
     // Optimistic UI
     setStories((prev) =>
       prev.map((s, index) =>
@@ -242,23 +235,21 @@ export default function SocialPage() {
           : s
       )
     );
-
     try {
-      const likerAddress = user.address as `0x${string}`; // Get address from useApp
+      const likerAddress = address as `0x${string}`; // Get address from useApp
       // Assuming likeStory uses the internally connected account from useLikeSystem hook
       // If your contract needs the user address explicitly:
       // await likeSystem.write.likeStory(numericIdBigInt, user.address as `0x${string}`);
       await likeSystem.write.likeStory(numericIdBigInt, likerAddress); // Assuming hook handles address
-
       toast.success(
         isCurrentlyLiked ? "Story unliked" : "Story liked! +1 $ISTORY"
       );
-
       // Re-fetch accurate like count from contract after success
       const likes = await likeSystem.read.getLikes(numericIdBigInt);
       setStories((prev) =>
         prev.map((s) =>
-          s.id === story.id ? { ...s, likes: Number(likes || 0n) } : s
+          // FIX: Replace BigInt literal `0n` with `BigInt(0)`
+          s.id === story.id ? { ...s, likes: Number(likes || BigInt(0)) } : s
         )
       );
       // Optional: Sync like status to Supabase DB for persistence across sessions
@@ -278,18 +269,15 @@ export default function SocialPage() {
       toast.error(`Like action failed: ${errorMessage}`);
     }
   };
-
   const handleFollow = (authorUsername: string) => {
     // Placeholder: Implement actual follow logic using isConnected and user.address if needed
     if (!isConnected) return toast.error("Connect wallet to follow.");
     toast(`Follow action for ${authorUsername} (pending implementation)`);
   };
-
-  const handleShare = (storyId: number) => {
+  const handleShare = (storyId: any) => { // Use `any` or `string`
     // Placeholder: Implement actual share logic
     toast(`Share action for story ID ${storyId} (pending implementation)`);
   };
-
   // Loading State UI
   if (isLoading) {
     return (
@@ -299,7 +287,6 @@ export default function SocialPage() {
       </div>
     );
   }
-
   // Main Render
   return (
     <div className="max-w-6xl mx-auto space-y-8">
@@ -320,7 +307,6 @@ export default function SocialPage() {
           Discover inspiring stories from writers
         </p>
       </div>
-
       {/* Stats Bar (Uses iStoryToken hook for user's actual balance) */}
       <Card className="bg-gradient-to-r from-purple-500/10 to-indigo-500/10 border-purple-200 dark:border-purple-800">
         <CardContent className="pt-6">
@@ -350,7 +336,7 @@ export default function SocialPage() {
               <div className="text-xl font-bold text-gray-900 dark:text-white">
                 {/* Display balance from hook, check isConnected from useApp */}
                 {isConnected && iStoryToken?.balance !== undefined
-                  ? `${Number(iStoryToken.balance / BigInt(1e18)).toFixed(2)}`
+                  ? `${Number(iStoryToken?.balance / BigInt(1e18)).toFixed(2)}`
                   : "0"}
               </div>
               <div className="text-sm text-gray-600 dark:text-gray-400">
@@ -360,7 +346,6 @@ export default function SocialPage() {
           </div>
         </CardContent>
       </Card>
-
       {/* Main Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Feed */}
@@ -424,7 +409,7 @@ export default function SocialPage() {
               <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
                 Following Feed
               </h3>
-              <p className="text-gray-600 dark:text-gray-300">
+              <p className="text-gray-600 dark:text-gray-30m00">
                 Stories from writers you follow will appear here
               </p>
             </TabsContent>

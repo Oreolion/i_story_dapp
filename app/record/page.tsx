@@ -154,7 +154,7 @@ export default function RecordPage() {
           console.log("Uploading audio blob...");
           const fileName = `${userId}/${new Date().toISOString()}.webm`;
           const { data: uploadData, error: uploadError } =
-            await supabaseClient.storage
+            await supabaseClient?.storage
               .from("story-audio") // Bucket name
               .upload(fileName, audioBlob, { contentType: "audio/webm" });
 
@@ -194,7 +194,7 @@ export default function RecordPage() {
         console.log("Inserting story data into database:", storyData);
 
         // Step 3: Insert the story data into the 'stories' table
-        const { error: insertError } = await supabaseClient
+        const { error: insertError } = await supabaseClient?
           .from("stories")
           .insert([storyData]); // Note: insert still expects an array
 

@@ -1,3 +1,4 @@
+//provider
 "use client";
 import { ThemeProvider } from "next-themes";
 import { createContext, useContext, ReactNode } from "react";
@@ -9,16 +10,14 @@ import { useAccount, useBalance } from "wagmi";
 import { AuthProvider } from "./AuthProvider";
 // import { useReadContract } from 'wagmi'; // Uncomment later
 // import { iStoryTokenABI } from '@/lib/abis/iStoryToken.json';
-
 const queryClient = new QueryClient();
-
 interface User {
   address: string;
+  addressDisplay: string;
   balance: string;
   storyTokens: number;
   badges: string[];
 }
-
 interface AppContextType {
   user: User | null;
   isConnected: boolean;
@@ -26,9 +25,7 @@ interface AppContextType {
   connectWallet: () => void;
   disconnectWallet: () => void;
 }
-
 const AppContext = createContext<AppContextType | undefined>(undefined);
-
 export function useApp() {
   const context = useContext(AppContext);
   if (context === undefined) {
@@ -36,11 +33,9 @@ export function useApp() {
   }
   return context;
 }
-
 function AppInner({ children }: { children: ReactNode }) {
   const { address, isConnected, isDisconnected } = useAccount();
   const { data: ethBalance } = useBalance({ address });
-
   // const { data: storyTokens } = useReadContract({ // Uncomment after deploy
   //   address: '0xYouriStoryTokenAddress',
   //   abi: iStoryTokenABI.default,
@@ -48,17 +43,16 @@ function AppInner({ children }: { children: ReactNode }) {
   //   args: [address as `0x${string}`],
   //   chainId: baseSepolia.id,
   // });
-
   const user: User | null =
     isConnected && address
       ? {
-          address: `${address.slice(0, 6)}...${address.slice(-4)}`,
+          addressDisplay: `${address.slice(0, 6)}...${address.slice(-4)}`,
+          address: address, // raw full address
           balance: ethBalance?.formatted || "0",
-          storyTokens: 150, // Mock until uncommented
+          storyTokens: 150,
           badges: ["Early Adopter", "10-Day Streak"],
         }
       : null;
-
   return (
     <AppContext.Provider
       value={{
@@ -73,7 +67,6 @@ function AppInner({ children }: { children: ReactNode }) {
     </AppContext.Provider>
   );
 }
-
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <WagmiProvider config={config}>
