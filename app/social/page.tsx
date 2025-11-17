@@ -88,8 +88,6 @@ export default function SocialPage() {
   const iStoryToken = useIStoryToken();
   const likeSystem = useLikeSystem();
   // FIX: Use the singleton client
-//   const supabase = supabaseClient;
-
   const supabase = useBrowserSupabase();
 useEffect(() => {
   if (!supabase) 

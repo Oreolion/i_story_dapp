@@ -33,6 +33,8 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { Input } from "@/components/ui/input";
+import { SupabaseClient } from '@supabase/supabase-js';
+import { useBrowserSupabase } from "../hooks/useBrowserSupabase";
 
 export default function RecordPage() {
   const { user, isConnected } = useApp(); // Use useApp for connection status and basic UI data
@@ -45,6 +47,8 @@ export default function RecordPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
+              const supabase = useBrowserSupabase()
+
 
   // --- startRecording, stopRecording, enhanceText ---
   // (These functions are unchanged from your code)
@@ -150,7 +154,7 @@ export default function RecordPage() {
           console.log("Uploading audio blob...");
           const fileName = `${userId}/${new Date().toISOString()}.webm`;
           const { data: uploadData, error: uploadError } =
-            await supabaseClient?.storage
+            await supabase?.storage
               .from("story-audio") // Bucket name
               .upload(fileName, audioBlob, { contentType: "audio/webm" });
 
@@ -161,7 +165,7 @@ export default function RecordPage() {
             audioUrl = null; // Ensure audioUrl is null
           } else {
             // Get the public URL of the uploaded file
-            const { data: urlData } = supabaseClient.storage
+            const { data: urlData } = supabase?.storage
               .from("story-audio")
               .getPublicUrl(uploadData.path);
             audioUrl = urlData.publicUrl;
@@ -190,7 +194,7 @@ export default function RecordPage() {
         console.log("Inserting story data into database:", storyData);
 
         // Step 3: Insert the story data into the 'stories' table
-        const { error: insertError } = await supabaseClient
+        const { error: insertError } = await supabase
           ?.from("stories")
           .insert([storyData]); // Note: insert still expects an array
 

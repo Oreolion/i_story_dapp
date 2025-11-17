@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { useApp } from "@/components/Provider";
-import { supabaseClient } from "@/app/utils/supabase/supabaseClient";
+// import { supabaseClient } from "@/app/utils/supabase/supabaseClient";
 import { useAccount } from "wagmi";
 import {
   Card,
@@ -270,7 +270,7 @@ export default function ProfilePage() {
     };
     try {
       // Use the fetched Supabase user ID (profileData.id) for the update
-      const { error } = await supabaseClient
+      const { error } = await supabase
         ?.from("users")
         .update(updates)
         .eq("id", profileData.id); // Use the fetched Supabase ID
