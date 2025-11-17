@@ -1,0 +1,261 @@
+"use client";
+
+import Link from "next/link";
+import { motion } from "framer-motion";
+import {
+  BookOpen,
+  Github,
+  Twitter,
+  Mail,
+  ExternalLink,
+  Zap,
+  Heart,
+  Globe,
+} from "lucide-react";
+import { Separator } from "./ui/separator";
+
+const footerLinks = {
+  product: [
+    { name: "Features", href: "#features" },
+    { name: "Record Stories", href: "/record" },
+    { name: "Explore Library", href: "/library" },
+    { name: "Social", href: "/social" },
+  ],
+  community: [
+    { name: "Discord", href: "https://discord.com", external: true },
+    { name: "Twitter", href: "https://twitter.com", external: true },
+    { name: "GitHub", href: "https://github.com", external: true },
+    { name: "Blog", href: "#blog" },
+  ],
+  legal: [
+    { name: "Privacy Policy", href: "#privacy" },
+    { name: "Terms of Service", href: "#terms" },
+    { name: "Cookie Policy", href: "#cookies" },
+    { name: "Contact", href: "#contact" },
+  ],
+};
+
+export function Footer() {
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        delayChildren: 0.3,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { type: "spring", stiffness: 100, damping: 10 },
+    },
+  };
+
+  return (
+    <footer className="relative mt-20">
+      {/* Gradient blur background effect */}
+      <div className="absolute inset-0 bg-gradient-to-r from-purple-600/5 via-indigo-600/5 to-emerald-600/5 pointer-events-none" />
+
+      {/* Main footer content */}
+      <div className="relative border-t border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl">
+        <div className="container mx-auto px-4 py-12 lg:py-16">
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 lg:gap-12"
+          >
+            {/* Brand Section */}
+            <motion.div
+              variants={itemVariants}
+              className="lg:col-span-2 space-y-4"
+            >
+              <Link href="/" className="flex items-center space-x-2 mb-4">
+                <motion.div
+                  whileHover={{ scale: 1.05, rotate: 5 }}
+                  className="w-10 h-10 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg flex items-center justify-center shadow-lg"
+                >
+                  <BookOpen className="w-6 h-6 text-white" />
+                </motion.div>
+                <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                  IStory
+                </span>
+              </Link>
+              <p className="text-gray-600 dark:text-gray-400 leading-relaxed max-w-xs">
+                Transform your life stories into lasting digital memories.
+                Record, mint, and earn rewards in a community-driven Web3
+                ecosystem.
+              </p>
+              <div className="flex items-center space-x-4 pt-2">
+                <motion.a
+                  whileHover={{ scale: 1.1, rotate: 5 }}
+                  whileTap={{ scale: 0.95 }}
+                  href="https://twitter.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-purple-100 dark:hover:bg-purple-900/30 hover:text-purple-600 transition-colors"
+                  aria-label="Twitter"
+                >
+                  <Twitter className="w-5 h-5" />
+                </motion.a>
+                <motion.a
+                  whileHover={{ scale: 1.1, rotate: 5 }}
+                  whileTap={{ scale: 0.95 }}
+                  href="https://github.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-purple-100 dark:hover:bg-purple-900/30 hover:text-purple-600 transition-colors"
+                  aria-label="GitHub"
+                >
+                  <Github className="w-5 h-5" />
+                </motion.a>
+                <motion.a
+                  whileHover={{ scale: 1.1, rotate: 5 }}
+                  whileTap={{ scale: 0.95 }}
+                  href="mailto:contact@istory.com"
+                  className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-purple-100 dark:hover:bg-purple-900/30 hover:text-purple-600 transition-colors"
+                  aria-label="Email"
+                >
+                  <Mail className="w-5 h-5" />
+                </motion.a>
+              </div>
+            </motion.div>
+
+            {/* Product Links */}
+            <motion.div variants={itemVariants}>
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center space-x-2">
+                <Zap className="w-4 h-4 text-purple-600" />
+                <span>Product</span>
+              </h3>
+              <ul className="space-y-3">
+                {footerLinks.product.map((link) => (
+                  <li key={link.name}>
+                    <Link
+                      href={link.href}
+                      className="text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors flex items-center space-x-2 group"
+                    >
+                      <span>{link.name}</span>
+                      <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+
+            {/* Community Links */}
+            <motion.div variants={itemVariants}>
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center space-x-2">
+                <Globe className="w-4 h-4 text-indigo-600" />
+                <span>Community</span>
+              </h3>
+              <ul className="space-y-3">
+                {footerLinks.community.map((link) => (
+                  <li key={link.name}>
+                    <a
+                      href={link.href}
+                      target={link.external ? "_blank" : undefined}
+                      rel={link.external ? "noopener noreferrer" : undefined}
+                      className="text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors flex items-center space-x-2 group"
+                    >
+                      <span>{link.name}</span>
+                      {link.external && (
+                        <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      )}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+
+            {/* Legal Links */}
+            <motion.div variants={itemVariants}>
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center space-x-2">
+                <Heart className="w-4 h-4 text-emerald-600" />
+                <span>Legal</span>
+              </h3>
+              <ul className="space-y-3">
+                {footerLinks.legal.map((link) => (
+                  <li key={link.name}>
+                    <Link
+                      href={link.href}
+                      className="text-gray-600 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors flex items-center space-x-2 group"
+                    >
+                      <span>{link.name}</span>
+                      <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+          </motion.div>
+
+          {/* Divider */}
+          <Separator className="my-8 lg:my-10 bg-gradient-to-r from-transparent via-gray-200 dark:via-gray-700 to-transparent" />
+
+          {/* Bottom Section */}
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-50px" }}
+            className="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0"
+          >
+            {/* Copyright */}
+            <motion.p
+              variants={itemVariants}
+              className="text-sm text-gray-600 dark:text-gray-400"
+            >
+              © 2025 IStory. All rights reserved. Built with{" "}
+              <Heart className="w-4 h-4 inline text-red-500 animate-pulse" /> by
+              the{" "}
+              <span className="font-semibold text-purple-600 dark:text-purple-400">
+                iStory Team
+              </span>
+            </motion.p>
+
+            {/* Tech Stack */}
+            <motion.div
+              variants={itemVariants}
+              className="flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-500"
+            >
+              <span className="inline-flex items-center space-x-1 px-3 py-1 rounded-full bg-purple-100/50 dark:bg-purple-900/30">
+                <Zap className="w-3 h-3" />
+                <span>Web3</span>
+              </span>
+              <span className="inline-flex items-center space-x-1 px-3 py-1 rounded-full bg-indigo-100/50 dark:bg-indigo-900/30">
+                <span>Next.js</span>
+              </span>
+              <span className="inline-flex items-center space-x-1 px-3 py-1 rounded-full bg-emerald-100/50 dark:bg-emerald-900/30">
+                <span>Blockchain</span>
+              </span>
+            </motion.div>
+
+            {/* Status Badge */}
+            <motion.div
+              variants={itemVariants}
+              className="flex items-center space-x-2 text-sm"
+            >
+              <motion.div
+                animate={{ scale: [1, 1.2, 1] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="w-2 h-2 rounded-full bg-emerald-500"
+              />
+              <span className="text-gray-600 dark:text-gray-400">
+                All systems operational
+              </span>
+            </motion.div>
+          </motion.div>
+        </div>
+      </div>
+
+      {/* Subtle gradient bottom accent */}
+      <div className="h-1 bg-gradient-to-r from-purple-600 via-indigo-600 to-emerald-600 opacity-50" />
+    </footer>
+  );
+}

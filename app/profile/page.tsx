@@ -172,16 +172,28 @@ export default function ProfilePage() {
       setLoading(true);
       setProfileData(null); // Clear previous
       const fetchDbProfile = async () => {
+        if (!supabase) {
+          // Supabase client not ready yet — keep loading until it appears
+          console.warn("[PROFILE PAGE LOG] Supabase client not ready yet.");
+          return;
+        }
         try {
-          const { data, error } = await supabase
-            ?.from("users")
+          const res = await supabase
+            .from("users")
             .select(
               "id, name, username, bio, location, website, avatar, story_tokens, badges, created_at"
             )
             .eq("wallet_address", address?.toLowerCase())
-            .maybeSingle(); // Use maybeSingle
-          if (!isMounted) return;
-          if (error) throw error; // Let outer catch handle DB errors
+            .maybeSingle();
+
+          // res can be undefined if supabase is missing; guard again
+          if (!res) {
+            throw new Error("Supabase response was undefined");
+          }
+
+          const { data, error } = res;
+
+          if (error) throw error;
           if (data) {
             console.log("[PROFILE PAGE LOG] Profile fetched:", data);
             setProfileData(data as UserProfileData);
@@ -190,17 +202,18 @@ export default function ProfilePage() {
               "[PROFILE PAGE LOG] No profile found for address:",
               address
             );
-            setProfileData(null); // Explicitly null if not found
+            setProfileData(null);
           }
         } catch (err: any) {
           if (!isMounted) return;
           console.error("[PROFILE PAGE LOG] Error fetching profile:", err);
-          toast.error(`Failed to load profile: ${err.message}`);
+          toast.error(`Failed to load profile: ${err.message ?? String(err)}`);
           setProfileData(null);
         } finally {
           if (isMounted) setLoading(false);
         }
       };
+
       fetchDbProfile();
     } else {
       setProfileData(null);

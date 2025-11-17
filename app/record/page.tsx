@@ -67,24 +67,21 @@ export default function RecordPage() {
         const blob = new Blob(chunks, { type: "audio/webm" }); // Use webm, it's well-supported
         setAudioBlob(blob);
         setIsProcessing(true);
-        toast.promise(
-          new Promise((resolve) => setTimeout(resolve, 1500)),
-          {
-            loading: "Transcribing (mock)...",
-            success: () => {
-              setTranscribedText(
-                "This is a mock transcription of your recorded audio. In a real app, this would come from an AI speech-to-text service."
+        toast.promise(new Promise((resolve) => setTimeout(resolve, 1500)), {
+          loading: "Transcribing (mock)...",
+          success: () => {
+            setTranscribedText(
+              "This is a mock transcription of your recorded audio. In a real app, this would come from an AI speech-to-text service."
+            );
+            if (!entryTitle)
+              setEntryTitle(
+                "My Recorded Story " + new Date().toLocaleTimeString()
               );
-              if (!entryTitle)
-                setEntryTitle(
-                  "My Recorded Story " + new Date().toLocaleTimeString()
-                );
-              setIsProcessing(false);
-              return "Transcription complete!";
-            },
-            error: "Transcription failed",
-          }
-        );
+            setIsProcessing(false);
+            return "Transcription complete!";
+          },
+          error: "Transcription failed",
+        });
         stream.getTracks().forEach((track) => track.stop());
       };
       mediaRecorder.start();
@@ -147,7 +144,6 @@ export default function RecordPage() {
       let audioUrl = null;
       const userId = authInfo.id; // Get the real user ID (UUID)
 
-    
       try {
         // Step 1: Upload audio if it exists
         if (audioBlob) {
@@ -194,8 +190,8 @@ export default function RecordPage() {
         console.log("Inserting story data into database:", storyData);
 
         // Step 3: Insert the story data into the 'stories' table
-        const { error: insertError } = await supabaseClient?
-          .from("stories")
+        const { error: insertError } = await supabaseClient
+          ?.from("stories")
           .insert([storyData]); // Note: insert still expects an array
 
         if (insertError) {

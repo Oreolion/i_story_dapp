@@ -432,7 +432,7 @@ useEffect(() => {
                 >
                   <div className="flex items-center space-x-3">
                     <Avatar className="w-10 h-10">
-                      <AvatarImage src={writer.avatar} />
+                      <AvatarImage src={writer.avatar || "/default-avatar.jpg"} />
                       <AvatarFallback>
                         {writer.name
                           .split(" ")
