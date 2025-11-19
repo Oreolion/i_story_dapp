@@ -189,7 +189,7 @@ Nonce: ${Date.now()}`;
           body: JSON.stringify({ address, message, signature }),
         });
         console.log(
-          "MetaMask signed → /api/auth called → session will be created"
+          "MetaMask signed → /api/auth called → session will be created or fetched"
         );
       } catch (err: any) {
         if (err.code !== "ACTION_REJECTED") {

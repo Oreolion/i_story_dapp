@@ -1,8 +1,8 @@
 "use client";
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useApp } from "@/components/Provider"; // For connection status
-import { useAuth } from "@/components/AuthProvider"; // For getting the user's real Supabase ID
+import { useApp } from "@/components/Provider";
+import { useAuth } from "@/components/AuthProvider";
 // import { supabaseClient } from "@/app/utils/supabase/supabaseClient"; // For DB/Storage operations
 import { Button } from "@/components/ui/button";
 import {
@@ -36,8 +36,8 @@ import { Input } from "@/components/ui/input";
 import { useBrowserSupabase } from "../hooks/useBrowserSupabase";
 
 export default function RecordPage() {
-  const { user, isConnected } = useApp(); // Use useApp for connection status and basic UI data
-  const authInfo = useAuth(); // Use useAuth to get the real Supabase user ID for database operations
+  const { user, isConnected } = useApp(); 
+  const authInfo = useAuth(); 
   const [isRecording, setIsRecording] = useState(false);
   const [transcribedText, setTranscribedText] = useState("");
   const [entryTitle, setEntryTitle] = useState("");
@@ -49,8 +49,7 @@ export default function RecordPage() {
   const supabase = useBrowserSupabase()
 
 
-  // --- startRecording, stopRecording, enhanceText ---
-  // (These functions are unchanged from your code)
+
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
