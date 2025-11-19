@@ -3,7 +3,7 @@ import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "@/components/Provider"; // For connection status
 import { useAuth } from "@/components/AuthProvider"; // For getting the user's real Supabase ID
-import { supabaseClient } from "@/app/utils/supabase/supabaseClient"; // For DB/Storage operations
+// import { supabaseClient } from "@/app/utils/supabase/supabaseClient"; // For DB/Storage operations
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -33,7 +33,6 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { Input } from "@/components/ui/input";
-import { SupabaseClient } from '@supabase/supabase-js';
 import { useBrowserSupabase } from "../hooks/useBrowserSupabase";
 
 export default function RecordPage() {
@@ -47,7 +46,7 @@ export default function RecordPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
-              const supabase = useBrowserSupabase()
+  const supabase = useBrowserSupabase()
 
 
   // --- startRecording, stopRecording, enhanceText ---
