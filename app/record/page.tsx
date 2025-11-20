@@ -3,7 +3,6 @@ import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "@/components/Provider";
 import { useAuth } from "@/components/AuthProvider";
-// import { supabaseClient } from "@/app/utils/supabase/supabaseClient"; // For DB/Storage operations
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,39 +16,44 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
   Mic,
-  MicOff,
   Square,
   Save,
   Wand2,
   Volume2,
   Languages,
   Clock,
-  Upload,
-  Sparkles,
   FileText,
   Zap,
   Loader2,
-  User,
+  PlayCircle,
+  StopCircle,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { Input } from "@/components/ui/input";
-import { useBrowserSupabase } from "../hooks/useBrowserSupabase";
+// Use the singleton client we fixed earlier
+import { supabaseClient } from "@/app/utils/supabase/supabaseClient";
 
 export default function RecordPage() {
-  const { user, isConnected } = useApp(); 
-  const authInfo = useAuth(); 
+  const { isConnected } = useApp();
+  const authInfo = useAuth(); // Contains the real Supabase user ID and wallet
+  
+  // State Management
   const [isRecording, setIsRecording] = useState(false);
   const [transcribedText, setTranscribedText] = useState("");
   const [entryTitle, setEntryTitle] = useState("");
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isPlayingTTS, setIsPlayingTTS] = useState(false);
+
+  // Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const supabase = useBrowserSupabase()
+  
+  // Use the singleton client directly
+  const supabase = supabaseClient;
 
-
-
+  // --- 1. Recording & Transcription Logic ---
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -59,33 +63,27 @@ export default function RecordPage() {
           sampleRate: 16000,
         },
       });
+      
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       const chunks: Blob[] = [];
+
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) chunks.push(event.data);
       };
+
       mediaRecorder.onstop = async () => {
-        const blob = new Blob(chunks, { type: "audio/webm" }); // Use webm, it's well-supported
+        // Create the audio blob
+        const blob = new Blob(chunks, { type: "audio/webm" });
         setAudioBlob(blob);
-        setIsProcessing(true);
-        toast.promise(new Promise((resolve) => setTimeout(resolve, 1500)), {
-          loading: "Transcribing (mock)...",
-          success: () => {
-            setTranscribedText(
-              "This is a mock transcription of your recorded audio. In a real app, this would come from an AI speech-to-text service."
-            );
-            if (!entryTitle)
-              setEntryTitle(
-                "My Recorded Story " + new Date().toLocaleTimeString()
-              );
-            setIsProcessing(false);
-            return "Transcription complete!";
-          },
-          error: "Transcription failed",
-        });
+        
+        // Stop tracks to release mic
         stream.getTracks().forEach((track) => track.stop());
+
+        // Start Real AI Transcription
+        handleTranscribe(blob);
       };
+
       mediaRecorder.start();
       setIsRecording(true);
       setRecordingDuration(0);
@@ -96,9 +94,7 @@ export default function RecordPage() {
       toast.success("Recording started");
     } catch (error) {
       console.error("Error starting recording:", error);
-      toast.error(
-        "Failed to start recording. Please check microphone permissions."
-      );
+      toast.error("Failed to access microphone. Please check permissions.");
     }
   };
 
@@ -109,133 +105,177 @@ export default function RecordPage() {
       if (durationIntervalRef.current)
         clearInterval(durationIntervalRef.current);
       durationIntervalRef.current = null;
-      toast.success("Recording stopped");
+      toast.success("Recording stopped. Processing...");
     }
   };
 
-  const enhanceText = () => {
+  // Call the backend API we created to use Gemini Flash
+  const handleTranscribe = async (blob: Blob) => {
     setIsProcessing(true);
-    setTimeout(() => {
-      setTranscribedText(
-        (prev) =>
-          prev +
-          "\n\n[AI Enhanced]: This is an AI suggestion added to enhance your story."
-      );
-      setIsProcessing(false);
-      toast.success("Text enhanced with AI!");
-    }, 1500);
+    const formData = new FormData();
+    formData.append("file", blob);
+
+    const promise = fetch("/api/ai/transcribe", {
+      method: "POST",
+      body: formData,
+    }).then(async (res) => {
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Transcription failed");
+      }
+      const data = await res.json();
+      return data.text;
+    });
+
+    toast.promise(promise, {
+      loading: "Gemini is transcribing...",
+      success: (text) => {
+        setTranscribedText((prev) => (prev ? prev + " " + text : text));
+        if (!entryTitle) {
+          setEntryTitle("Journal Entry " + new Date().toLocaleTimeString());
+        }
+        setIsProcessing(false);
+        return "Transcription complete!";
+      },
+      error: (err) => {
+        setIsProcessing(false);
+        console.error(err);
+        return "Failed to transcribe audio.";
+      },
+    });
   };
 
-  // *** REFACTORED saveEntry FUNCTION ***
+  // --- 2. AI Text Enhancement Logic ---
+  const enhanceText = () => {
+    if (!transcribedText.trim()) return;
+    setIsProcessing(true);
+
+    const promise = fetch("/api/ai/enhance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: transcribedText }),
+    }).then(async (res) => {
+      if (!res.ok) {
+         const err = await res.json();
+         throw new Error(err.error || "Enhancement failed");
+      }
+      const data = await res.json();
+      return data.text;
+    });
+
+    toast.promise(promise, {
+      loading: "Gemini is polishing your story...",
+      success: (enhanced) => {
+        setTranscribedText(enhanced);
+        setIsProcessing(false);
+        return "Story enhanced!";
+      },
+      error: "Failed to enhance text.",
+    });
+  };
+
+  // --- 3. Text-to-Speech (Native Browser API) ---
+  const toggleTTS = () => {
+    if (isPlayingTTS) {
+      window.speechSynthesis.cancel();
+      setIsPlayingTTS(false);
+    } else {
+      if (!transcribedText.trim()) return;
+      
+      const utterance = new SpeechSynthesisUtterance(transcribedText);
+      // Optional: You can customize voice/rate/pitch here
+      // utterance.rate = 1; 
+      
+      utterance.onend = () => setIsPlayingTTS(false);
+      utterance.onerror = () => setIsPlayingTTS(false);
+      
+      window.speechSynthesis.speak(utterance);
+      setIsPlayingTTS(true);
+    }
+  };
+
+  // --- 4. Database Save Logic ---
   const saveEntry = async () => {
+    // Auth Guards
     if (!isConnected || !authInfo) {
       return toast.error("You must be signed in to save a story.");
     }
     if (!authInfo.id) {
-      console.error("AuthInfo is present, but user ID is missing.", authInfo);
       return toast.error("User ID is missing, cannot save.");
     }
     if (!transcribedText.trim() || !entryTitle.trim()) {
-      return toast.error("Please provide a title and content for your story.");
+      return toast.error("Please provide a title and content.");
     }
 
     setIsProcessing(true);
 
-    // We define the async function that toast.promise will track
     const promiseToSave = async () => {
       let audioUrl = null;
-      const userId = authInfo.id; // Get the real user ID (UUID)
+      const userId = authInfo.id;
 
       try {
-        // Step 1: Upload audio if it exists
-        if (audioBlob) {
+        // Step A: Upload Audio to Supabase Storage (if audio exists)
+        if (audioBlob && supabase) {
           console.log("Uploading audio blob...");
           const fileName = `${userId}/${new Date().toISOString()}.webm`;
+          
           const { data: uploadData, error: uploadError } =
-            await supabase?.storage
-              .from("story-audio") // Bucket name
+            await supabase.storage
+              .from("story-audio")
               .upload(fileName, audioBlob, { contentType: "audio/webm" });
 
           if (uploadError) {
-            // This is a "soft" failure. We toast it, but continue.
             console.error("Audio upload error:", uploadError);
-            toast.error("Failed to upload audio. Saving text only.");
-            audioUrl = null; // Ensure audioUrl is null
+            toast.error("Audio upload failed. Saving text only.");
           } else {
-            // Get the public URL of the uploaded file
-            const { data: urlData } = supabase?.storage
+            const { data: urlData } = supabase.storage
               .from("story-audio")
               .getPublicUrl(uploadData.path);
             audioUrl = urlData.publicUrl;
-            console.log("Audio uploaded successfully:", audioUrl);
           }
-        } else {
-          console.log("No audio; saving text-only entry.");
         }
 
-        // Step 2: Prepare the story data for the database
+        // Step B: Insert Record into Database
         const storyData = {
-          author_id: userId, // Foreign key to the 'users' table
-          author_wallet: authInfo.wallet_address,
+          author_id: userId,
+          author_wallet: authInfo.wallet_address, // Critical: links to the public user profile
           title: entryTitle,
           content: transcribedText,
-          has_audio: !!audioBlob && !!audioUrl, // Only true if audio exists AND upload succeeded
-          audio_url: audioUrl, // Null if no audio or upload failed
+          has_audio: !!audioBlob && !!audioUrl,
+          audio_url: audioUrl,
           likes: 0,
           comments_count: 0,
           shares: 0,
-          tags: [], // Default empty array
-          mood: "neutral", // Default mood
-          // We are NOT sending `token_id`, which is correct.
+          tags: [],
+          mood: "neutral",
         };
 
-        console.log("Inserting story data into database:", storyData);
+        const { error: insertError } = await supabase!
+          .from("stories")
+          .insert([storyData]);
 
-        // Step 3: Insert the story data into the 'stories' table
-        const { error: insertError } = await supabase
-          ?.from("stories")
-          .insert([storyData]); // Note: insert still expects an array
+        if (insertError) throw insertError;
 
-        if (insertError) {
-          // This is a "hard" failure. We must stop and reject the promise.
-          console.error("Database insert error:", insertError);
-          // Throw an error, which will be caught by toast.promise's `error` block
-          throw new Error(`Database save failed: ${insertError.message}`);
-        }
-
-        // If we get here, everything worked.
-        console.log("Story saved successfully to database.");
-        // This is the message that will be passed to the `success` handler
         return "Story saved successfully!";
-      } catch (err) {
-        // This is the safety net. It catches the `throw new Error` above
-        // OR any other unexpected error (e.g., network timeout)
-        console.error("An unexpected error occurred during save:", err);
-        // Re-throw the error so toast.promise can catch it.
-        if (err instanceof Error) {
-          throw err; // Pass the original error message
-        }
-        throw new Error("An unknown error occurred while saving.");
+      } catch (err: any) {
+        throw new Error(err.message || "Save failed");
       }
     };
 
-    // Pass the *execution* of your async function to toast.promise
     toast.promise(promiseToSave(), {
-      loading: "Saving your story...", // Changed message to be more accurate
-      success: (message) => {
+      loading: "Saving to blockchain database...",
+      success: (msg) => {
         setIsProcessing(false);
-        // Reset the form on success
+        // Reset state on success
         setTranscribedText("");
         setEntryTitle("");
         setAudioBlob(null);
         setRecordingDuration(0);
-        return String(message);
+        return msg;
       },
       error: (err) => {
         setIsProcessing(false);
-        // `err` is the Error object we threw.
-        // `err.message` will contain the clean error string.
-        return err.message;
+        return err?.message || "Failed to save";
       },
     });
   };
@@ -264,7 +304,6 @@ export default function RecordPage() {
     );
   }
 
-  // --- Main Render ---
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       {/* Header */}
@@ -274,8 +313,7 @@ export default function RecordPage() {
           animate={{ scale: 1 }}
           className="w-16 h-16 mx-auto bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center"
         >
-          {" "}
-          <Mic className="w-8 h-8 text-white" />{" "}
+          <Mic className="w-8 h-8 text-white" />
         </motion.div>
         <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
           Record Your Story
@@ -284,24 +322,21 @@ export default function RecordPage() {
           Capture thoughts and experiences with AI transcription
         </p>
       </div>
+
       {/* Recording Controls */}
       <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-0 shadow-xl">
         <CardHeader className="text-center">
-          {" "}
           <CardTitle className="flex items-center justify-center space-x-2">
             <Volume2 className="w-5 h-5" />
             <span>Audio Recording</span>
-          </CardTitle>{" "}
+          </CardTitle>
           <CardDescription>
-            Speak naturally and let AI handle transcription
-          </CardDescription>{" "}
+            Speak naturally and let Gemini AI handle transcription
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {" "}
           <div className="text-center space-y-4">
-            {" "}
             <AnimatePresence>
-              {" "}
               {isRecording && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.5 }}
@@ -309,18 +344,16 @@ export default function RecordPage() {
                   exit={{ opacity: 0, scale: 0.5 }}
                   className="inline-flex items-center space-x-2 bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300 px-4 py-2 rounded-full"
                 >
-                  {" "}
-                  <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />{" "}
-                  <span className="font-medium">Recording</span>{" "}
-                  <Clock className="w-4 h-4" />{" "}
+                  <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+                  <span className="font-medium">Recording</span>
+                  <Clock className="w-4 h-4" />
                   <span className="font-mono">
                     {formatDuration(recordingDuration)}
-                  </span>{" "}
+                  </span>
                 </motion.div>
-              )}{" "}
-            </AnimatePresence>{" "}
+              )}
+            </AnimatePresence>
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              {" "}
               <Button
                 size="lg"
                 onClick={isRecording ? stopRecording : startRecording}
@@ -331,53 +364,48 @@ export default function RecordPage() {
                     : "bg-gradient-to-r from-purple-600 to-indigo-600"
                 }`}
               >
-                {" "}
                 {isRecording ? (
                   <Square className="w-8 h-8" />
                 ) : (
                   <Mic className="w-8 h-8" />
-                )}{" "}
-              </Button>{" "}
-            </motion.div>{" "}
+                )}
+              </Button>
+            </motion.div>
             <div className="flex items-center justify-center space-x-6 text-sm text-gray-600 dark:text-gray-400">
-              {" "}
               <div className="flex items-center space-x-2">
                 <Languages className="w-4 h-4" />
                 <span>Multi-language</span>
-              </div>{" "}
+              </div>
               <div className="flex items-center space-x-2">
                 <Zap className="w-4 h-4" />
-                <span>AI Transcription</span>
-              </div>{" "}
-            </div>{" "}
-          </div>{" "}
+                <span>Gemini AI</span>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
+
       {/* Transcription & Title */}
       <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-0 shadow-xl">
         <CardHeader>
           <CardTitle className="text-lg">Entry Title</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 pb-0">
-          {" "}
           <Input
             placeholder="Give your story a title..."
             value={entryTitle}
             onChange={(e) => setEntryTitle(e.target.value)}
             className="text-lg"
             disabled={isProcessing}
-          />{" "}
+          />
         </CardContent>
         <CardHeader>
-          {" "}
           <div className="flex items-center justify-between">
-            {" "}
             <CardTitle className="flex items-center space-x-2">
               <FileText className="w-5 h-5" />
               <span>Transcription</span>
-            </CardTitle>{" "}
+            </CardTitle>
             <div className="flex items-center space-x-2">
-              {" "}
               {audioBlob && (
                 <Badge
                   variant="secondary"
@@ -385,7 +413,7 @@ export default function RecordPage() {
                 >
                   Audio Captured
                 </Badge>
-              )}{" "}
+              )}
               {isProcessing && (
                 <Badge
                   variant="secondary"
@@ -394,22 +422,38 @@ export default function RecordPage() {
                   <Loader2 className="w-3 h-3 mr-1 animate-spin" />
                   Processing...
                 </Badge>
-              )}{" "}
-            </div>{" "}
-          </div>{" "}
+              )}
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {" "}
           <Textarea
             placeholder="Your transcribed text will appear here, or you can type directly..."
             value={transcribedText}
             onChange={(e) => setTranscribedText(e.target.value)}
             className="min-h-[200px] text-base leading-relaxed resize-none"
             disabled={isProcessing}
-          />{" "}
-          <Separator />{" "}
+          />
+          <Separator />
           <div className="flex flex-col sm:flex-row gap-4">
-            {" "}
+            {/* Read Aloud / Stop Button */}
+            <Button
+              onClick={toggleTTS}
+              disabled={!transcribedText.trim()}
+              variant="outline"
+              className="flex-1"
+            >
+              {isPlayingTTS ? (
+                <>
+                  <StopCircle className="w-4 h-4 mr-2" /> Stop Reading
+                </>
+              ) : (
+                <>
+                  <PlayCircle className="w-4 h-4 mr-2" /> Read Aloud
+                </>
+              )}
+            </Button>
+
             <Button
               onClick={enhanceText}
               disabled={!transcribedText.trim() || isProcessing}
@@ -418,7 +462,7 @@ export default function RecordPage() {
             >
               <Wand2 className="w-4 h-4 mr-2" />
               Enhance with AI
-            </Button>{" "}
+            </Button>
             <Button
               onClick={saveEntry}
               disabled={
@@ -426,51 +470,49 @@ export default function RecordPage() {
               }
               className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600"
             >
-              {" "}
               {isProcessing ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               ) : (
                 <Save className="w-4 h-4 mr-2" />
-              )}{" "}
-              Save Entry{" "}
-            </Button>{" "}
-          </div>{" "}
+              )}
+              Save Entry
+            </Button>
+          </div>
         </CardContent>
       </Card>
+
       {/* Recording Tips */}
       <Card className="bg-gradient-to-r from-purple-500/10 to-indigo-500/10 border-purple-200 dark:border-purple-800">
         <CardHeader>
           <CardTitle className="text-lg">Recording Tips</CardTitle>
         </CardHeader>
         <CardContent>
-          {" "}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600 dark:text-gray-400">
-            {" "}
             <div className="flex items-start space-x-3">
               <div className="w-6 h-6 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
                 <span className="text-xs font-bold text-purple-600">1</span>
               </div>
               <p>Speak clearly and moderately</p>
-            </div>{" "}
+            </div>
             <div className="flex items-start space-x-3">
               <div className="w-6 h-6 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
                 <span className="text-xs font-bold text-purple-600">2</span>
               </div>
               <p>Find a quiet environment</p>
-            </div>{" "}
+            </div>
             <div className="flex items-start space-x-3">
               <div className="w-6 h-6 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
                 <span className="text-xs font-bold text-purple-600">3</span>
               </div>
               <p>You can edit the text before saving</p>
-            </div>{" "}
+            </div>
             <div className="flex items-start space-x-3">
               <div className="w-6 h-6 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
                 <span className="text-xs font-bold text-purple-600">4</span>
               </div>
               <p>Stories saved securely on blockchain</p>
-            </div>{" "}
-          </div>{" "}
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>

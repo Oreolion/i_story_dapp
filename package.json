@@ -9,6 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@elevenlabs/elevenlabs-js": "^2.24.1",
+    "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "^3.10.0",
     "@next/swc-wasm-nodejs": "13.5.1",
     "@prisma/client": "^6.16.2",
