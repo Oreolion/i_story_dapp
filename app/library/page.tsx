@@ -1,18 +1,32 @@
 "use client";
 
-import { useState, useEffect } from "react"; // Added useEffect
-import { motion } from "framer-motion";
-import { useApp } from "@/components/Provider"; // <-- USE useApp
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
+// FIX: Use explicit relative paths to root components
+import { useApp } from "../../components/Provider";
+import { useAuth } from "../../components/AuthProvider";
+// FIX: Use explicit relative path to utils folder within app directory
+import { supabaseClient } from "../utils/supabase/supabaseClient";
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   BookOpen,
@@ -22,117 +36,230 @@ import {
   Eye,
   Download,
   Share2,
-  Filter,
   Plus,
   Sparkles,
   FileText,
   Volume2,
-  Loader2, // Added Loader2
+  Loader2,
+  CheckCircle2,
+  X,
+  Library,
 } from "lucide-react";
+import { toast } from "react-hot-toast";
+import Link from "next/link";
 
-// Mock data remains the same
-const mockEntries = [
-  {
-    id: 1,
-    title: "Morning Walk Reflections",
-    content:
-      "Today was an incredible day. I woke up early and went for a walk in the park. The morning mist was still hanging over the lake...",
-    date: "2025-01-20",
-    likes: 24,
-    views: 156,
-    hasAudio: true,
-    mood: "peaceful",
-    tags: ["nature", "reflection", "morning"],
-    type: "entry",
-  },
-  {
-    id: 2,
-    title: "My First Digital Book",
-    content:
-      "A collection of stories from my summer adventures, compiled into a beautiful digital book NFT.",
-    date: "2025-01-18",
-    likes: 89,
-    views: 342,
-    hasAudio: false,
-    mood: "excited",
-    tags: ["adventure", "summer", "travel"],
-    type: "book",
-  },
-  {
-    id: 3,
-    title: "Grandmother's Stories",
-    content:
-      "Recording the beautiful stories my grandmother shared about her youth and the old country...",
-    date: "2025-01-15",
-    likes: 156,
-    views: 523,
-    hasAudio: true,
-    mood: "nostalgic",
-    tags: ["family", "history", "memories"],
-    type: "entry",
-  },
-  {
-    id: 4,
-    title: "Career Reflections",
-    content:
-      "A deep dive into my professional journey, lessons learned, and dreams for the future.",
-    date: "2025-01-12",
-    likes: 67,
-    views: 298,
-    hasAudio: false,
-    mood: "thoughtful",
-    tags: ["career", "growth", "future"],
-    type: "entry",
-  },
-];
+// --- Types ---
+interface BaseEntry {
+  id: string;
+  title: string;
+  created_at: string;
+  likes: number;
+  views: number;
+  mood?: string;
+  tags?: string[];
+}
+
+interface StoryEntry extends BaseEntry {
+  type: "entry";
+  content: string;
+  has_audio: boolean;
+  audio_url: string | null;
+}
+
+interface BookEntry extends BaseEntry {
+  type: "book";
+  description: string;
+  story_ids: string[];
+}
+
+type LibraryItem = StoryEntry | BookEntry;
+
 const moodColors: { [key: string]: string } = {
-  // Added index signature
   peaceful: "bg-green-100 dark:bg-green-900 text-green-600",
   excited: "bg-yellow-100 dark:bg-yellow-900 text-yellow-600",
   nostalgic: "bg-purple-100 dark:bg-purple-900 text-purple-600",
   thoughtful: "bg-blue-100 dark:bg-blue-900 text-blue-600",
+  neutral: "bg-gray-100 dark:bg-gray-800 text-gray-600",
+  unknown: "bg-gray-100 dark:bg-gray-800 text-gray-600",
 };
 
 export default function LibraryPage() {
-  const { user, isConnected } = useApp(); // <-- Use useApp for connection status
+  const { isConnected } = useApp();
+  const authInfo = useAuth();
+  const supabase = supabaseClient;
+  const router = useRouter();
+
+  // Data State
+  const [entries, setEntries] = useState<LibraryItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // UI State
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
-  const [isLoading, setIsLoading] = useState(true); // Basic loading state
 
-  // Simulate loading (can be removed if only checking isConnected)
+  // Compilation State
+  const [isCompiling, setIsCompiling] = useState(false);
+  const [selectedStoryIds, setSelectedStoryIds] = useState<Set<string>>(new Set());
+  const [isBookDialogOpen, setIsBookDialogOpen] = useState(false);
+  
+  // New Book Form State
+  const [newBookTitle, setNewBookTitle] = useState("");
+  const [newBookDesc, setNewBookDesc] = useState("");
+  const [isSavingBook, setIsSavingBook] = useState(false);
+
+  // --- 1. Fetch Data ---
+  const fetchData = async () => {
+    if (!authInfo?.id || !supabase) return;
+    setIsLoading(true);
+
+    try {
+      const { data: storiesData, error: storiesError } = await supabase
+        .from("stories")
+        .select("*")
+        .eq("author_id", authInfo.id)
+        .order("created_at", { ascending: false });
+
+      if (storiesError) throw storiesError;
+
+      const { data: booksData, error: booksError } = await supabase
+        .from("books")
+        .select("*")
+        .eq("author_id", authInfo.id)
+        .order("created_at", { ascending: false });
+
+      const formattedStories: StoryEntry[] = (storiesData || []).map((s) => ({
+        type: "entry",
+        id: s.id,
+        title: s.title || "Untitled Story",
+        content: s.content || "",
+        created_at: s.created_at,
+        likes: s.likes || 0,
+        views: s.views || 0,
+        has_audio: s.has_audio,
+        audio_url: s.audio_url,
+        mood: s.mood || "neutral",
+        tags: s.tags || [],
+      }));
+
+      const formattedBooks: BookEntry[] = (booksData || []).map((b) => ({
+        type: "book",
+        id: b.id,
+        title: b.title || "Untitled Book",
+        description: b.description || "",
+        created_at: b.created_at,
+        likes: b.likes || 0,
+        views: b.views || 0,
+        story_ids: b.story_ids || [],
+        mood: "excited",
+        tags: ["compilation"],
+      }));
+
+      const allEntries = [...formattedStories, ...formattedBooks].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+
+      setEntries(allEntries);
+    } catch (err: any) {
+      console.error("Library fetch error:", err);
+      toast.error("Failed to load library");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    // Give Provider a moment to determine connection status
-    const timer = setTimeout(() => setIsLoading(false), 50);
-    return () => clearTimeout(timer);
-  }, []);
+    if (isConnected && authInfo?.id) {
+      fetchData();
+    } else {
+      setIsLoading(false);
+    }
+  }, [isConnected, authInfo?.id, supabase]);
 
-  const filteredEntries = mockEntries.filter((entry) => {
+  // --- 2. Event Handlers ---
+  const toggleSelection = (id: string) => {
+    const next = new Set(selectedStoryIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedStoryIds(next);
+  };
+
+  const handleStartCompile = () => {
+    setIsCompiling(true);
+    setActiveFilter("entries");
+    setSelectedStoryIds(new Set());
+    toast("Select stories to add to your book", { icon: "📚" });
+  };
+
+  const handleCancelCompile = () => {
+    setIsCompiling(false);
+    setSelectedStoryIds(new Set());
+  };
+
+  const handleOpenBookDialog = () => {
+    if (selectedStoryIds.size < 2) {
+      return toast.error("Please select at least 2 stories.");
+    }
+    setNewBookTitle("");
+    setNewBookDesc("");
+    setIsBookDialogOpen(true);
+  };
+
+  const handleCreateBook = async () => {
+    if (!newBookTitle.trim()) return toast.error("Please enter a book title");
+    if (!supabase || !authInfo?.id) return;
+
+    setIsSavingBook(true);
+    try {
+      const bookData = {
+        author_id: authInfo.id,
+        author_wallet: authInfo.wallet_address,
+        title: newBookTitle,
+        description: newBookDesc,
+        story_ids: Array.from(selectedStoryIds),
+      };
+
+      const { error } = await supabase.from("books").insert([bookData]);
+      if (error) throw error;
+
+      toast.success("Book created successfully!");
+      setIsBookDialogOpen(false);
+      setIsCompiling(false);
+      setSelectedStoryIds(new Set());
+      fetchData();
+    } catch (err: any) {
+      console.error("Create book error:", err);
+      toast.error("Failed to create book");
+    } finally {
+      setIsSavingBook(false);
+    }
+  };
+
+  const handleCardClick = (entry: LibraryItem) => {
+    if (isCompiling && entry.type === "entry") {
+      toggleSelection(entry.id);
+    } else if (!isCompiling && entry.type === "entry") {
+      // Navigate to record page to continue editing
+      router.push(`/story/${entry.id}`);
+    }
+  };
+
+  // --- 3. Filtering Logic ---
+  const filteredEntries = entries.filter((entry) => {
     const matchesSearch =
       entry.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.tags.some((tag) =>
-        tag.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+      (entry.type === "entry" && entry.content.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (entry.tags?.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase())));
 
     const matchesFilter =
       activeFilter === "all" ||
       (activeFilter === "entries" && entry.type === "entry") ||
       (activeFilter === "books" && entry.type === "book") ||
-      (activeFilter === "audio" && entry.hasAudio);
+      (activeFilter === "audio" && entry.type === "entry" && entry.has_audio);
 
     return matchesSearch && matchesFilter;
   });
-  // Auth Guard using isConnected from useApp()
-  // Show loading spinner first
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-12 h-12 animate-spin text-purple-600" />
-      </div>
-    );
-  }
 
-  // If loading is done and not connected, show message
+  // --- 4. Render ---
   if (!isConnected) {
     return (
       <div className="text-center space-y-8 py-16">
@@ -151,7 +278,6 @@ export default function LibraryPage() {
     );
   }
 
-  // --- Main Render (Wallet is connected) ---
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       {/* Header */}
@@ -161,36 +287,37 @@ export default function LibraryPage() {
           animate={{ scale: 1 }}
           className="w-16 h-16 mx-auto bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center"
         >
-          <BookOpen className="w-8 h-8 text-white" />
+          <Library className="w-8 h-8 text-white" />
         </motion.div>
         <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
           Your Story Library
         </h1>
         <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-          All your journal entries and compiled books in one place
+          {entries.length} items in your collection
         </p>
       </div>
-      {/* Stats Cards */}
+
+      {/* Stats Cards (Restored) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           {
             label: "Total Entries",
-            value: mockEntries.filter((e) => e.type === "entry").length,
+            value: entries.filter((e) => e.type === "entry").length,
             icon: FileText,
           },
           {
             label: "Books Created",
-            value: mockEntries.filter((e) => e.type === "book").length,
+            value: entries.filter((e) => e.type === "book").length,
             icon: BookOpen,
           },
           {
             label: "Total Likes",
-            value: mockEntries.reduce((sum, e) => sum + e.likes, 0),
+            value: entries.reduce((sum, e) => sum + e.likes, 0),
             icon: Heart,
           },
           {
             label: "Total Views",
-            value: mockEntries.reduce((sum, e) => sum + e.views, 0),
+            value: entries.reduce((sum, e) => sum + e.views, 0),
             icon: Eye,
           },
         ].map((stat, index) => {
@@ -217,6 +344,7 @@ export default function LibraryPage() {
           );
         })}
       </div>
+
       {/* Search and Filters */}
       <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-0 shadow-lg">
         <CardContent className="pt-6">
@@ -236,130 +364,159 @@ export default function LibraryPage() {
               className="w-full md:w-auto"
             >
               <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="all" className="text-xs">
-                  All
-                </TabsTrigger>
-                <TabsTrigger value="entries" className="text-xs">
-                  Entries
-                </TabsTrigger>
-                <TabsTrigger value="books" className="text-xs">
-                  Books
-                </TabsTrigger>
-                <TabsTrigger value="audio" className="text-xs">
-                  Audio
-                </TabsTrigger>
+                <TabsTrigger value="all" className="text-xs">All</TabsTrigger>
+                <TabsTrigger value="entries" className="text-xs">Entries</TabsTrigger>
+                <TabsTrigger value="books" className="text-xs">Books</TabsTrigger>
+                <TabsTrigger value="audio" className="text-xs">Audio</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
         </CardContent>
       </Card>
-      {/* Stories Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {filteredEntries.map((entry, index) => (
-          <motion.div
-            key={entry.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-          >
-            <Card className="h-full bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-300 group">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      {entry.type === "book" ? (
-                        <BookOpen className="w-5 h-5 text-indigo-600" />
-                      ) : (
-                        <FileText className="w-5 h-5 text-purple-600" />
-                      )}
-                      {entry.hasAudio && (
-                        <Volume2 className="w-4 h-4 text-emerald-600" />
+
+      {/* Loading State */}
+      {isLoading ? (
+        <div className="flex items-center justify-center min-h-[40vh]">
+          <Loader2 className="w-12 h-12 animate-spin text-purple-600" />
+        </div>
+      ) : (
+        /* Content Grid */
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <AnimatePresence mode="popLayout">
+            {filteredEntries.map((entry, index) => (
+              <motion.div
+                key={entry.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ delay: index * 0.05 }}
+                layout
+              >
+                <Card 
+                  className={`h-full border-0 shadow-lg transition-all duration-300 relative overflow-hidden group
+                    ${isCompiling && entry.type === 'entry' ? 'cursor-pointer hover:ring-2 hover:ring-purple-500' : 'cursor-pointer hover:shadow-xl hover:scale-[1.01]'}
+                    ${selectedStoryIds.has(entry.id) ? 'ring-2 ring-purple-600 bg-purple-50 dark:bg-purple-900/20' : 'bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm'}
+                  `}
+                //   onClick={() => handleCardClick(entry)}
+                >
+                  {/* Selection Indicator */}
+                  {isCompiling && entry.type === 'entry' && (
+                    <div className="absolute top-4 right-4 z-10">
+                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors
+                        ${selectedStoryIds.has(entry.id) ? 'bg-purple-600 border-purple-600' : 'border-gray-300 bg-white/80'}
+                      `}>
+                        {selectedStoryIds.has(entry.id) && <CheckCircle2 className="w-4 h-4 text-white" />}
+                      </div>
+                    </div>
+                  )}
+
+                  <CardHeader>
+                    <div className="flex items-start justify-between pr-8">
+                      <div className="space-y-2">
+                        <div className="flex items-center space-x-2">
+                          {entry.type === "book" ? (
+                            <BookOpen className="w-5 h-5 text-indigo-600" />
+                          ) : (
+                            <FileText className="w-5 h-5 text-purple-600" />
+                          )}
+                          {entry.type === "entry" && entry.has_audio && (
+                            <Volume2 className="w-4 h-4 text-emerald-600" />
+                          )}
+                          {entry.type === "book" && (
+                            <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">
+                              Collection
+                            </Badge>
+                          )}
+                        </div>
+                        <CardTitle className="text-xl line-clamp-1 group-hover:text-purple-600 transition-colors">
+                         <Link href={`/story/${entry.id}`} >
+                          {entry.title}
+                         </Link>
+                        </CardTitle>
+                      </div>
+                      <Badge
+                        variant="secondary"
+                        className={moodColors[entry.mood || "neutral"]}
+                      >
+                        {entry.mood}
+                      </Badge>
+                    </div>
+                    
+                    <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400 mt-2">
+                      <div className="flex items-center space-x-1">
+                        <Calendar className="w-4 h-4" />
+                        <span>{new Date(entry.created_at).toLocaleDateString()}</span>
+                      </div>
+                      {entry.type === "book" && (
+                        <div className="flex items-center space-x-1 text-indigo-600">
+                          <FileText className="w-4 h-4" />
+                          <span>{entry.story_ids.length} Stories</span>
+                        </div>
                       )}
                     </div>
-                    <CardTitle className="text-xl group-hover:text-purple-600 transition-colors">
-                      {entry.title}
-                    </CardTitle>
-                  </div>
-                  <Badge
-                    variant="secondary"
-                    className={
-                      moodColors[entry.mood as keyof typeof moodColors]
-                    }
-                  >
-                    {entry.mood}
-                  </Badge>
-                </div>
-                <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400">
-                  <div className="flex items-center space-x-1">
-                    <Calendar className="w-4 h-4" />
-                    <span>{new Date(entry.date).toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <Heart className="w-4 h-4" />
-                    <span>{entry.likes}</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <Eye className="w-4 h-4" />
-                    <span>{entry.views}</span>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-gray-600 dark:text-gray-300 line-clamp-3">
-                  {entry.content}
-                </p>
+                  </CardHeader>
 
-                <div className="flex flex-wrap gap-2">
-                  {entry.tags.map((tag) => (
-                    <Badge key={tag} variant="outline" className="text-xs">
-                      #{tag}
-                    </Badge>
-                  ))}
-                </div>
+                  <CardContent className="space-y-4">
+                    <p className="text-gray-600 dark:text-gray-300 line-clamp-3 min-h-[4.5rem]">
+                      {entry.type === "entry" ? entry.content : entry.description}
+                    </p>
 
-                <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <div className="flex space-x-2">
-                    <Button size="sm" variant="ghost">
-                      <Eye className="w-4 h-4 mr-1" />
-                      View
-                    </Button>
-                    <Button size="sm" variant="ghost">
-                      <Share2 className="w-4 h-4 mr-1" />
-                      Share
-                    </Button>
-                  </div>
-                  {entry.type === "book" && (
-                    <Button
-                      size="sm"
-                      className="bg-gradient-to-r from-purple-600 to-indigo-600"
-                    >
-                      <Download className="w-4 h-4 mr-1" />
-                      Download
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
+                    <div className="flex flex-wrap gap-2">
+                      {entry.tags?.slice(0, 3).map((tag) => (
+                        <Badge key={tag} variant="outline" className="text-xs">
+                          #{tag}
+                        </Badge>
+                      ))}
+                    </div>
+
+                    {!isCompiling && (
+                      <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <div className="flex space-x-2">
+                          <Button size="sm" variant="ghost" className="h-8">
+                            <Eye className="w-4 h-4 mr-1" /> {entry.views}
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-8">
+                            <Heart className="w-4 h-4 mr-1" /> {entry.likes}
+                          </Button>
+                        </div>
+                        <div className="flex space-x-2">
+                           <Button size="sm" variant="ghost" className="h-8">
+                            <Share2 className="w-4 h-4" />
+                           </Button>
+                           {entry.type === "book" && (
+                            <Button size="sm" variant="ghost" className="h-8 text-indigo-600">
+                              <Download className="w-4 h-4" />
+                            </Button>
+                           )}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+      )}
+
       {/* Empty State */}
-      {filteredEntries.length === 0 && (
+      {!isLoading && filteredEntries.length === 0 && (
         <div className="text-center py-16 space-y-4">
-          <div className="w-24 h-24 mx-auto bg-gradient-to-r from-purple-100 to-indigo-100 dark:from-purple-900 dark:to-indigo-900 rounded-full flex items-center justify-center">
-            <Search className="w-12 h-12 text-purple-600" />
+          <div className="w-24 h-24 mx-auto bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 rounded-full flex items-center justify-center">
+            <Search className="w-12 h-12 text-gray-400" />
           </div>
           <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
             No stories found
           </h3>
           <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto">
             {searchQuery
-              ? `No stories match "${searchQuery}". Try adjusting your search or filters.`
-              : "Start creating your first story to see it here."}
+              ? `No matches for "${searchQuery}".`
+              : "Start your journey by recording your first story!"}
           </p>
         </div>
       )}
-      {/* Quick Actions */}
+
+      {/* Quick Actions (Restored at Bottom) */}
       <Card className="bg-gradient-to-r from-purple-500/10 to-indigo-500/10 border-purple-200 dark:border-purple-800">
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
@@ -371,19 +528,86 @@ export default function LibraryPage() {
                 Record new entries or compile existing ones into digital books
               </p>
             </div>
-            <div className="flex space-x-4">
-              <Button className="bg-gradient-to-r from-purple-600 to-indigo-600">
-                <Plus className="w-4 h-4 mr-2" />
-                New Entry
-              </Button>
-              <Button variant="outline">
-                <Sparkles className="w-4 h-4 mr-2" />
-                Compile Book
-              </Button>
+            
+            <div className="flex gap-2">
+              {isCompiling ? (
+                <>
+                  <Button variant="outline" onClick={handleCancelCompile} className="border-red-200 text-red-600 hover:bg-red-50">
+                    <X className="w-4 h-4 mr-2" /> Cancel
+                  </Button>
+                  <Button 
+                    onClick={handleOpenBookDialog} 
+                    className="bg-gradient-to-r from-purple-600 to-indigo-600"
+                    disabled={selectedStoryIds.size < 2}
+                  >
+                    <Sparkles className="w-4 h-4 mr-2" /> 
+                    Create Book ({selectedStoryIds.size})
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button 
+                    onClick={handleStartCompile}
+                    variant="outline"
+                    className="border-purple-200 text-purple-700 hover:bg-purple-50"
+                  >
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Compile Book
+                  </Button>
+                  <Button className="bg-gradient-to-r from-emerald-600 to-teal-600" onClick={() => window.location.href='/record'}>
+                    <Plus className="w-4 h-4 mr-2" /> New Entry
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </CardContent>
-      </Card>{" "}
+      </Card>
+
+      {/* Create Book Dialog */}
+      <Dialog open={isBookDialogOpen} onOpenChange={setIsBookDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Compile Digital Book</DialogTitle>
+            <DialogDescription>
+              Create a collection from your selected {selectedStoryIds.size} stories.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="title">Book Title</Label>
+              <Input
+                id="title"
+                placeholder="e.g., Summer Memories 2024"
+                value={newBookTitle}
+                onChange={(e) => setNewBookTitle(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="desc">Description</Label>
+              <Textarea
+                id="desc"
+                placeholder="What is this collection about?"
+                value={newBookDesc}
+                onChange={(e) => setNewBookDesc(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsBookDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreateBook} 
+              disabled={isSavingBook}
+              className="bg-gradient-to-r from-purple-600 to-indigo-600"
+            >
+              {isSavingBook ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+              Create Collection
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
