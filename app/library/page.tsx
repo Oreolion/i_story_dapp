@@ -1,11 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import { useAccount } from "wagmi";
+import { toast } from "react-hot-toast";
+
+// FIX: Correct relative paths
 import { useApp } from "../../components/Provider";
 import { useAuth } from "../../components/AuthProvider";
+import { useStoryNFT } from "../hooks/useStoryNFT";
 import { supabaseClient } from "../utils/supabase/supabaseClient";
+import { ipfsService } from "../utils/ipfsService";
+
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -43,8 +50,6 @@ import {
   X,
   Library,
 } from "lucide-react";
-import { toast } from "react-hot-toast";
-import Link from "next/link";
 
 // --- Types ---
 interface BaseEntry {
@@ -68,6 +73,7 @@ interface BookEntry extends BaseEntry {
   type: "book";
   description: string;
   story_ids: string[];
+  ipfs_hash?: string;
 }
 
 type LibraryItem = StoryEntry | BookEntry;
@@ -86,6 +92,9 @@ export default function LibraryPage() {
   const authInfo = useAuth();
   const supabase = supabaseClient;
   const router = useRouter();
+  
+  // Blockchain Hook
+  const { mintBook, isPending: isMinting } = useStoryNFT();
 
   // Data State
   const [entries, setEntries] = useState<LibraryItem[]>([]);
@@ -111,6 +120,7 @@ export default function LibraryPage() {
     setIsLoading(true);
 
     try {
+      // Fetch Stories
       const { data: storiesData, error: storiesError } = await supabase
         .from("stories")
         .select("*")
@@ -119,6 +129,7 @@ export default function LibraryPage() {
 
       if (storiesError) throw storiesError;
 
+      // Fetch Books
       const { data: booksData, error: booksError } = await supabase
         .from("books")
         .select("*")
@@ -148,6 +159,7 @@ export default function LibraryPage() {
         likes: b.likes || 0,
         views: b.views || 0,
         story_ids: b.story_ids || [],
+        ipfs_hash: b.ipfs_hash,
         mood: "excited",
         tags: ["compilation"],
       }));
@@ -159,7 +171,7 @@ export default function LibraryPage() {
       setEntries(allEntries);
     } catch (err: any) {
       console.error("Library fetch error:", err);
-      toast.error("Failed to load library");
+      // toast.error("Failed to load library");
     } finally {
       setIsLoading(false);
     }
@@ -183,7 +195,7 @@ export default function LibraryPage() {
 
   const handleStartCompile = () => {
     setIsCompiling(true);
-    setActiveFilter("entries");
+    setActiveFilter("entries"); // Switch to entries tab
     setSelectedStoryIds(new Set());
     toast("Select stories to add to your book", { icon: "📚" });
   };
@@ -208,25 +220,61 @@ export default function LibraryPage() {
 
     setIsSavingBook(true);
     try {
+      // 1. Gather Data
+      const selectedStories = entries.filter(e => 
+        e.type === 'entry' && selectedStoryIds.has(e.id)
+      ) as StoryEntry[];
+
+      const metadata = {
+        name: newBookTitle,
+        description: newBookDesc,
+        external_url: "https://istory.vercel.app",
+        attributes: [
+           { trait_type: "Author", value: authInfo.name },
+           { trait_type: "Stories", value: selectedStories.length },
+        ],
+        stories: selectedStories.map(s => ({
+           title: s.title,
+           content: s.content,
+           audio: s.audio_url,
+           date: s.created_at
+        }))
+      };
+
+      // 2. IPFS Upload
+      toast.loading("Uploading Metadata...", { id: "book-toast" });
+      const ipfsResult = await ipfsService.uploadMetadata(metadata);
+      if(!ipfsResult?.hash) throw new Error("IPFS upload failed");
+      const tokenURI = `ipfs://${ipfsResult.hash}`;
+
+      // 3. Mint NFT
+      toast.loading("Minting NFT...", { id: "book-toast" });
+      await mintBook(tokenURI); 
+      
+      // 4. Save DB
       const bookData = {
         author_id: authInfo.id,
         author_wallet: authInfo.wallet_address,
         title: newBookTitle,
         description: newBookDesc,
         story_ids: Array.from(selectedStoryIds),
+        ipfs_hash: ipfsResult.hash, 
       };
 
       const { error } = await supabase.from("books").insert([bookData]);
       if (error) throw error;
 
-      toast.success("Book created successfully!");
+      toast.success("Book Created & Minted!", { id: "book-toast" });
       setIsBookDialogOpen(false);
       setIsCompiling(false);
       setSelectedStoryIds(new Set());
       fetchData();
+
     } catch (err: any) {
       console.error("Create book error:", err);
-      toast.error("Failed to create book");
+      const msg = err.message || "Failed to create book";
+      if (msg.includes("User rejected")) toast.error("Minting cancelled", { id: "book-toast" });
+      else toast.error("Failed to create book", { id: "book-toast" });
     } finally {
       setIsSavingBook(false);
     }
@@ -236,12 +284,12 @@ export default function LibraryPage() {
     if (isCompiling && entry.type === "entry") {
       toggleSelection(entry.id);
     } else if (!isCompiling && entry.type === "entry") {
-      // Navigate to record page to continue editing
+      // Navigate to record page to continue editing (using query param as per request)
       router.push(`/story/${entry.id}`);
     }
   };
 
-  // --- 3. Filtering Logic ---
+  // --- 3. Filtering ---
   const filteredEntries = entries.filter((entry) => {
     const matchesSearch =
       entry.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -258,6 +306,7 @@ export default function LibraryPage() {
   });
 
   // --- 4. Render ---
+
   if (!isConnected) {
     return (
       <div className="text-center space-y-8 py-16">
@@ -278,7 +327,7 @@ export default function LibraryPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
-      {/* Header */}
+      {/* Header (Restored Centered Layout) */}
       <div className="text-center space-y-4">
         <motion.div
           initial={{ scale: 0 }}
@@ -291,11 +340,11 @@ export default function LibraryPage() {
           Your Story Library
         </h1>
         <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-          {entries.length} items in your collection
+          All your journal entries and compiled books in one place
         </p>
       </div>
 
-      {/* Stats Cards (Restored) */}
+      {/* Stats Cards (Restored Grid Layout) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           {
@@ -343,7 +392,7 @@ export default function LibraryPage() {
         })}
       </div>
 
-      {/* Search and Filters */}
+      {/* Search and Filters (Restored Card Layout) */}
       <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-0 shadow-lg">
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row gap-4">
@@ -395,7 +444,7 @@ export default function LibraryPage() {
                     ${isCompiling && entry.type === 'entry' ? 'cursor-pointer hover:ring-2 hover:ring-purple-500' : 'cursor-pointer hover:shadow-xl hover:scale-[1.01]'}
                     ${selectedStoryIds.has(entry.id) ? 'ring-2 ring-purple-600 bg-purple-50 dark:bg-purple-900/20' : 'bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm'}
                   `}
-                //   onClick={() => handleCardClick(entry)}
+                  onClick={() => handleCardClick(entry)}
                 >
                   {/* Selection Indicator */}
                   {isCompiling && entry.type === 'entry' && (
@@ -427,9 +476,7 @@ export default function LibraryPage() {
                           )}
                         </div>
                         <CardTitle className="text-xl line-clamp-1 group-hover:text-purple-600 transition-colors">
-                         <Link href={`/story/${entry.id}`} >
                           {entry.title}
-                         </Link>
                         </CardTitle>
                       </div>
                       <Badge
@@ -552,7 +599,7 @@ export default function LibraryPage() {
                     <Sparkles className="w-4 h-4 mr-2" />
                     Compile Book
                   </Button>
-                  <Button className="bg-gradient-to-r from-emerald-600 to-teal-600" onClick={() => window.location.href='/record'}>
+                  <Button className="bg-gradient-to-r from-emerald-600 to-teal-600" onClick={() => router.push('/record')}>
                     <Plus className="w-4 h-4 mr-2" /> New Entry
                   </Button>
                 </>
@@ -597,11 +644,11 @@ export default function LibraryPage() {
             </Button>
             <Button 
               onClick={handleCreateBook} 
-              disabled={isSavingBook}
+              disabled={isSavingBook || isMinting}
               className="bg-gradient-to-r from-purple-600 to-indigo-600"
             >
-              {isSavingBook ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
-              Create Collection
+              {(isSavingBook || isMinting) ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+              {isMinting ? "Minting NFT..." : "Create Collection"}
             </Button>
           </DialogFooter>
         </DialogContent>

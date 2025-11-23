@@ -19,12 +19,14 @@ In a world where history has often been manipulated by conquerors, victors and d
 ### Key Features
 
 ✨ **Core Functionality**
+
 - **Voice-to-Text Journaling**: Record stories using browser-based audio capture with AI-powered transcription
 - **AI Enhancements**: Get creative prompts, grammar polishing, and AI-generated suggestions
 - **Blockchain Immortality**: Mint stories as NFTs on Base (Ethereum L2) with IPFS storage
 - **Monetization Suite**: Earn $STORY tokens from likes, tips, and paywall sales
 
 💬 **Social Features**
+
 - **Community Social Feed**: Discover and engage with other stories
 - **Like System**: Earn rewards for community engagement ($STORY tokens)
 - **Tip System**: Support creators directly with custom $STORY token amounts
@@ -33,18 +35,21 @@ In a world where history has often been manipulated by conquerors, victors and d
 - **Story Sharing**: Share stories across social platforms
 
 💰 **Monetization**
+
 - **Paywall System**: Set custom prices for exclusive stories
 - **$STORY Token Rewards**: Earn from likes and community engagement
 - **NFT Minting**: Compile stories into digital books and mint as NFTs
 - **Tip Jar**: Accept voluntary tips from supporters
 
 📚 **Library & Curation**
+
 - **Personal Library**: Organize all your stories and books
 - **Book Compilation**: Combine multiple stories into digital books
 - **Story Filtering**: Search, filter, and organize by mood, date, and tags
 - **Audio Storage**: All recordings stored securely with public URLs
 
 👤 **User Profiles**
+
 - **Profile Customization**: Build your creator profile with bio and avatar
 - **Streaks & Achievements**: Track daily writing streaks and earn badges
 - **Statistics Dashboard**: View your impact and community engagement metrics
@@ -59,6 +64,7 @@ History is written by the victors, but your story deserves to be heard unedited.
 ## Tech Stack
 
 ### Frontend
+
 - **Framework**: Next.js 14 (App Router) with React 18 and TypeScript for performant, SEO-friendly experiences
 - **Styling**: Tailwind CSS for responsive, modern UI with full dark/light mode support
 - **Animations**: Framer Motion for smooth, professional animations and transitions
@@ -66,6 +72,7 @@ History is written by the victors, but your story deserves to be heard unedited.
 - **Icons**: Lucide React for consistent iconography
 
 ### Blockchain & Web3
+
 - **Wallet Integration**: Wagmi + RainbowKit for seamless wallet connections
 - **Smart Contracts**: Solidity contracts deployed on Base (Ethereum L2)
 - **Contract Interaction**: Viem for efficient blockchain interactions
@@ -75,16 +82,19 @@ History is written by the victors, but your story deserves to be heard unedited.
   - `StoryBookNFT.sol` - ERC721 NFT contract for minting story books
 
 ### Backend & Database
+
 - **Database**: Supabase (PostgreSQL) for real-time data and authentication
 - **Storage**: Supabase Storage for audio files and media
 - **API**: Next.js API Routes for serverless functions
 
 ### AI & External Services
+
 - **Speech-to-Text**: Gemini Flash for accurate voice transcription
 - **Text Enhancement**: Gemini Flash for AI-powered writing suggestions
 - **Text-to-Speech**: Browser Speech Synthesis API for audio playback
 
 ### Development & Deployment
+
 - **Package Manager**: npm/yarn/pnpm
 - **Linting**: ESLint with TypeScript support
 - **Deployment**: Vercel (recommended) or any Node.js hosting
@@ -92,6 +102,7 @@ History is written by the victors, but your story deserves to be heard unedited.
 ## Pages & Features
 
 ### 🏠 Home Page (`/`)
+
 - Hero section showcasing app features and benefits
 - Key statistics (stories created, active users, tokens earned, books minted)
 - Feature cards with gradient backgrounds
@@ -99,6 +110,7 @@ History is written by the victors, but your story deserves to be heard unedited.
 - Beautiful gradient animations and glassmorphism design
 
 ### 🎙️ Record Page (`/record`)
+
 - **Audio Recording**: Mic input with duration tracking
 - **Real-time Transcription**: AI-powered speech-to-text using Gemini Flash
 - **AI Enhancement**: Polish and improve written content
@@ -108,6 +120,7 @@ History is written by the victors, but your story deserves to be heard unedited.
 - **Database Save**: Store stories with author wallet and audio URLs
 
 ### 📚 Library Page (`/library`)
+
 - **Personal Collection**: View all your recorded stories and compiled books
 - **Advanced Filtering**: Search by title, date, mood, and tags
 - **Story Statistics**: Track likes, views, and engagement per story
@@ -116,6 +129,7 @@ History is written by the victors, but your story deserves to be heard unedited.
 - **Mood Badges**: Visual mood indicators for each story
 
 ### 🌐 Social Page (`/social`)
+
 - **Community Feed**: Discover stories from other users
 - **Featured Writers**: Showcase top storytellers
 - **Trending Topics**: View popular hashtags and themes
@@ -124,6 +138,7 @@ History is written by the victors, but your story deserves to be heard unedited.
 - **Community Stats**: Display active users and engagement metrics
 
 ### 👥 Profile Page (`/profile`)
+
 - **User Profile**: Customize name, bio, location, website, and avatar
 - **Writing Streaks**: Track daily writing consistency with visual progress
 - **Achievements**: Earn and display badges (First Story, Community Star, etc.)
@@ -132,6 +147,7 @@ History is written by the victors, but your story deserves to be heard unedited.
 - **Settings**: User account and preference management
 
 ### 📖 Story Detail Page (`/story/[storyId]`)
+
 - **Full Story Display**: Read complete story content with rich formatting
 - **Author Profile**: View author info, badges, and follower count
 - **Engagement Metrics**: See likes, shares, and view counts
@@ -218,7 +234,9 @@ i_story_dapp/
 ## Getting Started
 
 ### Prerequisites
+
 - **Node.js** 18+ with npm, yarn, or pnpm
+
 - **Supabase** account with project setup (PostgreSQL database + auth)
 - **MetaMask** or compatible Web3 wallet configured for Base network
 - **Base Sepolia testnet** access for development
@@ -227,12 +245,14 @@ i_story_dapp/
 ### Installation
 
 1. **Clone the repository**:
+
    ```bash
    git clone https://github.com/Oreolion/web3_Ai_iStory.git
    cd i_story_dapp
    ```
 
 2. **Install dependencies**:
+
    ```bash
    npm install
    # or: yarn install / pnpm install
@@ -240,6 +260,7 @@ i_story_dapp/
 
 3. **Set up environment variables**:
    Create a `.env.local` file in the root directory:
+
    ```bash
    # Supabase
    NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
@@ -265,6 +286,7 @@ i_story_dapp/
    - Configure authentication with OAuth or email/password
 
 5. **Deploy Smart Contracts** (optional for testing):
+
    ```bash
    # Install Hardhat
    npm install --save-dev hardhat
@@ -277,9 +299,11 @@ i_story_dapp/
    ```
 
 6. **Run development server**:
+
    ```bash
    npm run dev
    ```
+
    Open [http://localhost:3000](http://localhost:3000) in your browser
 
 ### Quick Start Guide
@@ -305,36 +329,44 @@ i_story_dapp/
 ## API Endpoints
 
 ### AI Endpoints
+
 - **POST `/api/ai/transcribe`** - Convert audio to text using Gemini Flash
 - **POST `/api/ai/enhance`** - Enhance story text with AI suggestions
 
 ### Story Endpoints
+
 - **POST `/api/journal/save`** - Save story to database
 - **POST `/api/book/compile`** - Compile stories into a book
 
 ### Social Endpoints
+
 - **POST `/api/social/like`** - Like a story
 - **POST `/api/social/share`** - Share story to social media
 
 ### User Endpoints
+
 - **POST `/api/user/profile`** - Update user profile
 - **GET `/api/user/profile`** - Fetch user profile
 
-## Contributing
+## how to contribute
 
 We welcome contributions from the community! Here's how to contribute:
 
 1. **Fork the repository** and create a feature branch:
+
    ```bash
+
    git checkout -b feature/your-amazing-feature
    ```
 
 2. **Make your changes** with clear, descriptive commits:
+
    ```bash
    git commit -m 'Add amazing feature: description'
    ```
 
 3. **Push to your branch**:
+
    ```bash
    git push origin feature/your-amazing-feature
    ```
@@ -345,6 +377,7 @@ We welcome contributions from the community! Here's how to contribute:
    - Any related issues or tickets
 
 ### Guidelines
+
 - Follow the existing code style and patterns
 - Ensure TypeScript types are properly defined
 - Test changes locally before submitting PR
@@ -354,13 +387,16 @@ We welcome contributions from the community! Here's how to contribute:
 ## Security
 
 ### Best Practices
+
 - **Encryption**: All sensitive data uses AES-256 encryption before IPFS storage
 - **Authentication**: Web3 signature verification via Wagmi
 - **Database Security**: Supabase Row Level Security (RLS) policies enforce access control
 - **Smart Contract Audits**: Contracts follow OpenZeppelin security standards
 
 ### Reporting Vulnerabilities
+
 Found a security issue? Please report it privately to the team rather than opening a public issue:
+
 - Email: [security@istory.app](mailto:security@istory.app)
 - Include detailed information about the vulnerability
 - Allow time for us to respond and patch
@@ -372,12 +408,14 @@ Found a security issue? Please report it privately to the team rather than openi
 ### Frontend Deployment
 
 **Vercel** (Recommended):
+
 ```bash
 npm install -g vercel
 vercel --prod
 ```
 
 **Other Hosting**:
+
 - Build: `npm run build`
 - Start: `npm run start`
 - Works on any Node.js 18+ hosting
@@ -392,6 +430,7 @@ vercel --prod
 ### IPFS Pinning
 
 Use Pinata or similar for file permanence:
+
 ```bash
 # Example with Pinata
 npm install --save-dev @pinata/sdk
@@ -406,6 +445,7 @@ MIT © 2024 iStory Team
 ## Roadmap
 
 ### Current
+
 - [x] MVP: Core journaling and story management
 - [x] Voice recording and AI transcription
 - [x] Social feed and engagement
@@ -414,14 +454,16 @@ MIT © 2024 iStory Team
 - [x] Beautiful footer component
 - [x] Story detail page with full features
 
-### Q1 2025
+### Q1 2026
+
 - [ ] Mobile app (React Native)
 - [ ] Advanced AI recommendations
 - [ ] Trending stories leaderboard
 - [ ] Cross-chain support (Optimism, Arbitrum)
 - [ ] Enhanced notification system
 
-### Q2 2025
+### Q2 2026
+
 - [ ] Story marketplace (buy/sell books)
 - [ ] Community challenges (#MyLifeStoryChallenge)
 - [ ] Video story support
@@ -429,6 +471,7 @@ MIT © 2024 iStory Team
 - [ ] Advanced analytics dashboard
 
 ### Future
+
 - [ ] AI-generated audiobook narration
 - [ ] Multi-language support
 - [ ] AI story translation
@@ -438,11 +481,13 @@ MIT © 2024 iStory Team
 ## Feedback & Support
 
 ### Get Help
+
 - **Discord**: [Join our community](https://discord.gg/istory)
 - **Twitter/X**: [@iStoryApp](https://twitter.com/istoryapp)
 - **Email**: [support@istory.app](mailto:support@istory.app)
 
 ### Discussions
+
 - [GitHub Discussions](https://github.com/Oreolion/web3_Ai_iStory/discussions)
 - [Discord Server](https://discord.gg/istory)
 - [Reddit Community](https://reddit.com/r/istoryapp)
@@ -450,11 +495,13 @@ MIT © 2024 iStory Team
 ## Team & Contact
 
 ### Project Lead
+
 - **Name**: Remi Adedeji
 - **Twitter**: [@remyOreo_](https://twitter.com/remyOreo_)
-- **Email**: [remi@istory.app](mailto:remi@istory.app)
+- **Email**: [remyoreo11@gmail.com](mailto:remyoreo11@gmail.com)
 
 ### Contributing
+
 Special thanks to all contributors who help make iStory better! 🙏
 
 ---
@@ -462,12 +509,14 @@ Special thanks to all contributors who help make iStory better! 🙏
 ## Target Audience
 
 ### Primary Demographics
+
 - **Ages**: 18-45 (Millennials & Gen Z focus)
 - **Tech-Savviness**: Comfortable with Web3 and blockchain
 - **Geography**: Global, with focus on blockchain-active regions (North America, Europe, Asia)
 - **Interest**: Storytelling, digital ownership, creative expression
 
 ### Key Personas
+
 - **Aspiring Storytellers**: People who journal via voice and want AI enhancements
 - **Web3 Enthusiasts**: Crypto users interested in NFTs and blockchain permanence
 - **Content Creators**: Influencers looking to monetize stories and build communities
@@ -475,6 +524,7 @@ Special thanks to all contributors who help make iStory better! 🙏
 - **Side Hustlers**: Freelancers earning through story monetization
 
 ### Use Cases
+
 - Daily voice journaling with AI transcription
 - Compiling life stories into published books
 - Building personal brand as a creator
@@ -483,6 +533,7 @@ Special thanks to all contributors who help make iStory better! 🙏
 - Building engaged communities around storytelling
 
 ### Market Size
+
 - **Total Addressable Market (TAM)**: ~10-20M users in journaling + NFT creator markets
 - **Early Adopters**: Crypto holders with MetaMask (5M+ in Web3 space)
 - **Growth Potential**: Emerging economies with strong Web3 adoption

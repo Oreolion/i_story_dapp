@@ -1,8 +1,15 @@
 "use client";
+
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useApp } from "@/components/Provider";
-import { useAuth } from "@/components/AuthProvider";
+import { toast } from "react-hot-toast";
+
+// FIX: Correct Relative Paths
+import { useApp } from "../../components/Provider";
+import { useAuth } from "../../components/AuthProvider";
+import { supabaseClient } from "../../app/utils/supabase/supabaseClient";
+import { ipfsService } from "../../app/utils/ipfsService";
+
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -14,6 +21,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
 import {
   Mic,
   Square,
@@ -25,35 +33,32 @@ import {
   FileText,
   Zap,
   Loader2,
+  User,
   PlayCircle,
   StopCircle,
+  Globe, // Added Globe for IPFS indicator
 } from "lucide-react";
-import { toast } from "react-hot-toast";
-import { Input } from "@/components/ui/input";
-// Use the singleton client we fixed earlier
-import { supabaseClient } from "@/app/utils/supabase/supabaseClient";
 
 export default function RecordPage() {
   const { isConnected } = useApp();
-  const authInfo = useAuth(); // Contains the real Supabase user ID and wallet
+  const authInfo = useAuth();
   
-  // State Management
+  // State
   const [isRecording, setIsRecording] = useState(false);
   const [transcribedText, setTranscribedText] = useState("");
   const [entryTitle, setEntryTitle] = useState("");
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isPlayingTTS, setIsPlayingTTS] = useState(false);
+  const [isPlayingTTS, setIsPlayingTTS] = useState(false); // New State for TTS
 
   // Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Use the singleton client directly
   const supabase = supabaseClient;
 
-  // --- 1. Recording & Transcription Logic ---
+  // --- 1. Recording Logic ---
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -73,14 +78,11 @@ export default function RecordPage() {
       };
 
       mediaRecorder.onstop = async () => {
-        // Create the audio blob
         const blob = new Blob(chunks, { type: "audio/webm" });
         setAudioBlob(blob);
-        
-        // Stop tracks to release mic
         stream.getTracks().forEach((track) => track.stop());
-
-        // Start Real AI Transcription
+        
+        // Trigger Real AI Transcription
         handleTranscribe(blob);
       };
 
@@ -94,7 +96,7 @@ export default function RecordPage() {
       toast.success("Recording started");
     } catch (error) {
       console.error("Error starting recording:", error);
-      toast.error("Failed to access microphone. Please check permissions.");
+      toast.error("Failed to access microphone.");
     }
   };
 
@@ -105,11 +107,11 @@ export default function RecordPage() {
       if (durationIntervalRef.current)
         clearInterval(durationIntervalRef.current);
       durationIntervalRef.current = null;
-      toast.success("Recording stopped. Processing...");
+      toast.success("Recording stopped");
     }
   };
 
-  // Call the backend API we created to use Gemini Flash
+  // --- 2. Real AI Transcription ---
   const handleTranscribe = async (blob: Blob) => {
     setIsProcessing(true);
     const formData = new FormData();
@@ -119,10 +121,7 @@ export default function RecordPage() {
       method: "POST",
       body: formData,
     }).then(async (res) => {
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Transcription failed");
-      }
+      if (!res.ok) throw new Error("Transcription failed");
       const data = await res.json();
       return data.text;
     });
@@ -132,20 +131,16 @@ export default function RecordPage() {
       success: (text) => {
         setTranscribedText((prev) => (prev ? prev + " " + text : text));
         if (!entryTitle) {
-          setEntryTitle("Journal Entry " + new Date().toLocaleTimeString());
+          setEntryTitle("Journal Entry " + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
         }
         setIsProcessing(false);
         return "Transcription complete!";
       },
-      error: (err) => {
-        setIsProcessing(false);
-        console.error(err);
-        return "Failed to transcribe audio.";
-      },
+      error: "Failed to transcribe audio.",
     });
   };
 
-  // --- 2. AI Text Enhancement Logic ---
+  // --- 3. Real AI Enhancement ---
   const enhanceText = () => {
     if (!transcribedText.trim()) return;
     setIsProcessing(true);
@@ -155,10 +150,7 @@ export default function RecordPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text: transcribedText }),
     }).then(async (res) => {
-      if (!res.ok) {
-         const err = await res.json();
-         throw new Error(err.error || "Enhancement failed");
-      }
+      if (!res.ok) throw new Error("Enhancement failed");
       const data = await res.json();
       return data.text;
     });
@@ -174,60 +166,44 @@ export default function RecordPage() {
     });
   };
 
-  // --- 3. Text-to-Speech (Native Browser API) ---
+  // --- 4. Text-to-Speech (New Feature) ---
   const toggleTTS = () => {
     if (isPlayingTTS) {
       window.speechSynthesis.cancel();
       setIsPlayingTTS(false);
     } else {
       if (!transcribedText.trim()) return;
-      
       const utterance = new SpeechSynthesisUtterance(transcribedText);
-      // Optional: You can customize voice/rate/pitch here
-      // utterance.rate = 1; 
-      
       utterance.onend = () => setIsPlayingTTS(false);
       utterance.onerror = () => setIsPlayingTTS(false);
-      
       window.speechSynthesis.speak(utterance);
       setIsPlayingTTS(true);
     }
   };
 
-  // --- 4. Database Save Logic ---
+  // --- 5. Save Logic (Database + IPFS) ---
   const saveEntry = async () => {
-    // Auth Guards
-    if (!isConnected || !authInfo) {
-      return toast.error("You must be signed in to save a story.");
-    }
-    if (!authInfo.id) {
-      return toast.error("User ID is missing, cannot save.");
-    }
-    if (!transcribedText.trim() || !entryTitle.trim()) {
-      return toast.error("Please provide a title and content.");
-    }
+    if (!isConnected || !authInfo) return toast.error("Please sign in to save.");
+    if (!authInfo.id) return toast.error("User ID missing.");
+    if (!transcribedText.trim() || !entryTitle.trim()) return toast.error("Please provide title and content.");
 
     setIsProcessing(true);
 
     const promiseToSave = async () => {
       let audioUrl = null;
+      let ipfsHash = null;
       const userId = authInfo.id;
 
       try {
-        // Step A: Upload Audio to Supabase Storage (if audio exists)
+        // A. Upload Audio (Supabase Storage)
         if (audioBlob && supabase) {
-          console.log("Uploading audio blob...");
           const fileName = `${userId}/${new Date().toISOString()}.webm`;
-          
           const { data: uploadData, error: uploadError } =
             await supabase.storage
               .from("story-audio")
               .upload(fileName, audioBlob, { contentType: "audio/webm" });
 
-          if (uploadError) {
-            console.error("Audio upload error:", uploadError);
-            toast.error("Audio upload failed. Saving text only.");
-          } else {
+          if (!uploadError && uploadData) {
             const { data: urlData } = supabase.storage
               .from("story-audio")
               .getPublicUrl(uploadData.path);
@@ -235,10 +211,22 @@ export default function RecordPage() {
           }
         }
 
-        // Step B: Insert Record into Database
+        // B. Upload Metadata (IPFS via Pinata)
+        const ipfsMetadata = {
+            title: entryTitle,
+            content: transcribedText,
+            author: authInfo.wallet_address,
+            audio: audioUrl,
+            timestamp: new Date().toISOString(),
+            app: "IStory DApp"
+        };
+        const ipfsResult = await ipfsService.uploadMetadata(ipfsMetadata);
+        ipfsHash = ipfsResult.hash;
+
+        // C. Save Record (Supabase DB)
         const storyData = {
           author_id: userId,
-          author_wallet: authInfo.wallet_address, // Critical: links to the public user profile
+          author_wallet: authInfo.wallet_address,
           title: entryTitle,
           content: transcribedText,
           has_audio: !!audioBlob && !!audioUrl,
@@ -248,6 +236,7 @@ export default function RecordPage() {
           shares: 0,
           tags: [],
           mood: "neutral",
+          ipfs_hash: ipfsHash,
         };
 
         const { error: insertError } = await supabase!
@@ -255,18 +244,16 @@ export default function RecordPage() {
           .insert([storyData]);
 
         if (insertError) throw insertError;
-
-        return "Story saved successfully!";
+        return "Story saved & pinned to IPFS!";
       } catch (err: any) {
         throw new Error(err.message || "Save failed");
       }
     };
 
     toast.promise(promiseToSave(), {
-      loading: "Saving to blockchain database...",
+      loading: "Saving to Blockchain & DB...",
       success: (msg) => {
         setIsProcessing(false);
-        // Reset state on success
         setTranscribedText("");
         setEntryTitle("");
         setAudioBlob(null);
@@ -286,6 +273,7 @@ export default function RecordPage() {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
+  // --- Auth Guard UI ---
   if (!isConnected) {
     return (
       <div className="text-center space-y-8 py-16">
@@ -304,6 +292,7 @@ export default function RecordPage() {
     );
   }
 
+  // --- Main Render (Original UI Preserved) ---
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       {/* Header */}
@@ -319,7 +308,7 @@ export default function RecordPage() {
           Record Your Story
         </h1>
         <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-          Capture thoughts and experiences with AI transcription
+          Capture thoughts and experiences with Gemini AI transcription
         </p>
       </div>
 
@@ -423,6 +412,10 @@ export default function RecordPage() {
                   Processing...
                 </Badge>
               )}
+              {/* Added small indicator for IPFS capability */}
+              <Badge variant="outline" className="border-indigo-200 text-indigo-600 hidden sm:flex items-center gap-1">
+                 <Globe className="w-3 h-3"/> IPFS Ready
+              </Badge>
             </div>
           </div>
         </CardHeader>
@@ -436,7 +429,7 @@ export default function RecordPage() {
           />
           <Separator />
           <div className="flex flex-col sm:flex-row gap-4">
-            {/* Read Aloud / Stop Button */}
+            {/* Added Read Aloud Button within existing layout structure */}
             <Button
               onClick={toggleTTS}
               disabled={!transcribedText.trim()}
