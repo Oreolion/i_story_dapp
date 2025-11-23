@@ -3,10 +3,8 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
-// FIX: Use explicit relative paths to root components
 import { useApp } from "../../components/Provider";
 import { useAuth } from "../../components/AuthProvider";
-// FIX: Use explicit relative path to utils folder within app directory
 import { supabaseClient } from "../utils/supabase/supabaseClient";
 import { Button } from "@/components/ui/button";
 import {

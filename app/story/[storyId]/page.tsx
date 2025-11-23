@@ -11,7 +11,6 @@ import { useApp } from "../../../components/Provider";
 import { useAuth } from "../../../components/AuthProvider";
 
 import { useIStoryToken } from "../../hooks/useIStoryToken";
-import { useLikeSystem } from "../../hooks/useLikeSystem";
 
 import { supabaseClient } from "../../utils/supabase/supabaseClient";
 
@@ -119,7 +118,6 @@ export default function StoryPage({
   
   const supabase = supabaseClient;
   const iStoryToken = useIStoryToken();
-  const likeSystem = useLikeSystem();
 
   // State
   const [story, setStory] = useState<StoryData | null>(null);
@@ -237,14 +235,14 @@ export default function StoryPage({
 
   const handleLike = async () => {
     if (!isConnected) return toast.error("Please connect your wallet");
-    if (!likeSystem || !story) return;
+    if (!story) return;
 
     try {
       setIsLiking(true);
-      const numericIdBigInt = BigInt(story.numeric_id);
-      const likerAddress = address as `0x${string}`;
+    //   const numericIdBigInt = BigInt(story.numeric_id);
+    //   const likerAddress = address as `0x${string}`;
 
-      await likeSystem.write.likeStory(numericIdBigInt, likerAddress);
+     //   await likeSystem.write.likeStory(numericIdBigInt, likerAddress);
       
       // Optimistic update
       setIsLiked(!isLiked);

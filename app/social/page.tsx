@@ -24,7 +24,6 @@ import { toast } from "react-hot-toast";
 // FIX: Relative paths based on app/social/ location
 import { StoryCard, StoryDataType } from "../../components/StoryCard";
 import { useIStoryToken } from "../hooks/useIStoryToken";
-import { useLikeSystem } from "../hooks/useLikeSystem";
 import { supabaseClient } from "../../app/utils/supabase/supabaseClient";
 import { useAccount } from "wagmi";
 import Link from "next/link";
@@ -93,7 +92,6 @@ export default function SocialPage() {
 
   // Hooks
   const iStoryToken = useIStoryToken();
-  const likeSystem = useLikeSystem();
   const supabase = supabaseClient;
 
   // --- Fetch Data ---
@@ -220,7 +218,7 @@ export default function SocialPage() {
   };
 
   const handleLike = async (storyNumericId: string) => {
-    if (!isConnected || !address || !likeSystem) {
+    if (!isConnected || !address) {
       return toast.error("Please connect your wallet.");
     }
 
