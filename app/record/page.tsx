@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-hot-toast";
 
@@ -42,7 +42,10 @@ import {
 export default function RecordPage() {
   const { isConnected } = useApp();
   const authInfo = useAuth();
-  
+
+  useEffect(() => {
+    console.log("Auth Info:", authInfo);
+  }, [authInfo]);
   // State
   const [isRecording, setIsRecording] = useState(false);
   const [transcribedText, setTranscribedText] = useState("");
@@ -55,7 +58,7 @@ export default function RecordPage() {
   // Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   const supabase = supabaseClient;
 
   // --- 1. Recording Logic ---
@@ -68,7 +71,7 @@ export default function RecordPage() {
           sampleRate: 16000,
         },
       });
-      
+
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       const chunks: Blob[] = [];
@@ -81,7 +84,7 @@ export default function RecordPage() {
         const blob = new Blob(chunks, { type: "audio/webm" });
         setAudioBlob(blob);
         stream.getTracks().forEach((track) => track.stop());
-        
+
         // Trigger Real AI Transcription
         handleTranscribe(blob);
       };
@@ -131,7 +134,13 @@ export default function RecordPage() {
       success: (text) => {
         setTranscribedText((prev) => (prev ? prev + " " + text : text));
         if (!entryTitle) {
-          setEntryTitle("Journal Entry " + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
+          setEntryTitle(
+            "Journal Entry " +
+              new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+          );
         }
         setIsProcessing(false);
         return "Transcription complete!";
@@ -183,9 +192,11 @@ export default function RecordPage() {
 
   // --- 5. Save Logic (Database + IPFS) ---
   const saveEntry = async () => {
-    if (!isConnected || !authInfo) return toast.error("Please sign in to save.");
+    if (!isConnected || !authInfo)
+      return toast.error("Please sign in to save.");
     if (!authInfo.id) return toast.error("User ID missing.");
-    if (!transcribedText.trim() || !entryTitle.trim()) return toast.error("Please provide title and content.");
+    if (!transcribedText.trim() || !entryTitle.trim())
+      return toast.error("Please provide title and content.");
 
     setIsProcessing(true);
 
@@ -213,17 +224,17 @@ export default function RecordPage() {
 
         // B. Upload Metadata (IPFS via Pinata)
         const ipfsMetadata = {
-            title: entryTitle,
-            content: transcribedText,
-            author: authInfo.wallet_address,
-            audio: audioUrl,
-            timestamp: new Date().toISOString(),
-            app: "IStory DApp"
+          title: entryTitle,
+          content: transcribedText,
+          author: authInfo.wallet_address,
+          audio: audioUrl,
+          timestamp: new Date().toISOString(),
+          app: "IStory DApp",
         };
         const ipfsResult = await ipfsService.uploadMetadata(ipfsMetadata);
         ipfsHash = ipfsResult.hash;
 
-        // C. Save Record (Supabase DB)
+        // C. Save Record via API route (server-side Supabase)
         const storyData = {
           author_id: userId,
           author_wallet: authInfo.wallet_address,
@@ -231,19 +242,22 @@ export default function RecordPage() {
           content: transcribedText,
           has_audio: !!audioBlob && !!audioUrl,
           audio_url: audioUrl,
-          likes: 0,
-          comments_count: 0,
-          shares: 0,
           tags: [],
           mood: "neutral",
           ipfs_hash: ipfsHash,
         };
 
-        const { error: insertError } = await supabase!
-          .from("stories")
-          .insert([storyData]);
+        const res = await fetch("/api/stories", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(storyData),
+        });
 
-        if (insertError) throw insertError;
+        if (!res.ok) {
+          const errJson = await res.json().catch(() => ({}));
+          throw new Error(errJson.error || "Failed to save story");
+        }
+
         return "Story saved & pinned to IPFS!";
       } catch (err: any) {
         throw new Error(err.message || "Save failed");
@@ -413,8 +427,11 @@ export default function RecordPage() {
                 </Badge>
               )}
               {/* Added small indicator for IPFS capability */}
-              <Badge variant="outline" className="border-indigo-200 text-indigo-600 hidden sm:flex items-center gap-1">
-                 <Globe className="w-3 h-3"/> IPFS Ready
+              <Badge
+                variant="outline"
+                className="border-indigo-200 text-indigo-600 hidden sm:flex items-center gap-1"
+              >
+                <Globe className="w-3 h-3" /> IPFS Ready
               </Badge>
             </div>
           </div>

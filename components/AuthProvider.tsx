@@ -1,5 +1,6 @@
 // components/AuthProvider.tsx
 "use client";
+
 import React, {
   createContext,
   useContext,
@@ -9,7 +10,7 @@ import React, {
 } from "react";
 import { useAccount, useBalance, useSignMessage } from "wagmi";
 import type { User, Session } from "@supabase/supabase-js";
-import { supabaseClient } from "@/app/utils/supabase/supabaseClient"; // ← YOUR ORIGINAL CLIENT (kept exactly)
+import { supabaseClient } from "@/app/utils/supabase/supabaseClient";
 
 export interface UnifiedUserProfile {
   id: string;
@@ -25,7 +26,7 @@ export interface UnifiedUserProfile {
 const AuthContext = createContext<UnifiedUserProfile | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const supabase = supabaseClient; // ← YOUR ORIGINAL WORKING CLIENT
+  const supabase = supabaseClient;
   const { address, isConnected } = useAccount();
   const { data: ethBalance } = useBalance({ address });
   const { signMessageAsync } = useSignMessage();
@@ -49,6 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  // Optional: keep this for future Supabase-session based flows
   useEffect(() => {
     if (!supabase) {
       setIsSessionLoading(false);
@@ -93,21 +95,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setProfile(null);
       return;
     }
+
     const sessionWalletAddress =
       (session.user.user_metadata?.wallet_address as string | undefined) ||
       (address ?? null);
     const walletLower = sessionWalletAddress?.toLowerCase?.() ?? null;
+
     try {
       const { data: userProfile, error } = await supabase
         .from("users")
         .select("*")
         .eq("id", session.user.id)
         .maybeSingle();
+
       if (error) console.error("[AUTH] fetch profile by id error:", error);
+
       if (userProfile) {
         setUnifiedProfile(userProfile, session.user);
         return;
       }
+
       const insertPayload = {
         id: session.user.id,
         wallet_address: walletLower,
@@ -115,43 +122,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: session.user.email ?? null,
         avatar: session.user.user_metadata?.avatar_url ?? null,
       };
-      try {
-        const { data: inserted, error: insertError } = await supabase
-          .from("users")
-          .insert(insertPayload)
-          .select("*")
-          .maybeSingle();
-        if (insertError) {
-          if (
-            insertError.code === "23505" &&
-            insertError.message?.includes("users_wallet_address_key")
-          ) {
-            console.warn(
-              "[AUTH] insert conflict on wallet_address, fetching existing..."
-            );
-            const { data: existing } = await supabase
-              .from("users")
-              .select("*")
-              .eq("wallet_address", walletLower)
-              .maybeSingle();
-            if (existing) setUnifiedProfile(existing, session.user);
-            else setProfile(null);
-          } else {
+
+      const { data: inserted, error: insertError } = await supabase
+        .from("users")
+        .insert(insertPayload)
+        .select("*")
+        .maybeSingle();
+
+      if (insertError) {
+        if (
+          insertError.code === "23505" &&
+          insertError.message?.includes("users_wallet_address_key")
+        ) {
+          console.warn(
+            "[AUTH] insert conflict on wallet_address, fetching existing..."
+          );
+          const { data: existing, error: fetchExistingErr } = await supabase
+            .from("users")
+            .select("*")
+            .eq("wallet_address", walletLower)
+            .maybeSingle();
+
+          if (fetchExistingErr) {
             console.error(
-              "[AUTH] failed to create public.users row:",
-              insertError
+              "[AUTH] failed to fetch existing by wallet_address:",
+              fetchExistingErr
             );
+            setProfile(null);
+          } else if (existing) {
+            setUnifiedProfile(existing, session.user);
+          } else {
             setProfile(null);
           }
         } else {
-          setUnifiedProfile(inserted, session.user);
+          console.error(
+            "[AUTH] failed to create public.users row:",
+            insertError
+          );
+          setProfile(null);
         }
-      } catch (insertUnexpectedErr) {
-        console.error(
-          "[AUTH] unexpected error during insert:",
-          insertUnexpectedErr
-        );
-        setProfile(null);
+      } else {
+        setUnifiedProfile(inserted, session.user);
       }
     } catch (err) {
       console.error("[AUTH] handleSession unexpected:", err);
@@ -159,14 +170,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // 🔴 THIS IS THE IMPORTANT PART: hydrate profile from /api/auth
   useEffect(() => {
-    if (
-      !isConnected ||
-      !address ||
-      profile?.supabaseUser ||
-      signInAttemptRef.current
-    )
-      return;
+    if (!isConnected || !address) return;
+    if (profile) return; // ✅ already have a profile, don't pop MetaMask again
+    if (signInAttemptRef.current) return;
 
     signInAttemptRef.current = true;
 
@@ -177,19 +185,40 @@ Sign this message to log in securely.
 
 Site: ${window.location.origin}
 Page: ${window.location.pathname}
+Address: ${address}
 
 No transaction · No gas fees · Completely free
 
 Nonce: ${Date.now()}`;
+
       try {
         const signature = await signMessageAsync({ message });
-        await fetch("/api/auth", {
+
+        const res = await fetch("/api/auth/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ address, message, signature }),
         });
+
+        if (!res.ok) {
+          const errJson = await res.json().catch(() => ({}));
+          console.error("[AUTH] /api/auth failed:", errJson);
+          throw new Error(errJson.error || "Auth failed");
+        }
+
+        const json = await res.json();
+        const userRow = json.user;
+
+        if (!userRow) {
+          console.warn("[AUTH] /api/auth returned no user row");
+        } else {
+          console.log("[AUTH] /api/auth success, setting profile:", userRow);
+          // We don't have a Supabase session; pass null for supabaseUser.
+          setUnifiedProfile(userRow, null);
+        }
+
         console.log(
-          "MetaMask signed → /api/auth called → session will be created or fetched"
+          "MetaMask signed → /api/auth called → profile hydrated from server"
         );
       } catch (err: any) {
         if (err.code !== "ACTION_REJECTED") {
@@ -201,7 +230,7 @@ Nonce: ${Date.now()}`;
     };
 
     triggerSignIn();
-  }, [isConnected, address, profile?.supabaseUser, signMessageAsync]);
+  }, [isConnected, address, profile, signMessageAsync]);
 
   return (
     <AuthContext.Provider value={profile}>{children}</AuthContext.Provider>
