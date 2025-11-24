@@ -283,9 +283,13 @@ export default function LibraryPage() {
   const handleCardClick = (entry: LibraryItem) => {
     if (isCompiling && entry.type === "entry") {
       toggleSelection(entry.id);
-    } else if (!isCompiling && entry.type === "entry") {
-      // Navigate to record page to continue editing (using query param as per request)
-      router.push(`/story/${entry.id}`);
+    } else if (!isCompiling) {
+        if (entry.type === "entry") {
+            router.push(`/story/${entry.id}`);
+        } else if (entry.type === "book") {
+            // NEW: Navigate to the book viewer
+            router.push(`/book/${entry.id}`);
+        }
     }
   };
 

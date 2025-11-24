@@ -3,13 +3,10 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-hot-toast";
-
-// FIX: Correct Relative Paths
 import { useApp } from "../../components/Provider";
 import { useAuth } from "../../components/AuthProvider";
 import { supabaseClient } from "../../app/utils/supabase/supabaseClient";
 import { ipfsService } from "../../app/utils/ipfsService";
-
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -36,7 +33,7 @@ import {
   User,
   PlayCircle,
   StopCircle,
-  Globe, // Added Globe for IPFS indicator
+  Globe, 
 } from "lucide-react";
 
 export default function RecordPage() {
