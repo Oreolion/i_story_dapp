@@ -1,17 +1,26 @@
 "use client";
 
-import { useState, useEffect, use } from "react"; // Added 'use' for params
+import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useAccount } from "wagmi";
 import { toast } from "react-hot-toast";
+import { parseEther } from "viem";
 
+// FIX: Go up 3 levels to reach project root
+// [id] -> story -> app -> root
 import { useApp } from "../../../components/Provider";
 import { useAuth } from "../../../components/AuthProvider";
 
+// FIX: Go up 3 levels to reach project root hooks
 import { useIStoryToken } from "../../hooks/useIStoryToken";
+// import { useLikeSystem } from "../../../hooks/useLikeSystem";
+import { useStoryProtocol } from "../../hooks/useStoryProtocol";
+import { useStoryNFT } from "../../hooks/useStoryNFT";
 
+// FIX: Go up 2 levels to reach 'app' folder, then into 'utils'
+// [id] -> story -> app -> utils
 import { supabaseClient } from "../../utils/supabase/supabaseClient";
 
 import {
@@ -49,6 +58,7 @@ import {
   MessageCircle,
   Send,
   Edit,
+  KeyRound,
 } from "lucide-react";
 
 // --- Types ---
@@ -102,22 +112,26 @@ const moodColors: { [key: string]: string } = {
   unknown: "from-gray-400 to-slate-600",
 };
 
-// FIX: Use props for params instead of useParams hook
 export default function StoryPage({
   params,
 }: {
   params: Promise<{ storyId: string }>;
 }) {
-  // FIX: Unwrap the params Promise using React.use()
+  // Unwrap params using React.use() for Next.js 15 compatibility
   const { storyId } = use(params);
 
   const router = useRouter();
   const { isConnected } = useApp();
   const { address } = useAccount();
-  const authInfo = useAuth(); // Get logged in user info
-  
+  const authInfo = useAuth(); 
+
   const supabase = supabaseClient;
-  const iStoryToken = useIStoryToken();
+  
+  // Blockchain Hooks
+  const { allowance, approve, isPending: isApproving } = useIStoryToken();
+  const { payPaywall, isPending: isPayingProtocol, hash: payHash } = useStoryProtocol();
+  const { mintBook, isPending: isMinting } = useStoryNFT();
+//   const likeSystem = useLikeSystem();
 
   // State
   const [story, setStory] = useState<StoryData | null>(null);
@@ -129,26 +143,32 @@ export default function StoryPage({
   const [isLiking, setIsLiking] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [isTipping, setIsTipping] = useState(false);
-  const [isPaying, setIsPaying] = useState(false);
   const [isPostingComment, setIsPostingComment] = useState(false);
-  
+  const [isSyncing, setIsSyncing] = useState(false);
+
   // Inputs
   const [newComment, setNewComment] = useState("");
   const [tipAmount, setTipAmount] = useState(5);
-  
+
   // Dialogs
   const [showTipDialog, setShowTipDialog] = useState(false);
   const [showPaywallDialog, setShowPaywallDialog] = useState(false);
 
   // --- 1. Fetch Data ---
   useEffect(() => {
-    if (!supabase || !storyId) return;
+    // Stop if requirements aren't met
+    if (!supabase || !storyId) {
+        // Only stop loading if storyId is definitely missing/undefined
+        if (storyId === undefined) return; 
+        setIsLoading(false);
+        return;
+    }
 
     const fetchStoryAndComments = async () => {
       try {
         setIsLoading(true);
-        
-        // A. Fetch Story with Author
+
+        // A. Fetch Story
         const { data: storyData, error: storyError } = await supabase
           .from("stories")
           .select(
@@ -161,12 +181,9 @@ export default function StoryPage({
           )
           .eq("id", storyId)
           .maybeSingle();
-          console.log(storyData)
-          setStory(storyData);
-
 
         if (storyError) throw storyError;
-        
+
         if (storyData && storyData.author) {
           setStory({
             id: storyData.id,
@@ -192,6 +209,20 @@ export default function StoryPage({
               badges: storyData.author.badges || [],
             },
           });
+
+          // Check if unlocked in DB
+          if (authInfo?.id && storyData.paywall_amount > 0) {
+             const { data: unlockData } = await supabase
+                .from('unlocked_content')
+                .select('id')
+                .eq('user_id', authInfo.id)
+                .eq('story_id', storyId)
+                .maybeSingle();
+             
+             if (unlockData) setIsUnlocked(true);
+          }
+        } else {
+          setStory(null);
         }
 
         // B. Fetch Comments
@@ -200,13 +231,12 @@ export default function StoryPage({
           .select(
             `
             id, content, created_at,
-            author:users (name, avatar, wallet_address)
+            author:users!comments_author_id_fkey (name, avatar, wallet_address)
           `
           )
           .eq("story_id", storyId)
           .order("created_at", { ascending: false });
 
-        // Transform comments to match interface
         const formattedComments = (commentsData || []).map((c: any) => ({
             id: c.id,
             content: c.content,
@@ -221,17 +251,69 @@ export default function StoryPage({
         setComments(formattedComments);
 
       } catch (error) {
-        console.error("Error fetching story details:", error);
-        toast.error("Failed to load story details");
+        console.error("Error fetching details:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchStoryAndComments();
-  }, [supabase, storyId]);
+  }, [supabase, storyId, authInfo?.id]);
 
-  // --- 2. Actions ---
+  // --- 2. Payment Verification Listener ---
+  useEffect(() => {
+    if (payHash && !isSyncing) {
+      const syncToDb = async () => {
+        setIsSyncing(true);
+        toast.loading("Verifying payment...", { id: "sync-toast" });
+        try {
+           const res = await fetch("/api/sync/verify-tx", {
+             method: "POST",
+             headers: { "Content-Type": "application/json" },
+             body: JSON.stringify({ 
+               txHash: payHash,
+               userWallet: address 
+             })
+           });
+           
+           if (!res.ok) throw new Error("Verification failed");
+           
+           setIsUnlocked(true);
+           setShowPaywallDialog(false);
+           toast.success("Story Unlocked!", { id: "sync-toast" });
+        } catch (err) {
+           console.error(err);
+           toast.error("Payment confirmed but sync failed. Unlocked locally.", { id: "sync-toast" });
+           setIsUnlocked(true); 
+        } finally {
+           setIsSyncing(false);
+        }
+      };
+      syncToDb();
+    }
+  }, [payHash, address]);
+
+  // --- 3. Actions ---
+
+  const handleUnlock = async () => {
+    if (!story) return;
+    const requiredAmount = parseEther(story.paywall_amount.toString());
+    
+    // Step 1: Approve if needed
+    if (allowance < requiredAmount) {
+       try {
+         await approve(story.paywall_amount.toString());
+         return; 
+       } catch (e) { return; }
+    }
+
+    // Step 2: Pay
+    await payPaywall(
+       story.author.wallet_address as string, 
+       story.paywall_amount, 
+       BigInt(story.numeric_id)
+    );
+  };
 
   const handleLike = async () => {
     if (!isConnected) return toast.error("Please connect your wallet");
@@ -242,12 +324,10 @@ export default function StoryPage({
     //   const numericIdBigInt = BigInt(story.numeric_id);
     //   const likerAddress = address as `0x${string}`;
 
-     //   await likeSystem.write.likeStory(numericIdBigInt, likerAddress);
+    //   await likeSystem.write.likeStory(numericIdBigInt, likerAddress);
       
-      // Optimistic update
       setIsLiked(!isLiked);
       setStory(prev => prev ? ({...prev, likes: isLiked ? prev.likes - 1 : prev.likes + 1}) : null);
-      
       toast.success(isLiked ? "Story unliked" : "Story liked!");
     } catch (error: any) {
       console.error("Like error:", error);
@@ -263,7 +343,6 @@ export default function StoryPage({
 
     try {
       setIsTipping(true);
-      // Assuming tipCreator exists on your contract
       await iStoryToken.write.tipCreator(
         story.author.wallet_address as `0x${string}`,
         tipAmount,
@@ -279,28 +358,6 @@ export default function StoryPage({
     }
   };
 
-  const handleUnlock = async () => {
-    if (!isConnected) return toast.error("Please connect your wallet");
-    if (!iStoryToken || !story) return;
-
-    try {
-      setIsPaying(true);
-      await iStoryToken.write.payPaywall(
-        story.author.wallet_address as `0x${string}`,
-        story.paywall_amount,
-        BigInt(story.numeric_id)
-      );
-      setIsUnlocked(true);
-      toast.success("Story unlocked!");
-      setShowPaywallDialog(false);
-    } catch (error: any) {
-      console.error("Unlock error:", error);
-      toast.error("Failed to unlock story");
-    } finally {
-      setIsPaying(false);
-    }
-  };
-
   const handlePostComment = async () => {
     if (!newComment.trim()) return;
     if (!authInfo?.id) return toast.error("Please sign in to comment");
@@ -313,17 +370,17 @@ export default function StoryPage({
         .insert({
           story_id: storyId,
           author_id: authInfo.id,
+          author_wallet: authInfo.wallet_address, 
           content: newComment
         })
         .select(`
             id, content, created_at,
-            author:users (name, avatar, wallet_address)
+            author:users!comments_author_id_fkey (name, avatar, wallet_address)
         `)
         .single();
 
       if (error) throw error;
 
-      // Add new comment to list immediately
       const newCommentObj: CommentData = {
           id: data.id,
           content: data.content,
@@ -346,10 +403,41 @@ export default function StoryPage({
     }
   };
 
-  // Check ownership
-  const isAuthor = authInfo?.wallet_address?.toLowerCase()
-//    === story?.author.wallet_address?.toLowerCase();
+  const handleMintStory = async () => {
+    if (!isConnected) return toast.error("Connect wallet");
+    if (!story?.numeric_id) return; 
+
+    const { data } = await supabase
+      ?.from("stories")
+      .select("ipfs_hash")
+      .eq("id", story.id)
+      .single();
+
+    if (!data?.ipfs_hash)
+      return toast.error("This story hasn't been pinned to IPFS yet.");
+
+    const tokenURI = `ipfs://${data.ipfs_hash}`;
+    await mintBook(tokenURI);
+  };
+
+  // --- Helpers ---
+  const isAuthor = authInfo?.wallet_address?.toLowerCase() === story?.author.wallet_address?.toLowerCase();
   const isPaywalled = (story?.paywall_amount || 0) > 0 && !isUnlocked && !isAuthor;
+  const gradientClass = story ? (moodColors[story.mood] || moodColors.neutral) : "";
+
+  // Button State Logic
+  const getUnlockButtonState = () => {
+     if (isApproving) return { text: "Approving Tokens...", icon: <Loader2 className="animate-spin w-4 h-4 mr-2"/>, disabled: true };
+     if (isPayingProtocol) return { text: "Processing Payment...", icon: <Loader2 className="animate-spin w-4 h-4 mr-2"/>, disabled: true };
+     if (isSyncing) return { text: "Verifying...", icon: <Loader2 className="animate-spin w-4 h-4 mr-2"/>, disabled: true };
+     
+     const requiredAmount = story ? parseEther(story.paywall_amount.toString()) : BigInt(0);
+     if (allowance < requiredAmount) {
+        return { text: "Approve $ISTORY", icon: <KeyRound className="w-4 h-4 mr-2"/>, disabled: false };
+     }
+     return { text: "Confirm Payment", icon: <CheckCircle2 className="w-4 h-4 mr-2"/>, disabled: false };
+  };
+  const btnState = getUnlockButtonState();
 
   // --- Render ---
 
@@ -381,8 +469,6 @@ export default function StoryPage({
     );
   }
 
-  const gradientClass = moodColors[story?.mood] || moodColors.neutral;
-
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-20">
       {/* Top Navigation */}
@@ -390,9 +476,8 @@ export default function StoryPage({
         <Button variant="ghost" size="sm" onClick={() => router.back()}>
           <ArrowLeft className="w-4 h-4 mr-2" /> Back
         </Button>
-        
         {isAuthor && (
-           <Button 
+           <Button
              className="bg-indigo-600 hover:bg-indigo-700 text-white"
              onClick={() => router.push(`/record?id=${story.id}`)}
            >
@@ -422,7 +507,6 @@ export default function StoryPage({
                     </div>
                  </div>
              </div>
-             {/* Abstract Background shapes */}
              <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
              <div className="absolute bottom-0 left-0 w-full h-24 bg-gradient-to-t from-black/50 to-transparent" />
           </div>
@@ -432,15 +516,15 @@ export default function StoryPage({
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 pb-6 border-b dark:border-gray-700">
                 <div className="flex items-center space-x-4">
                     <Avatar className="w-12 h-12 border-2 border-purple-100">
-                        <AvatarImage src={story.author?.avatar || undefined} />
-                        <AvatarFallback>{story.author?.name?.charAt(0) || 'U'}</AvatarFallback>
+                        <AvatarImage src={story.author.avatar || undefined} />
+                        <AvatarFallback>{story.author.name?.charAt(0) || "U"}</AvatarFallback>
                     </Avatar>
                     <div>
-                        <h3 className="font-semibold text-gray-900 dark:text-white">{story.author?.name || 'Anonymous'}</h3>
+                        <h3 className="font-semibold text-gray-900 dark:text-white">{story.author.name || "Anonymous"}</h3>
                         <div className="flex items-center text-xs text-gray-500">
-                            <span className="mr-2">@{story.author?.username || 'user'}</span>
+                            <span className="mr-2">@{story.author.username || "user"}</span>
                             <span className="w-1 h-1 rounded-full bg-gray-300 mr-2" />
-                            <span>{story.author?.followers_count} followers</span>
+                            <span>{story.author.followers_count} followers</span>
                         </div>
                     </div>
                 </div>
@@ -458,12 +542,10 @@ export default function StoryPage({
 
             {/* Paywall Content Blocker */}
             {isPaywalled ? (
-                <div className="relative p-8 rounded-xl bg-gray-50 dark:bg-gray-900 border border-dashed border-purple-300 dark:border-purple-700 text-center space-y-4">
+                <div className="relative p-12 rounded-xl bg-gray-50 dark:bg-gray-900 border border-dashed border-purple-300 text-center space-y-4">
                      <Lock className="w-12 h-12 mx-auto text-purple-500" />
                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">Premium Story</h3>
-                     <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
-                        The author has set a paywall for this story. Support them to reveal the full experience.
-                     </p>
+                     <p className="text-gray-500">Support the author to read the full story.</p>
                      <div className="flex justify-center pt-4">
                         <Button 
                             size="lg" 
@@ -473,56 +555,45 @@ export default function StoryPage({
                             Unlock for {story.paywall_amount} $ISTORY
                         </Button>
                      </div>
-                     {/* Blurred Teaser */}
-                     <div className="absolute inset-0 -z-10 overflow-hidden opacity-20 blur-sm select-none pointer-events-none p-8">
-                        {story.teaser || "This is a preview of the content that is hidden behind the paywall..."}
+                     <div className="absolute inset-0 -z-10 opacity-10 blur-sm p-8 select-none overflow-hidden">
+                        {story.teaser || "This content is hidden behind a paywall..."}
                      </div>
                 </div>
             ) : (
-                /* Actual Content */
                 <div className="space-y-6">
                      {story.has_audio && story.audio_url && (
                         <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-xl flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center flex-shrink-0">
-                                <Volume2 className="w-5 h-5 text-white" />
-                            </div>
+                            <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white"><Volume2 className="w-5 h-5"/></div>
                             <audio controls src={story.audio_url} className="w-full h-10" />
                         </div>
                      )}
-                     
-                     <article className="prose dark:prose-invert max-w-none text-lg leading-8 text-gray-700 dark:text-gray-300">
+                     <article className="prose dark:prose-invert max-w-none text-lg leading-8 text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
                         {story.content}
                      </article>
-
-                     {/* Tags */}
                      <div className="flex flex-wrap gap-2 pt-4">
-                        {story.tags.map(tag => (
-                            <Badge key={tag} variant="secondary" className="bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-300">#{tag}</Badge>
-                        ))}
+                        {story.tags.map(tag => <Badge key={tag} variant="secondary" className="bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-300">#{tag}</Badge>)}
                      </div>
                 </div>
             )}
 
-            {/* Actions Footer */}
             <Separator className="my-8" />
+            
+            {/* Actions */}
             <div className="flex justify-between items-center">
-                <div className="flex gap-2">
-                    <Button 
-                        variant={isLiked ? "default" : "outline"} 
-                        className={isLiked ? "bg-red-500 hover:bg-red-600 border-red-500 text-white" : ""}
-                        onClick={handleLike}
-                        disabled={isLiking}
-                    >
-                        <Heart className={`w-4 h-4 mr-2 ${isLiked ? "fill-current" : ""}`} />
-                        {isLiked ? "Liked" : "Like"}
-                    </Button>
-                    <Button variant="outline" onClick={() => setShowTipDialog(true)}>
-                        <Sparkles className="w-4 h-4 mr-2 text-yellow-500" /> Tip
-                    </Button>
-                </div>
-                <Button variant="ghost" onClick={() => navigator.share?.({ title: story.title, url: window.location.href })}>
-                    <Share2 className="w-4 h-4 mr-2" /> Share
+               <div className="flex gap-2">
+                <Button variant={isLiked ? "default" : "outline"} className={isLiked ? "bg-red-500 text-white hover:bg-red-600" : ""} onClick={handleLike}>
+                    <Heart className={`w-4 h-4 mr-2 ${isLiked ? "fill-current" : ""}`} /> {isLiked ? "Liked" : "Like"}
                 </Button>
+                <Button variant="outline" onClick={() => setShowTipDialog(true)}>
+                    <Sparkles className="w-4 h-4 mr-2 text-yellow-500" /> Tip
+                </Button>
+                <Button variant="outline" onClick={handleMintStory} disabled={isMinting}>
+                    <Sparkles className="w-4 h-4 mr-2" /> {isMinting ? "Minting..." : "Mint NFT"}
+                </Button>
+               </div>
+               <Button variant="ghost" onClick={() => navigator.share?.({ title: story.title, url: window.location.href })}>
+                    <Share2 className="w-4 h-4 mr-2" /> Share
+               </Button>
             </div>
           </CardContent>
         </Card>
@@ -530,59 +601,28 @@ export default function StoryPage({
 
       {/* Comments Section */}
       <div className="space-y-6">
-         <h3 className="text-2xl font-bold flex items-center gap-2">
-            <MessageCircle className="w-6 h-6" />
-            Comments ({comments.length})
-         </h3>
-         
-         {/* Comment Input */}
+         <h3 className="text-2xl font-bold flex items-center gap-2"><MessageCircle className="w-6 h-6" /> Comments ({comments.length})</h3>
          <Card className="p-4 bg-gray-50 dark:bg-gray-900/50 border-dashed">
             <div className="flex gap-4">
-                <Avatar>
-                    <AvatarImage src={authInfo?.avatar || undefined} />
-                    <AvatarFallback>ME</AvatarFallback>
-                </Avatar>
+                <Avatar><AvatarImage src={authInfo?.avatar || undefined} /><AvatarFallback>ME</AvatarFallback></Avatar>
                 <div className="flex-1 space-y-2">
-                    <Textarea 
-                        placeholder="Share your thoughts..." 
-                        className="min-h-[80px] bg-white dark:bg-black"
-                        value={newComment}
-                        onChange={(e) => setNewComment(e.target.value)}
-                    />
+                    <Textarea placeholder="Share your thoughts..." value={newComment} onChange={(e) => setNewComment(e.target.value)} className="min-h-[80px] bg-white dark:bg-black" />
                     <div className="flex justify-end">
-                        <Button 
-                            size="sm" 
-                            onClick={handlePostComment} 
-                            disabled={isPostingComment || !newComment.trim()}
-                            className="bg-indigo-600"
-                        >
-                            {isPostingComment ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
-                            Post Comment
+                        <Button size="sm" onClick={handlePostComment} disabled={isPostingComment || !newComment.trim()} className="bg-indigo-600">
+                            {isPostingComment ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 mr-2" />} Post
                         </Button>
                     </div>
                 </div>
             </div>
          </Card>
-
-         {/* Comments List */}
          <div className="space-y-4">
-            {comments.map((comment) => (
-                <Card key={comment.id} className="border-0 shadow-sm">
-                    <CardContent className="p-4">
-                        <div className="flex gap-3">
-                            <Avatar className="w-10 h-10">
-                                <AvatarImage src={comment.author.avatar || undefined} />
-                                <AvatarFallback>{comment.author.name?.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <span className="font-semibold text-sm block">{comment.author.name || "Anonymous"}</span>
-                                        <span className="text-xs text-gray-500">{new Date(comment.created_at).toLocaleDateString()}</span>
-                                    </div>
-                                </div>
-                                <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">{comment.content}</p>
-                            </div>
+            {comments.map((c) => (
+                <Card key={c.id} className="border-0 shadow-sm">
+                    <CardContent className="p-4 flex gap-3">
+                        <Avatar className="w-10 h-10"><AvatarImage src={c.author.avatar || undefined}/><AvatarFallback>{c.author.name?.charAt(0)}</AvatarFallback></Avatar>
+                        <div>
+                            <div className="font-semibold text-sm">{c.author.name || "Anonymous"} <span className="text-xs text-gray-500 font-normal ml-2">{new Date(c.created_at).toLocaleDateString()}</span></div>
+                            <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">{c.content}</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -590,66 +630,34 @@ export default function StoryPage({
          </div>
       </div>
 
-      {/* Tip Dialog */}
-      <Dialog open={showTipDialog} onOpenChange={setShowTipDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Tip {story.author?.name}</DialogTitle>
-            <DialogDescription>
-              Support this writer with $ISTORY tokens directly to their wallet.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-6 space-y-6">
-             <div className="text-center">
-                 <span className="text-4xl font-bold text-indigo-600">{tipAmount}</span>
-                 <span className="text-sm text-gray-500 ml-2">$ISTORY</span>
-             </div>
-             <Input 
-                type="range" 
-                min="1" max="100" step="1"
-                value={tipAmount}
-                onChange={(e) => setTipAmount(parseInt(e.target.value))}
-                className="w-full accent-indigo-600"
-             />
-             <div className="flex justify-between text-xs text-gray-400">
-                <span>1</span>
-                <span>50</span>
-                <span>100</span>
-             </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={handleTip} disabled={isTipping} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600">
-                {isTipping ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
-                Send Tip
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Paywall Dialog */}
       <Dialog open={showPaywallDialog} onOpenChange={setShowPaywallDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Unlock Premium Story</DialogTitle>
-            <DialogDescription>
-              Confirm payment to access the full content.
-            </DialogDescription>
+            <DialogDescription>Confirm payment to access the full content.</DialogDescription>
           </DialogHeader>
           <div className="py-6 text-center space-y-2">
              <Lock className="w-12 h-12 mx-auto text-emerald-500 mb-4" />
-             <p>You are about to pay</p>
-             <p className="text-3xl font-bold text-emerald-600">{story.paywall_amount} $ISTORY</p>
-             <p className="text-xs text-gray-500">To: {story.author?.wallet_address}</p>
+             <p>Price to Unlock</p>
+             <p className="text-3xl font-bold text-emerald-600">{story?.paywall_amount} $ISTORY</p>
           </div>
           <DialogFooter>
-             <Button onClick={handleUnlock} disabled={isPaying} className="w-full bg-emerald-600 hover:bg-emerald-700">
-                {isPaying ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
-                Confirm Payment
+             <Button onClick={handleUnlock} disabled={btnState.disabled} className="w-full bg-emerald-600 hover:bg-emerald-700">
+                {btnState.icon} {btnState.text}
              </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      {/* Tip Dialog */}
+      <Dialog open={showTipDialog} onOpenChange={setShowTipDialog}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Send a Tip</DialogTitle></DialogHeader>
+          <div className="py-4"><p>How much do you want to tip?</p><Input type="number" value={tipAmount} onChange={(e) => setTipAmount(Number(e.target.value))} /></div>
+          <DialogFooter><Button onClick={handleTip}>Send {tipAmount} $ISTORY</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
