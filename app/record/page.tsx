@@ -127,7 +127,7 @@ export default function RecordPage() {
     });
 
     toast.promise(promise, {
-      loading: "Gemini is transcribing...",
+      loading: "AI is transcribing...",
       success: (text) => {
         setTranscribedText((prev) => (prev ? prev + " " + text : text));
         if (!entryTitle) {
@@ -319,7 +319,7 @@ export default function RecordPage() {
           Record Your Story
         </h1>
         <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-          Capture thoughts and experiences with Gemini AI transcription
+          Capture thoughts and experiences with AI transcription
         </p>
       </div>
 
@@ -331,7 +331,7 @@ export default function RecordPage() {
             <span>Audio Recording</span>
           </CardTitle>
           <CardDescription>
-            Speak naturally and let Gemini AI handle transcription
+            Speak naturally and let AI handle transcription
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -378,7 +378,7 @@ export default function RecordPage() {
               </div>
               <div className="flex items-center space-x-2">
                 <Zap className="w-4 h-4" />
-                <span>Gemini AI</span>
+                <span>AI</span>
               </div>
             </div>
           </div>

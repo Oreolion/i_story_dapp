@@ -234,6 +234,9 @@ export function Footer() {
               <span className="inline-flex items-center space-x-1 px-3 py-1 rounded-full bg-emerald-100/50 dark:bg-emerald-900/30">
                 <span>Blockchain</span>
               </span>
+              <span className="inline-flex items-center space-x-1 px-3 py-1 rounded-full bg-emerald-100/50 dark:bg-emerald-900/30">
+                <span>AI</span>
+              </span>
             </motion.div>
 
             {/* Status Badge */}

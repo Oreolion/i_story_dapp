@@ -23,12 +23,7 @@ import { useStoryNFT } from "../../hooks/useStoryNFT";
 // [id] -> story -> app -> utils
 import { supabaseClient } from "../../utils/supabase/supabaseClient";
 
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -123,22 +118,26 @@ export default function StoryPage({
   const router = useRouter();
   const { isConnected } = useApp();
   const { address } = useAccount();
-  const authInfo = useAuth(); 
+  const authInfo = useAuth();
 
   const supabase = supabaseClient;
-  
+
   // Blockchain Hooks
   const { allowance, approve, isPending: isApproving } = useIStoryToken();
-  const { payPaywall, isPending: isPayingProtocol, hash: payHash } = useStoryProtocol();
+  const {
+    payPaywall,
+    isPending: isPayingProtocol,
+    hash: payHash,
+  } = useStoryProtocol();
   const { mintBook, isPending: isMinting } = useStoryNFT();
-//   const likeSystem = useLikeSystem();
+  //   const likeSystem = useLikeSystem();
 
   // State
   const [story, setStory] = useState<StoryData | null>(null);
   const [comments, setComments] = useState<CommentData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUnlocked, setIsUnlocked] = useState(false);
-  
+
   // Actions State
   const [isLiking, setIsLiking] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
@@ -158,10 +157,10 @@ export default function StoryPage({
   useEffect(() => {
     // Stop if requirements aren't met
     if (!supabase || !storyId) {
-        // Only stop loading if storyId is definitely missing/undefined
-        if (storyId === undefined) return; 
-        setIsLoading(false);
-        return;
+      // Only stop loading if storyId is definitely missing/undefined
+      if (storyId === undefined) return;
+      setIsLoading(false);
+      return;
     }
 
     const fetchStoryAndComments = async () => {
@@ -212,14 +211,14 @@ export default function StoryPage({
 
           // Check if unlocked in DB
           if (authInfo?.id && storyData.paywall_amount > 0) {
-             const { data: unlockData } = await supabase
-                .from('unlocked_content')
-                .select('id')
-                .eq('user_id', authInfo.id)
-                .eq('story_id', storyId)
-                .maybeSingle();
-             
-             if (unlockData) setIsUnlocked(true);
+            const { data: unlockData } = await supabase
+              .from("unlocked_content")
+              .select("id")
+              .eq("user_id", authInfo.id)
+              .eq("story_id", storyId)
+              .maybeSingle();
+
+            if (unlockData) setIsUnlocked(true);
           }
         } else {
           setStory(null);
@@ -238,18 +237,17 @@ export default function StoryPage({
           .order("created_at", { ascending: false });
 
         const formattedComments = (commentsData || []).map((c: any) => ({
-            id: c.id,
-            content: c.content,
-            created_at: c.created_at,
-            author: {
-                name: c.author?.name || "Anonymous",
-                avatar: c.author?.avatar,
-                wallet_address: c.author?.wallet_address
-            }
+          id: c.id,
+          content: c.content,
+          created_at: c.created_at,
+          author: {
+            name: c.author?.name || "Anonymous",
+            avatar: c.author?.avatar,
+            wallet_address: c.author?.wallet_address,
+          },
         }));
 
         setComments(formattedComments);
-
       } catch (error) {
         console.error("Error fetching details:", error);
       } finally {
@@ -267,26 +265,28 @@ export default function StoryPage({
         setIsSyncing(true);
         toast.loading("Verifying payment...", { id: "sync-toast" });
         try {
-           const res = await fetch("/api/sync/verify-tx", {
-             method: "POST",
-             headers: { "Content-Type": "application/json" },
-             body: JSON.stringify({ 
-               txHash: payHash,
-               userWallet: address 
-             })
-           });
-           
-           if (!res.ok) throw new Error("Verification failed");
-           
-           setIsUnlocked(true);
-           setShowPaywallDialog(false);
-           toast.success("Story Unlocked!", { id: "sync-toast" });
+          const res = await fetch("/api/sync/verify-tx", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              txHash: payHash,
+              userWallet: address,
+            }),
+          });
+
+          if (!res.ok) throw new Error("Verification failed");
+
+          setIsUnlocked(true);
+          setShowPaywallDialog(false);
+          toast.success("Story Unlocked!", { id: "sync-toast" });
         } catch (err) {
-           console.error(err);
-           toast.error("Payment confirmed but sync failed. Unlocked locally.", { id: "sync-toast" });
-           setIsUnlocked(true); 
+          console.error(err);
+          toast.error("Payment confirmed but sync failed. Unlocked locally.", {
+            id: "sync-toast",
+          });
+          setIsUnlocked(true);
         } finally {
-           setIsSyncing(false);
+          setIsSyncing(false);
         }
       };
       syncToDb();
@@ -298,20 +298,22 @@ export default function StoryPage({
   const handleUnlock = async () => {
     if (!story) return;
     const requiredAmount = parseEther(story.paywall_amount.toString());
-    
+
     // Step 1: Approve if needed
     if (allowance < requiredAmount) {
-       try {
-         await approve(story.paywall_amount.toString());
-         return; 
-       } catch (e) { return; }
+      try {
+        await approve(story.paywall_amount.toString());
+        return;
+      } catch (e) {
+        return;
+      }
     }
 
     // Step 2: Pay
     await payPaywall(
-       story.author.wallet_address as string, 
-       story.paywall_amount, 
-       BigInt(story.numeric_id)
+      story.author.wallet_address as string,
+      story.paywall_amount,
+      BigInt(story.numeric_id)
     );
   };
 
@@ -321,13 +323,17 @@ export default function StoryPage({
 
     try {
       setIsLiking(true);
-    //   const numericIdBigInt = BigInt(story.numeric_id);
-    //   const likerAddress = address as `0x${string}`;
+      //   const numericIdBigInt = BigInt(story.numeric_id);
+      //   const likerAddress = address as `0x${string}`;
 
-    //   await likeSystem.write.likeStory(numericIdBigInt, likerAddress);
-      
+      //   await likeSystem.write.likeStory(numericIdBigInt, likerAddress);
+
       setIsLiked(!isLiked);
-      setStory(prev => prev ? ({...prev, likes: isLiked ? prev.likes - 1 : prev.likes + 1}) : null);
+      setStory((prev) =>
+        prev
+          ? { ...prev, likes: isLiked ? prev.likes - 1 : prev.likes + 1 }
+          : null
+      );
       toast.success(isLiked ? "Story unliked" : "Story liked!");
     } catch (error: any) {
       console.error("Like error:", error);
@@ -370,29 +376,31 @@ export default function StoryPage({
         .insert({
           story_id: storyId,
           author_id: authInfo.id,
-          author_wallet: authInfo.wallet_address, 
-          content: newComment
+          author_wallet: authInfo.wallet_address,
+          content: newComment,
         })
-        .select(`
+        .select(
+          `
             id, content, created_at,
             author:users!comments_author_id_fkey (name, avatar, wallet_address)
-        `)
+        `
+        )
         .single();
 
       if (error) throw error;
 
       const newCommentObj: CommentData = {
-          id: data.id,
-          content: data.content,
-          created_at: data.created_at,
-          author: {
-              name: data.author?.name || "Me",
-              avatar: data.author?.avatar,
-              wallet_address: data.author?.wallet_address
-          }
+        id: data.id,
+        content: data.content,
+        created_at: data.created_at,
+        author: {
+          name: data.author?.name || "Me",
+          avatar: data.author?.avatar,
+          wallet_address: data.author?.wallet_address,
+        },
       };
 
-      setComments(prev => [newCommentObj, ...prev]);
+      setComments((prev) => [newCommentObj, ...prev]);
       setNewComment("");
       toast.success("Comment posted!");
     } catch (error) {
@@ -405,7 +413,7 @@ export default function StoryPage({
 
   const handleMintStory = async () => {
     if (!isConnected) return toast.error("Connect wallet");
-    if (!story?.numeric_id) return; 
+    if (!story?.numeric_id) return;
 
     const { data } = await supabase
       ?.from("stories")
@@ -421,21 +429,51 @@ export default function StoryPage({
   };
 
   // --- Helpers ---
-  const isAuthor = authInfo?.wallet_address?.toLowerCase() === story?.author.wallet_address?.toLowerCase();
-  const isPaywalled = (story?.paywall_amount || 0) > 0 && !isUnlocked && !isAuthor;
-  const gradientClass = story ? (moodColors[story.mood] || moodColors.neutral) : "";
+  const isAuthor =
+    authInfo?.wallet_address?.toLowerCase() ===
+    story?.author.wallet_address?.toLowerCase();
+  const isPaywalled =
+    (story?.paywall_amount || 0) > 0 && !isUnlocked && !isAuthor;
+  const gradientClass = story
+    ? moodColors[story.mood] || moodColors.neutral
+    : "";
 
   // Button State Logic
   const getUnlockButtonState = () => {
-     if (isApproving) return { text: "Approving Tokens...", icon: <Loader2 className="animate-spin w-4 h-4 mr-2"/>, disabled: true };
-     if (isPayingProtocol) return { text: "Processing Payment...", icon: <Loader2 className="animate-spin w-4 h-4 mr-2"/>, disabled: true };
-     if (isSyncing) return { text: "Verifying...", icon: <Loader2 className="animate-spin w-4 h-4 mr-2"/>, disabled: true };
-     
-     const requiredAmount = story ? parseEther(story.paywall_amount.toString()) : BigInt(0);
-     if (allowance < requiredAmount) {
-        return { text: "Approve $ISTORY", icon: <KeyRound className="w-4 h-4 mr-2"/>, disabled: false };
-     }
-     return { text: "Confirm Payment", icon: <CheckCircle2 className="w-4 h-4 mr-2"/>, disabled: false };
+    if (isApproving)
+      return {
+        text: "Approving Tokens...",
+        icon: <Loader2 className="animate-spin w-4 h-4 mr-2" />,
+        disabled: true,
+      };
+    if (isPayingProtocol)
+      return {
+        text: "Processing Payment...",
+        icon: <Loader2 className="animate-spin w-4 h-4 mr-2" />,
+        disabled: true,
+      };
+    if (isSyncing)
+      return {
+        text: "Verifying...",
+        icon: <Loader2 className="animate-spin w-4 h-4 mr-2" />,
+        disabled: true,
+      };
+
+    const requiredAmount = story
+      ? parseEther(story.paywall_amount.toString())
+      : BigInt(0);
+    if (allowance < requiredAmount) {
+      return {
+        text: "Approve $ISTORY",
+        icon: <KeyRound className="w-4 h-4 mr-2" />,
+        disabled: false,
+      };
+    }
+    return {
+      text: "Confirm Payment",
+      icon: <CheckCircle2 className="w-4 h-4 mr-2" />,
+      disabled: false,
+    };
   };
   const btnState = getUnlockButtonState();
 
@@ -477,123 +515,192 @@ export default function StoryPage({
           <ArrowLeft className="w-4 h-4 mr-2" /> Back
         </Button>
         {isAuthor && (
-           <Button
-             className="bg-indigo-600 hover:bg-indigo-700 text-white"
-             onClick={() => router.push(`/record?id=${story.id}`)}
-           >
-             <Edit className="w-4 h-4 mr-2" /> Edit Story
-           </Button>
+          <Button
+            // Disable editing if it's already on IPFS (Minted/Pinned)
+            disabled={!!story.ipfs_hash}
+            className="bg-indigo-600 ..."
+            onClick={() => router.push(`/record?id=${story.id}`)}
+          >
+            <Edit className="w-4 h-4 mr-2" />
+            {story.ipfs_hash ? "Locked (Minted)" : "Edit Story"}
+          </Button>
         )}
       </div>
 
       {/* Main Story Card */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
         <Card className="border-0 shadow-xl overflow-hidden">
           {/* Dynamic Header */}
-          <div className={`h-48 bg-gradient-to-r ${gradientClass} relative overflow-hidden flex items-end p-6`}>
-             <div className="relative z-10 text-white w-full">
-                 <div className="flex justify-between items-end">
-                    <div>
-                        <Badge className="mb-3 bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-md">
-                            {story.mood.toUpperCase()}
-                        </Badge>
-                        <h1 className="text-3xl md:text-4xl font-bold shadow-sm">{story.title}</h1>
-                    </div>
-                    <div className="text-right text-white/90 text-sm font-medium hidden md:block">
-                         <div className="flex items-center justify-end gap-2">
-                            <Calendar className="w-4 h-4" />
-                            {new Date(story.created_at).toLocaleDateString()}
-                         </div>
-                    </div>
-                 </div>
-             </div>
-             <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
-             <div className="absolute bottom-0 left-0 w-full h-24 bg-gradient-to-t from-black/50 to-transparent" />
+          <div
+            className={`h-48 bg-gradient-to-r ${gradientClass} relative overflow-hidden flex items-end p-6`}
+          >
+            <div className="relative z-10 text-white w-full">
+              <div className="flex justify-between items-end">
+                <div>
+                  <Badge className="mb-3 bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-md">
+                    {story.mood.toUpperCase()}
+                  </Badge>
+                  <h1 className="text-3xl md:text-4xl font-bold shadow-sm">
+                    {story.title}
+                  </h1>
+                </div>
+                <div className="text-right text-white/90 text-sm font-medium hidden md:block">
+                  <div className="flex items-center justify-end gap-2">
+                    <Calendar className="w-4 h-4" />
+                    {new Date(story.created_at).toLocaleDateString()}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
+            <div className="absolute bottom-0 left-0 w-full h-24 bg-gradient-to-t from-black/50 to-transparent" />
           </div>
 
           <CardContent className="pt-8">
             {/* Author & Meta Row */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 pb-6 border-b dark:border-gray-700">
-                <div className="flex items-center space-x-4">
-                    <Avatar className="w-12 h-12 border-2 border-purple-100">
-                        <AvatarImage src={story.author.avatar || undefined} />
-                        <AvatarFallback>{story.author.name?.charAt(0) || "U"}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                        <h3 className="font-semibold text-gray-900 dark:text-white">{story.author.name || "Anonymous"}</h3>
-                        <div className="flex items-center text-xs text-gray-500">
-                            <span className="mr-2">@{story.author.username || "user"}</span>
-                            <span className="w-1 h-1 rounded-full bg-gray-300 mr-2" />
-                            <span>{story.author.followers_count} followers</span>
-                        </div>
-                    </div>
+              <div className="flex items-center space-x-4">
+                <Avatar className="w-12 h-12 border-2 border-purple-100">
+                  <AvatarImage src={story.author.avatar || undefined} />
+                  <AvatarFallback>
+                    {story.author.name?.charAt(0) || "U"}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <h3 className="font-semibold text-gray-900 dark:text-white">
+                    {story.author.name || "Anonymous"}
+                  </h3>
+                  <div className="flex items-center text-xs text-gray-500">
+                    <span className="mr-2">
+                      @{story.author.username || "user"}
+                    </span>
+                    <span className="w-1 h-1 rounded-full bg-gray-300 mr-2" />
+                    <span>{story.author.followers_count} followers</span>
+                  </div>
                 </div>
-                
-                <div className="flex items-center gap-3">
-                   <div className="flex items-center text-sm text-gray-500 gap-4 mr-2">
-                        <span className="flex items-center"><Heart className="w-4 h-4 mr-1" /> {story.likes}</span>
-                        <span className="flex items-center"><Share2 className="w-4 h-4 mr-1" /> {story.shares}</span>
-                   </div>
-                   {!isAuthor && (
-                       <Button size="sm" variant="outline" onClick={() => toast("Follow feature coming soon")}>Follow</Button>
-                   )}
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="flex items-center text-sm text-gray-500 gap-4 mr-2">
+                  <span className="flex items-center">
+                    <Heart className="w-4 h-4 mr-1" /> {story.likes}
+                  </span>
+                  <span className="flex items-center">
+                    <Share2 className="w-4 h-4 mr-1" /> {story.shares}
+                  </span>
                 </div>
+                {!isAuthor && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => toast("Follow feature coming soon")}
+                  >
+                    Follow
+                  </Button>
+                )}
+              </div>
             </div>
 
             {/* Paywall Content Blocker */}
             {isPaywalled ? (
-                <div className="relative p-12 rounded-xl bg-gray-50 dark:bg-gray-900 border border-dashed border-purple-300 text-center space-y-4">
-                     <Lock className="w-12 h-12 mx-auto text-purple-500" />
-                     <h3 className="text-xl font-bold text-gray-900 dark:text-white">Premium Story</h3>
-                     <p className="text-gray-500">Support the author to read the full story.</p>
-                     <div className="flex justify-center pt-4">
-                        <Button 
-                            size="lg" 
-                            className="bg-gradient-to-r from-purple-600 to-indigo-600 shadow-lg hover:scale-105 transition-transform"
-                            onClick={() => setShowPaywallDialog(true)}
-                        >
-                            Unlock for {story.paywall_amount} $ISTORY
-                        </Button>
-                     </div>
-                     <div className="absolute inset-0 -z-10 opacity-10 blur-sm p-8 select-none overflow-hidden">
-                        {story.teaser || "This content is hidden behind a paywall..."}
-                     </div>
+              <div className="relative p-12 rounded-xl bg-gray-50 dark:bg-gray-900 border border-dashed border-purple-300 text-center space-y-4">
+                <Lock className="w-12 h-12 mx-auto text-purple-500" />
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                  Premium Story
+                </h3>
+                <p className="text-gray-500">
+                  Support the author to read the full story.
+                </p>
+                <div className="flex justify-center pt-4">
+                  <Button
+                    size="lg"
+                    className="bg-gradient-to-r from-purple-600 to-indigo-600 shadow-lg hover:scale-105 transition-transform"
+                    onClick={() => setShowPaywallDialog(true)}
+                  >
+                    Unlock for {story.paywall_amount} $ISTORY
+                  </Button>
                 </div>
+                <div className="absolute inset-0 -z-10 opacity-10 blur-sm p-8 select-none overflow-hidden">
+                  {story.teaser || "This content is hidden behind a paywall..."}
+                </div>
+              </div>
             ) : (
-                <div className="space-y-6">
-                     {story.has_audio && story.audio_url && (
-                        <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-xl flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white"><Volume2 className="w-5 h-5"/></div>
-                            <audio controls src={story.audio_url} className="w-full h-10" />
-                        </div>
-                     )}
-                     <article className="prose dark:prose-invert max-w-none text-lg leading-8 text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                        {story.content}
-                     </article>
-                     <div className="flex flex-wrap gap-2 pt-4">
-                        {story.tags.map(tag => <Badge key={tag} variant="secondary" className="bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-300">#{tag}</Badge>)}
-                     </div>
+              <div className="space-y-6">
+                {story.has_audio && story.audio_url && (
+                  <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-xl flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white">
+                      <Volume2 className="w-5 h-5" />
+                    </div>
+                    <audio
+                      controls
+                      src={story.audio_url}
+                      className="w-full h-10"
+                    />
+                  </div>
+                )}
+                <article className="prose dark:prose-invert max-w-none text-lg leading-8 text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                  {story.content}
+                </article>
+                <div className="flex flex-wrap gap-2 pt-4">
+                  {story.tags.map((tag) => (
+                    <Badge
+                      key={tag}
+                      variant="secondary"
+                      className="bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-300"
+                    >
+                      #{tag}
+                    </Badge>
+                  ))}
                 </div>
+              </div>
             )}
 
             <Separator className="my-8" />
-            
+
             {/* Actions */}
             <div className="flex justify-between items-center">
-               <div className="flex gap-2">
-                <Button variant={isLiked ? "default" : "outline"} className={isLiked ? "bg-red-500 text-white hover:bg-red-600" : ""} onClick={handleLike}>
-                    <Heart className={`w-4 h-4 mr-2 ${isLiked ? "fill-current" : ""}`} /> {isLiked ? "Liked" : "Like"}
+              <div className="flex gap-2">
+                <Button
+                  variant={isLiked ? "default" : "outline"}
+                  className={
+                    isLiked ? "bg-red-500 text-white hover:bg-red-600" : ""
+                  }
+                  onClick={handleLike}
+                >
+                  <Heart
+                    className={`w-4 h-4 mr-2 ${isLiked ? "fill-current" : ""}`}
+                  />{" "}
+                  {isLiked ? "Liked" : "Like"}
                 </Button>
-                <Button variant="outline" onClick={() => setShowTipDialog(true)}>
-                    <Sparkles className="w-4 h-4 mr-2 text-yellow-500" /> Tip
+                <Button
+                  variant="outline"
+                  onClick={() => setShowTipDialog(true)}
+                >
+                  <Sparkles className="w-4 h-4 mr-2 text-yellow-500" /> Tip
                 </Button>
-                <Button variant="outline" onClick={handleMintStory} disabled={isMinting}>
-                    <Sparkles className="w-4 h-4 mr-2" /> {isMinting ? "Minting..." : "Mint NFT"}
+                <Button
+                  variant="outline"
+                  onClick={handleMintStory}
+                  disabled={isMinting}
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />{" "}
+                  {isMinting ? "Minting..." : "Mint NFT"}
                 </Button>
-               </div>
-               <Button variant="ghost" onClick={() => navigator.share?.({ title: story.title, url: window.location.href })}>
-                    <Share2 className="w-4 h-4 mr-2" /> Share
-               </Button>
+              </div>
+              <Button
+                variant="ghost"
+                onClick={() =>
+                  navigator.share?.({
+                    title: story.title,
+                    url: window.location.href,
+                  })
+                }
+              >
+                <Share2 className="w-4 h-4 mr-2" /> Share
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -601,33 +708,63 @@ export default function StoryPage({
 
       {/* Comments Section */}
       <div className="space-y-6">
-         <h3 className="text-2xl font-bold flex items-center gap-2"><MessageCircle className="w-6 h-6" /> Comments ({comments.length})</h3>
-         <Card className="p-4 bg-gray-50 dark:bg-gray-900/50 border-dashed">
-            <div className="flex gap-4">
-                <Avatar><AvatarImage src={authInfo?.avatar || undefined} /><AvatarFallback>ME</AvatarFallback></Avatar>
-                <div className="flex-1 space-y-2">
-                    <Textarea placeholder="Share your thoughts..." value={newComment} onChange={(e) => setNewComment(e.target.value)} className="min-h-[80px] bg-white dark:bg-black" />
-                    <div className="flex justify-end">
-                        <Button size="sm" onClick={handlePostComment} disabled={isPostingComment || !newComment.trim()} className="bg-indigo-600">
-                            {isPostingComment ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 mr-2" />} Post
-                        </Button>
-                    </div>
-                </div>
+        <h3 className="text-2xl font-bold flex items-center gap-2">
+          <MessageCircle className="w-6 h-6" /> Comments ({comments.length})
+        </h3>
+        <Card className="p-4 bg-gray-50 dark:bg-gray-900/50 border-dashed">
+          <div className="flex gap-4">
+            <Avatar>
+              <AvatarImage src={authInfo?.avatar || undefined} />
+              <AvatarFallback>ME</AvatarFallback>
+            </Avatar>
+            <div className="flex-1 space-y-2">
+              <Textarea
+                placeholder="Share your thoughts..."
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                className="min-h-[80px] bg-white dark:bg-black"
+              />
+              <div className="flex justify-end">
+                <Button
+                  size="sm"
+                  onClick={handlePostComment}
+                  disabled={isPostingComment || !newComment.trim()}
+                  className="bg-indigo-600"
+                >
+                  {isPostingComment ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4 mr-2" />
+                  )}{" "}
+                  Post
+                </Button>
+              </div>
             </div>
-         </Card>
-         <div className="space-y-4">
-            {comments.map((c) => (
-                <Card key={c.id} className="border-0 shadow-sm">
-                    <CardContent className="p-4 flex gap-3">
-                        <Avatar className="w-10 h-10"><AvatarImage src={c.author.avatar || undefined}/><AvatarFallback>{c.author.name?.charAt(0)}</AvatarFallback></Avatar>
-                        <div>
-                            <div className="font-semibold text-sm">{c.author.name || "Anonymous"} <span className="text-xs text-gray-500 font-normal ml-2">{new Date(c.created_at).toLocaleDateString()}</span></div>
-                            <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">{c.content}</p>
-                        </div>
-                    </CardContent>
-                </Card>
-            ))}
-         </div>
+          </div>
+        </Card>
+        <div className="space-y-4">
+          {comments.map((c) => (
+            <Card key={c.id} className="border-0 shadow-sm">
+              <CardContent className="p-4 flex gap-3">
+                <Avatar className="w-10 h-10">
+                  <AvatarImage src={c.author.avatar || undefined} />
+                  <AvatarFallback>{c.author.name?.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <div className="font-semibold text-sm">
+                    {c.author.name || "Anonymous"}{" "}
+                    <span className="text-xs text-gray-500 font-normal ml-2">
+                      {new Date(c.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
+                    {c.content}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
 
       {/* Paywall Dialog */}
@@ -635,17 +772,25 @@ export default function StoryPage({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Unlock Premium Story</DialogTitle>
-            <DialogDescription>Confirm payment to access the full content.</DialogDescription>
+            <DialogDescription>
+              Confirm payment to access the full content.
+            </DialogDescription>
           </DialogHeader>
           <div className="py-6 text-center space-y-2">
-             <Lock className="w-12 h-12 mx-auto text-emerald-500 mb-4" />
-             <p>Price to Unlock</p>
-             <p className="text-3xl font-bold text-emerald-600">{story?.paywall_amount} $ISTORY</p>
+            <Lock className="w-12 h-12 mx-auto text-emerald-500 mb-4" />
+            <p>Price to Unlock</p>
+            <p className="text-3xl font-bold text-emerald-600">
+              {story?.paywall_amount} $ISTORY
+            </p>
           </div>
           <DialogFooter>
-             <Button onClick={handleUnlock} disabled={btnState.disabled} className="w-full bg-emerald-600 hover:bg-emerald-700">
-                {btnState.icon} {btnState.text}
-             </Button>
+            <Button
+              onClick={handleUnlock}
+              disabled={btnState.disabled}
+              className="w-full bg-emerald-600 hover:bg-emerald-700"
+            >
+              {btnState.icon} {btnState.text}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -653,9 +798,20 @@ export default function StoryPage({
       {/* Tip Dialog */}
       <Dialog open={showTipDialog} onOpenChange={setShowTipDialog}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Send a Tip</DialogTitle></DialogHeader>
-          <div className="py-4"><p>How much do you want to tip?</p><Input type="number" value={tipAmount} onChange={(e) => setTipAmount(Number(e.target.value))} /></div>
-          <DialogFooter><Button onClick={handleTip}>Send {tipAmount} $ISTORY</Button></DialogFooter>
+          <DialogHeader>
+            <DialogTitle>Send a Tip</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p>How much do you want to tip?</p>
+            <Input
+              type="number"
+              value={tipAmount}
+              onChange={(e) => setTipAmount(Number(e.target.value))}
+            />
+          </div>
+          <DialogFooter>
+            <Button onClick={handleTip}>Send {tipAmount} $ISTORY</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

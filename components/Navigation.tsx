@@ -3,7 +3,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useApp } from "./Provider";
-// import { useAuth } from './AuthProvider';
 import { Button } from "@/components/ui/button";
 import {
   Home,
@@ -16,10 +15,11 @@ import {
   Wallet,
   LogOut,
   Coins,
+  TrainTrack,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { useState, useEffect } from "react"; // FIX: Import useState and useEffect
+import { useState, useEffect } from "react";
 
 const navigation = [
   { name: "Home", href: "/", icon: Home },
@@ -27,6 +27,7 @@ const navigation = [
   { name: "Library", href: "/library", icon: BookOpen },
   { name: "Social", href: "/social", icon: Users },
   { name: "Profile", href: "/profile", icon: User },
+  { name: "Tracker", href: "/tracker", icon: TrainTrack },
 ];
 
 export function Navigation() {
@@ -91,7 +92,7 @@ export function Navigation() {
                 {" "}
                 {/* Fixed hydration */}
                 <Coins className="w-4 h-4 text-emerald-600" />
-                {/* <span className="font-medium text-emerald-600">{user.storyTokens} $STORY</span> */}
+                <span className="font-medium text-emerald-600">{user.storyTokens} $STORY</span>
               </div>
             )}
 
