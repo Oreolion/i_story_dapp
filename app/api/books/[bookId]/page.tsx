@@ -4,10 +4,10 @@ import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { useAccount } from "wagmi";
+// import { useAccount } from "wagmi";
 
 import { useApp } from "../../../../components/Provider";
-import { useAuth } from "../../../../components/AuthProvider";
+// import { useAuth } from "../../../../components/AuthProvider";
 import { supabaseClient } from "../../../../app/utils/supabase/supabaseClient";
 import { STORY_NFT_ADDRESS } from "../../../../lib/contracts";
 

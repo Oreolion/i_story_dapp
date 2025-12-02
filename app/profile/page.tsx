@@ -9,7 +9,7 @@ import Link from "next/link";
 // FIX: Components are at Root (Up 2 levels: profile -> app -> root)
 import { useApp } from "../../components/Provider";
 import { useAuth } from "../../components/AuthProvider";
-
+import { emailService } from "../utils/emailService"; 
 // FIX: Hooks are at Root (Up 2 levels)
 import { useStoryNFT } from "../hooks/useStoryNFT";
 
@@ -64,6 +64,7 @@ interface UserProfileData {
   id: string;
   name: string | null;
   username: string | null;
+  email: string | null;
   bio: string | null;
   location: string | null;
   website: string | null;
@@ -78,6 +79,7 @@ type ProfileFormData = {
   location: string;
   website: string;
   avatar: string;
+  email: string;
 };
 
 // Helper for truncation
@@ -111,6 +113,7 @@ export default function ProfilePage() {
     location: "",
     website: "",
     avatar: "",
+    email: "",
   });
   
   // Stats & Activity State
@@ -277,6 +280,7 @@ export default function ProfilePage() {
         location: profileData.location || "",
         website: profileData.website || "",
         avatar: profileData.avatar || "",
+        email: profileData.email || "",
       });
     }
   }, [profileData]);
@@ -284,27 +288,42 @@ export default function ProfilePage() {
   // --- Actions ---
 
   const handleSaveProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!supabase || !authInfo?.id) return toast.error("Not authenticated");
+  e.preventDefault();
+  if (!supabase || !authInfo?.id) return toast.error("Not authenticated");
 
-    setIsSaving(true);
-    try {
-      const { error } = await supabase
-        .from("users")
-        .update(formData)
-        .eq("id", authInfo.id);
+  setIsSaving(true);
+  try {
+    const { error } = await supabase
+      .from("users")
+      .update(formData)
+      .eq("id", authInfo.id);
 
-      if (error) throw error;
+    if (error) throw error;
 
-      toast.success("Profile updated!");
-      setProfileData(prev => prev ? ({...prev, ...formData}) : null);
-      setCurrentTab("overview");
-    } catch (err: any) {
-      toast.error(`Save failed: ${err.message}`);
-    } finally {
-      setIsSaving(false);
+    // --- NEW: Check if we should send a welcome email ---
+    // Logic: If email is present AND different from what we had (or it's first setup)
+    if (formData.email && formData.email !== profileData?.email && preferences.emailNotifications) {
+       toast.promise(
+         emailService.sendWelcomeEmail(formData.email, formData.name || "Writer"),
+         {
+           loading: 'Sending confirmation email...',
+           success: 'Profile saved & Email sent!',
+           error: 'Profile saved, but email failed.',
+         }
+       );
+    } else {
+       toast.success("Profile updated!");
     }
-  };
+    // ---------------------------------------------------
+
+    setProfileData(prev => prev ? ({...prev, ...formData}) : null);
+    setCurrentTab("overview");
+  } catch (err: any) {
+    toast.error(`Save failed: ${err.message}`);
+  } finally {
+    setIsSaving(false);
+  }
+};
 
   const togglePreference = (key: keyof typeof preferences) => {
       setPreferences(prev => ({ ...prev, [key]: !prev[key] }));
