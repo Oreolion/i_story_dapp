@@ -162,7 +162,7 @@ export default function BookPage({
           <Button
             variant="outline"
             size="sm"
-            className="hidden sm:flex text-blue-600 border-blue-200 hover:bg-blue-50"
+            className="sm:flex text-blue-600 border-blue-200 hover:bg-blue-50"
             onClick={() =>
               window.open(
                 `https://sepolia.basescan.org/address/${STORY_NFT_ADDRESS}`,

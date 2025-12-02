@@ -5,10 +5,9 @@ import { privateKeyToAccount } from "viem/accounts";
 import { baseSepolia } from "viem/chains";
 import { STORY_TOKEN_ADDRESS, STORY_TOKEN_ABI } from "@/lib/contracts";
 
-// Force dynamic to prevent static generation attempts
+// Force dynamic to prevent build-time execution
 export const dynamic = 'force-dynamic';
 
-// 1. Setup Admin Supabase Client (Safe to be top-level)
 const adminSupabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -16,19 +15,22 @@ const adminSupabase = createClient(
 );
 
 export async function GET(req: NextRequest) {
+  // 1. SECURITY: Check for Vercel Cron Secret
+  // (Add CRON_SECRET to your Vercel Environment Variables)
+  const authHeader = req.headers.get('authorization');
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     console.log("[REWARDS] Starting distribution...");
 
-    // 2. Setup Admin Wallet (MOVED INSIDE to prevent build errors)
-    // This ensures we only check for the key when the route is actually hit
+    // 2. Setup Admin Wallet (Runtime only)
     const privateKey = process.env.ADMIN_PRIVATE_KEY;
-
     if (!privateKey) {
-        console.error("Missing ADMIN_PRIVATE_KEY");
-        return NextResponse.json({ error: "Server misconfigured: Missing Admin Key" }, { status: 500 });
+        return NextResponse.json({ error: "Server config error: Missing Admin Key" }, { status: 500 });
     }
 
-    // Initialize Viem Client only at runtime
     const account = privateKeyToAccount(privateKey as `0x${string}`);
     const walletClient = createWalletClient({
       account,
@@ -36,7 +38,7 @@ export async function GET(req: NextRequest) {
       transport: http(),
     });
 
-    // 3. Fetch Users eligible for rewards
+    // 3. Fetch Eligible Users (Logic: Has received likes)
     const { data: users, error } = await adminSupabase
       .from("stories")
       .select("author_wallet, likes")
@@ -44,19 +46,23 @@ export async function GET(req: NextRequest) {
 
     if (error) throw error;
 
-    // Aggregate likes per wallet
+    // 4. Aggregate Likes per Wallet
     const rewardsMap = new Map<string, number>();
     
     users?.forEach((story) => {
       if (!story.author_wallet) return;
+      // Simple logic: 1 Like = 1 Token.
       const current = rewardsMap.get(story.author_wallet) || 0;
       rewardsMap.set(story.author_wallet, current + story.likes);
     });
 
     let mintCount = 0;
 
-    // 4. Process Rewards
+    // 5. Batch Minting Loop
     for (const [wallet, totalLikes] of rewardsMap.entries()) {
+        // Threshold: Only mint if they have > 5 likes to save gas
+        if(totalLikes < 5) continue;
+
         const amountToMint = parseEther(totalLikes.toString());
 
         try {
