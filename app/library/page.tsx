@@ -14,12 +14,7 @@ import { supabaseClient } from "../utils/supabase/supabaseClient";
 import { ipfsService } from "../utils/ipfsService";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -92,7 +87,7 @@ export default function LibraryPage() {
   const authInfo = useAuth();
   const supabase = supabaseClient;
   const router = useRouter();
-  
+
   // Blockchain Hook
   const { mintBook, isPending: isMinting } = useStoryNFT();
 
@@ -106,9 +101,11 @@ export default function LibraryPage() {
 
   // Compilation State
   const [isCompiling, setIsCompiling] = useState(false);
-  const [selectedStoryIds, setSelectedStoryIds] = useState<Set<string>>(new Set());
+  const [selectedStoryIds, setSelectedStoryIds] = useState<Set<string>>(
+    new Set()
+  );
   const [isBookDialogOpen, setIsBookDialogOpen] = useState(false);
-  
+
   // New Book Form State
   const [newBookTitle, setNewBookTitle] = useState("");
   const [newBookDesc, setNewBookDesc] = useState("");
@@ -165,7 +162,8 @@ export default function LibraryPage() {
       }));
 
       const allEntries = [...formattedStories, ...formattedBooks].sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
 
       setEntries(allEntries);
@@ -221,8 +219,8 @@ export default function LibraryPage() {
     setIsSavingBook(true);
     try {
       // 1. Gather Data
-      const selectedStories = entries.filter(e => 
-        e.type === 'entry' && selectedStoryIds.has(e.id)
+      const selectedStories = entries.filter(
+        (e) => e.type === "entry" && selectedStoryIds.has(e.id)
       ) as StoryEntry[];
 
       const metadata = {
@@ -230,50 +228,64 @@ export default function LibraryPage() {
         description: newBookDesc,
         external_url: "https://istory.vercel.app",
         attributes: [
-           { trait_type: "Author", value: authInfo.name },
-           { trait_type: "Stories", value: selectedStories.length },
+          { trait_type: "Author", value: authInfo.name },
+          { trait_type: "Stories", value: selectedStories.length },
         ],
-        stories: selectedStories.map(s => ({
-           title: s.title,
-           content: s.content,
-           audio: s.audio_url,
-           date: s.created_at
-        }))
+        stories: selectedStories.map((s) => ({
+          title: s.title,
+          content: s.content,
+          audio: s.audio_url,
+          date: s.created_at,
+        })),
       };
 
       // 2. IPFS Upload
       toast.loading("Uploading Metadata...", { id: "book-toast" });
       const ipfsResult = await ipfsService.uploadMetadata(metadata);
-      if(!ipfsResult?.hash) throw new Error("IPFS upload failed");
+      if (!ipfsResult?.hash) throw new Error("IPFS upload failed");
       const tokenURI = `ipfs://${ipfsResult.hash}`;
 
       // 3. Mint NFT
       toast.loading("Minting NFT...", { id: "book-toast" });
-      await mintBook(tokenURI); 
-      
-      // 4. Save DB
+      await mintBook(tokenURI);
+
+      // 4. Save DB via secure API
       const bookData = {
         author_id: authInfo.id,
         author_wallet: authInfo.wallet_address,
         title: newBookTitle,
         description: newBookDesc,
         story_ids: Array.from(selectedStoryIds),
-        ipfs_hash: ipfsResult.hash, 
+        ipfs_hash: ipfsResult.hash,
       };
 
-      const { error } = await supabase.from("books").insert([bookData]);
-      if (error) throw error;
+      const res = await fetch("/api/books", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(bookData),
+      });
+
+      if (!res.ok) {
+        let errorMessage = "Failed to create book";
+        try {
+          const payload = await res.json();
+          if (payload?.error) errorMessage = payload.error;
+        } catch {
+          // ignore JSON parse errors
+        }
+        throw new Error(errorMessage);
+      }
 
       toast.success("Book Created & Minted!", { id: "book-toast" });
       setIsBookDialogOpen(false);
       setIsCompiling(false);
       setSelectedStoryIds(new Set());
       fetchData();
-
     } catch (err: any) {
       console.error("Create book error:", err);
       const msg = err.message || "Failed to create book";
-      if (msg.includes("User rejected")) toast.error("Minting cancelled", { id: "book-toast" });
+      if (msg.includes("User rejected"))
+        toast.error("Minting cancelled", { id: "book-toast" });
       else toast.error("Failed to create book", { id: "book-toast" });
     } finally {
       setIsSavingBook(false);
@@ -284,12 +296,12 @@ export default function LibraryPage() {
     if (isCompiling && entry.type === "entry") {
       toggleSelection(entry.id);
     } else if (!isCompiling) {
-        if (entry.type === "entry") {
-            router.push(`/story/${entry.id}`);
-        } else if (entry.type === "book") {
-            // NEW: Navigate to the book viewer
-            router.push(`/book/${entry.id}`);
-        }
+      if (entry.type === "entry") {
+        router.push(`/story/${entry.id}`);
+      } else if (entry.type === "book") {
+        // NEW: Navigate to the book viewer
+        router.push(`/books/${entry.id}`);
+      }
     }
   };
 
@@ -297,8 +309,11 @@ export default function LibraryPage() {
   const filteredEntries = entries.filter((entry) => {
     const matchesSearch =
       entry.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (entry.type === "entry" && entry.content.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (entry.tags?.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase())));
+      (entry.type === "entry" &&
+        entry.content.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      entry.tags?.some((tag) =>
+        tag.toLowerCase().includes(searchQuery.toLowerCase())
+      );
 
     const matchesFilter =
       activeFilter === "all" ||
@@ -415,10 +430,18 @@ export default function LibraryPage() {
               className="w-full md:w-auto"
             >
               <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="all" className="text-xs">All</TabsTrigger>
-                <TabsTrigger value="entries" className="text-xs">Entries</TabsTrigger>
-                <TabsTrigger value="books" className="text-xs">Books</TabsTrigger>
-                <TabsTrigger value="audio" className="text-xs">Audio</TabsTrigger>
+                <TabsTrigger value="all" className="text-xs">
+                  All
+                </TabsTrigger>
+                <TabsTrigger value="entries" className="text-xs">
+                  Entries
+                </TabsTrigger>
+                <TabsTrigger value="books" className="text-xs">
+                  Books
+                </TabsTrigger>
+                <TabsTrigger value="audio" className="text-xs">
+                  Audio
+                </TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
@@ -443,20 +466,36 @@ export default function LibraryPage() {
                 transition={{ delay: index * 0.05 }}
                 layout
               >
-                <Card 
+                <Card
                   className={`h-full border-0 shadow-lg transition-all duration-300 relative overflow-hidden group
-                    ${isCompiling && entry.type === 'entry' ? 'cursor-pointer hover:ring-2 hover:ring-purple-500' : 'cursor-pointer hover:shadow-xl hover:scale-[1.01]'}
-                    ${selectedStoryIds.has(entry.id) ? 'ring-2 ring-purple-600 bg-purple-50 dark:bg-purple-900/20' : 'bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm'}
+                    ${
+                      isCompiling && entry.type === "entry"
+                        ? "cursor-pointer hover:ring-2 hover:ring-purple-500"
+                        : "cursor-pointer hover:shadow-xl hover:scale-[1.01]"
+                    }
+                    ${
+                      selectedStoryIds.has(entry.id)
+                        ? "ring-2 ring-purple-600 bg-purple-50 dark:bg-purple-900/20"
+                        : "bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm"
+                    }
                   `}
                   onClick={() => handleCardClick(entry)}
                 >
                   {/* Selection Indicator */}
-                  {isCompiling && entry.type === 'entry' && (
+                  {isCompiling && entry.type === "entry" && (
                     <div className="absolute top-4 right-4 z-10">
-                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors
-                        ${selectedStoryIds.has(entry.id) ? 'bg-purple-600 border-purple-600' : 'border-gray-300 bg-white/80'}
-                      `}>
-                        {selectedStoryIds.has(entry.id) && <CheckCircle2 className="w-4 h-4 text-white" />}
+                      <div
+                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors
+                        ${
+                          selectedStoryIds.has(entry.id)
+                            ? "bg-purple-600 border-purple-600"
+                            : "border-gray-300 bg-white/80"
+                        }
+                      `}
+                      >
+                        {selectedStoryIds.has(entry.id) && (
+                          <CheckCircle2 className="w-4 h-4 text-white" />
+                        )}
                       </div>
                     </div>
                   )}
@@ -474,7 +513,10 @@ export default function LibraryPage() {
                             <Volume2 className="w-4 h-4 text-emerald-600" />
                           )}
                           {entry.type === "book" && (
-                            <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">
+                            <Badge
+                              variant="outline"
+                              className="bg-indigo-50 text-indigo-700 border-indigo-200"
+                            >
                               Collection
                             </Badge>
                           )}
@@ -490,11 +532,13 @@ export default function LibraryPage() {
                         {entry.mood}
                       </Badge>
                     </div>
-                    
+
                     <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400 mt-2">
                       <div className="flex items-center space-x-1">
                         <Calendar className="w-4 h-4" />
-                        <span>{new Date(entry.created_at).toLocaleDateString()}</span>
+                        <span>
+                          {new Date(entry.created_at).toLocaleDateString()}
+                        </span>
                       </div>
                       {entry.type === "book" && (
                         <div className="flex items-center space-x-1 text-indigo-600">
@@ -507,7 +551,9 @@ export default function LibraryPage() {
 
                   <CardContent className="space-y-4">
                     <p className="text-gray-600 dark:text-gray-300 line-clamp-3 min-h-[4.5rem]">
-                      {entry.type === "entry" ? entry.content : entry.description}
+                      {entry.type === "entry"
+                        ? entry.content
+                        : entry.description}
                     </p>
 
                     <div className="flex flex-wrap gap-2">
@@ -529,14 +575,18 @@ export default function LibraryPage() {
                           </Button>
                         </div>
                         <div className="flex space-x-2">
-                           <Button size="sm" variant="ghost" className="h-8">
+                          <Button size="sm" variant="ghost" className="h-8">
                             <Share2 className="w-4 h-4" />
-                           </Button>
-                           {entry.type === "book" && (
-                            <Button size="sm" variant="ghost" className="h-8 text-indigo-600">
+                          </Button>
+                          {entry.type === "book" && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 text-indigo-600"
+                            >
                               <Download className="w-4 h-4" />
                             </Button>
-                           )}
+                          )}
                         </div>
                       </div>
                     )}
@@ -577,25 +627,29 @@ export default function LibraryPage() {
                 Record new entries or compile existing ones into digital books
               </p>
             </div>
-            
+
             <div className="flex gap-2">
               {isCompiling ? (
                 <>
-                  <Button variant="outline" onClick={handleCancelCompile} className="border-red-200 text-red-600 hover:bg-red-50">
+                  <Button
+                    variant="outline"
+                    onClick={handleCancelCompile}
+                    className="border-red-200 text-red-600 hover:bg-red-50"
+                  >
                     <X className="w-4 h-4 mr-2" /> Cancel
                   </Button>
-                  <Button 
-                    onClick={handleOpenBookDialog} 
+                  <Button
+                    onClick={handleOpenBookDialog}
                     className="bg-gradient-to-r from-purple-600 to-indigo-600"
                     disabled={selectedStoryIds.size < 2}
                   >
-                    <Sparkles className="w-4 h-4 mr-2" /> 
+                    <Sparkles className="w-4 h-4 mr-2" />
                     Create Book ({selectedStoryIds.size})
                   </Button>
                 </>
               ) : (
                 <>
-                  <Button 
+                  <Button
                     onClick={handleStartCompile}
                     variant="outline"
                     className="border-purple-200 text-purple-700 hover:bg-purple-50"
@@ -603,7 +657,10 @@ export default function LibraryPage() {
                     <Sparkles className="w-4 h-4 mr-2" />
                     Compile Book
                   </Button>
-                  <Button className="bg-gradient-to-r from-emerald-600 to-teal-600" onClick={() => router.push('/record')}>
+                  <Button
+                    className="bg-gradient-to-r from-emerald-600 to-teal-600"
+                    onClick={() => router.push("/record")}
+                  >
                     <Plus className="w-4 h-4 mr-2" /> New Entry
                   </Button>
                 </>
@@ -619,7 +676,8 @@ export default function LibraryPage() {
           <DialogHeader>
             <DialogTitle>Compile Digital Book</DialogTitle>
             <DialogDescription>
-              Create a collection from your selected {selectedStoryIds.size} stories.
+              Create a collection from your selected {selectedStoryIds.size}{" "}
+              stories.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -643,15 +701,22 @@ export default function LibraryPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsBookDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsBookDialogOpen(false)}
+            >
               Cancel
             </Button>
-            <Button 
-              onClick={handleCreateBook} 
+            <Button
+              onClick={handleCreateBook}
               disabled={isSavingBook || isMinting}
               className="bg-gradient-to-r from-purple-600 to-indigo-600"
             >
-              {(isSavingBook || isMinting) ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+              {isSavingBook || isMinting ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Sparkles className="w-4 h-4 mr-2" />
+              )}
               {isMinting ? "Minting NFT..." : "Create Collection"}
             </Button>
           </DialogFooter>

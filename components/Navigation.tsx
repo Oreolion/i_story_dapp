@@ -12,14 +12,13 @@ import {
   User,
   Moon,
   Sun,
-  Wallet,
-  LogOut,
   Coins,
   TrainTrack,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useState, useEffect } from "react";
+import { NotificationDropdown } from "./NotificationDropdown";
 
 const navigation = [
   { name: "Home", href: "/", icon: Home },
@@ -35,7 +34,7 @@ export function Navigation() {
   const { theme, setTheme } = useTheme();
   const { user } = useApp();
   // const userInfo = useAuth();
-//   console.log("User in Nav:", user);
+  //   console.log("User in Nav:", user);
   //   console.log("UserInfo in Nav:", userInfo);
 
   // FIX: Add client-side mount state
@@ -46,10 +45,10 @@ export function Navigation() {
 
   return (
     <nav className="sticky top-0 z-50 backdrop-blur-lg bg-white/70 dark:bg-gray-900/70 border-b border-gray-200 dark:border-gray-700">
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
+      <div className="container mx-auto px-4 lg:px-6">
+        <div className="flex items-center justify-between h-16 gap-8">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2">
+          <Link href="/" className="flex items-center space-x-2 flex-shrink-0">
             <motion.div
               whileHover={{ scale: 1.05 }}
               className="w-8 h-8 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg flex items-center justify-center"
@@ -60,8 +59,9 @@ export function Navigation() {
               IStory
             </span>
           </Link>
-          {/* Navigation Links */}
-          <div className="hidden md:flex items-center space-x-6">
+
+          {/* Navigation Links - Center */}
+          <div className="hidden lg:flex items-center gap-2 flex-1">
             {navigation.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
@@ -69,7 +69,7 @@ export function Navigation() {
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all ${
                     isActive
                       ? "bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-300"
                       : "text-gray-600 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400"
@@ -81,36 +81,43 @@ export function Navigation() {
               );
             })}
           </div>
-          {/* Right Side Actions */}
-          <div className="flex items-center space-x-4">
-            {/* FIX: Wrap client-side content in isClient check */}
+
+          {/* Right Side Actions - Spread out */}
+          <div className="flex items-center gap-2 lg:gap-3 flex-shrink-0">
+            {/* Token Balance */}
             {isClient && user && (
               <div
-                className="flex items-center space-x-2 text-sm bg-emerald-100 dark:bg-emerald-900 px-3 py-1 rounded-full"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 rounded-full"
                 suppressHydrationWarning
               >
-                {" "}
-                {/* Fixed hydration */}
-                <Coins className="w-4 h-4 text-emerald-600" />
-                <span className="font-medium text-emerald-600">{user.storyTokens} $STORY</span>
+                <Coins className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span className="text-xs lg:text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+                  {user.storyTokens}
+                </span>
               </div>
             )}
 
+            {/* Notifications */}
+            <NotificationDropdown />
+
+            {/* Theme Toggle */}
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="w-9 h-9 p-0"
+              className="w-9 h-9 p-0 hidden sm:flex"
             >
               <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
               <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
             </Button>
+
+            {/* Wallet Connect */}
             <ConnectButton showBalance={false} />
           </div>
         </div>
       </div>
       {/* Mobile Navigation */}
-      <div className="md:hidden border-t border-gray-200 dark:border-gray-700">
+      <div className="lg:hidden border-t border-gray-200 dark:border-gray-700">
         <div className="flex justify-around py-2">
           {navigation.map((item) => {
             const Icon = item.icon;
@@ -119,7 +126,7 @@ export function Navigation() {
               <Link
                 key={item.name}
                 href={item.href}
-                className={`flex flex-col items-center space-y-1 px-3 py-2 rounded-lg transition-colors ${
+                className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-colors ${
                   isActive
                     ? "bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-300"
                     : "text-gray-600 dark:text-gray-300"

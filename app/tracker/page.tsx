@@ -118,31 +118,35 @@ export default function TasksPage() {
 
   // --- Actions ---
 
-  const handleAddHabit = async () => {
-    if (!newHabitTitle.trim()) return;
-    if (!supabase || !authInfo?.id) return toast.error("Sign in required");
+ const handleAddHabit = async () => {
+  if (!newHabitTitle.trim()) return;
+  if (!authInfo?.id) return toast.error("Sign in required");
 
-    setIsAdding(true);
-    try {
-        const { data, error } = await supabase
-        .from('habits')
-        .insert({ user_id: authInfo.id, title: newHabitTitle })
-        .select()
-        .single();
-        
-        if (error) throw error;
+  setIsAdding(true);
 
-        if (data) {
-            setHabits([...habits, data]);
-            setNewHabitTitle("");
-            toast.success("Habit added");
-        }
-    } catch (error) {
-        toast.error("Failed to add habit");
-    } finally {
-        setIsAdding(false);
+  try {
+    const res = await fetch("/api/habits", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: authInfo.id, title: newHabitTitle })
+    });
+
+    if (!res.ok) {
+      const errData = await res.json();
+      throw new Error(errData.error || "Failed to add habit");
     }
-  };
+
+    const { habit } = await res.json();
+    setHabits([...habits, habit]);
+    setNewHabitTitle("");
+    toast.success("Habit added");
+  } catch (error) {
+    toast.error(error.message || "Failed to add habit");
+  } finally {
+    setIsAdding(false);
+  }
+};
+
 
   const handleDeleteHabit = async (id: string) => {
     if (!supabase) return;
