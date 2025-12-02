@@ -170,14 +170,99 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   // 🔴 THIS IS THE IMPORTANT PART: hydrate profile from /api/auth
-  useEffect(() => {
-    if (!isConnected || !address) return;
-    if (profile) return; // ✅ already have a profile, don't pop MetaMask again
-    if (signInAttemptRef.current) return;
+//   useEffect(() => {
+//     if (!isConnected || !address) return;
+//     if (profile) return; // ✅ already have a profile, don't pop MetaMask again
+//     if (signInAttemptRef.current) return;
 
-    signInAttemptRef.current = true;
+//     signInAttemptRef.current = true;
 
-    const triggerSignIn = async () => {
+//     const triggerSignIn = async () => {
+//       const message = `Welcome to IStory 🌌
+
+// Sign this message to log in securely.
+
+// Site: ${window.location.origin}
+// Page: ${window.location.pathname}
+// Address: ${address}
+
+// No transaction · No gas fees · Completely free
+
+// Nonce: ${Date.now()}`;
+
+//       try {
+//         const signature = await signMessageAsync({ message });
+
+//         const res = await fetch("/api/auth/login", {
+//           method: "POST",
+//           headers: { "Content-Type": "application/json" },
+//           body: JSON.stringify({ address, message, signature }),
+//         });
+
+//         if (!res.ok) {
+//           const errJson = await res.json().catch(() => ({}));
+//           console.error("[AUTH] /api/auth failed:", errJson);
+//           throw new Error(errJson.error || "Auth failed");
+//         }
+
+//         const json = await res.json();
+//         const userRow = json.user;
+
+//         if (!userRow) {
+//           console.warn("[AUTH] /api/auth returned no user row");
+//         } else {
+//           console.log("[AUTH] /api/auth success, setting profile:", userRow);
+//           // We don't have a Supabase session; pass null for supabaseUser.
+//           setUnifiedProfile(userRow, null);
+//         }
+
+//         console.log(
+//           "MetaMask signed → /api/auth called → profile hydrated from server"
+//         );
+//       } catch (err: any) {
+//         if (err.code !== "ACTION_REJECTED") {
+//           console.error("Sign-in error:", err);
+//         }
+//       } finally {
+//         setTimeout(() => (signInAttemptRef.current = false), 3000);
+//       }
+//     };
+
+//     triggerSignIn();
+//   }, [isConnected, address, profile, signMessageAsync]);
+
+// 🔴 HYDRATE PROFILE WITHOUT POPPING METAMASK ON EVERY RELOAD
+useEffect(() => {
+  if (!supabase) return;
+  if (!isConnected || !address) return;
+  if (signInAttemptRef.current) return;
+  if (profile) return; // ✅ already hydrated in memory
+
+  const run = async () => {
+    try {
+      // 1) Try to hydrate from existing public.users row by wallet_address (no signature needed)
+      const { data: existing, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("wallet_address", address.toLowerCase())
+        .maybeSingle();
+
+      if (error) {
+        console.error("[AUTH] lookup by wallet_address error:", error);
+      }
+
+      if (existing) {
+        console.log(
+          "[AUTH] found existing user by wallet_address, no MetaMask sign-in needed"
+        );
+        // We don't have a Supabase session; pass null for supabaseUser.
+        setUnifiedProfile(existing, null);
+        return; // ✅ stop here, do NOT trigger MetaMask
+      }
+
+      // 2) No existing user → run your current MetaMask + /api/auth/login flow
+      signInAttemptRef.current = true;
+
       const message = `Welcome to IStory 🌌
 
 Sign this message to log in securely.
@@ -201,7 +286,7 @@ Nonce: ${Date.now()}`;
 
         if (!res.ok) {
           const errJson = await res.json().catch(() => ({}));
-          console.error("[AUTH] /api/auth failed:", errJson);
+          console.error("[AUTH] /api/auth/login failed:", errJson);
           throw new Error(errJson.error || "Auth failed");
         }
 
@@ -209,27 +294,35 @@ Nonce: ${Date.now()}`;
         const userRow = json.user;
 
         if (!userRow) {
-          console.warn("[AUTH] /api/auth returned no user row");
+          console.warn("[AUTH] /api/auth/login returned no user row");
         } else {
-          console.log("[AUTH] /api/auth success, setting profile:", userRow);
-          // We don't have a Supabase session; pass null for supabaseUser.
+          console.log(
+            "[AUTH] /api/auth/login success, setting profile from server:",
+            userRow
+          );
           setUnifiedProfile(userRow, null);
         }
 
         console.log(
-          "MetaMask signed → /api/auth called → profile hydrated from server"
+          "MetaMask signed → /api/auth/login called → profile hydrated from server"
         );
       } catch (err: any) {
         if (err.code !== "ACTION_REJECTED") {
           console.error("Sign-in error:", err);
         }
       } finally {
-        setTimeout(() => (signInAttemptRef.current = false), 3000);
+        setTimeout(() => {
+          signInAttemptRef.current = false;
+        }, 3000);
       }
-    };
+    } catch (err) {
+      console.error("[AUTH] unexpected error in wallet login flow:", err);
+    }
+  };
 
-    triggerSignIn();
-  }, [isConnected, address, profile, signMessageAsync]);
+  run();
+}, [supabase, isConnected, address, profile, signMessageAsync]);
+
 
   return (
     <AuthContext.Provider value={profile}>{children}</AuthContext.Provider>
