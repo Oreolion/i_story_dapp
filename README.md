@@ -181,7 +181,7 @@ History is written by the victors, but your story deserves to be heard unedited.
 - Enhanced UI: Mood-based gradient headers and smooth animations
 
 ## Project Structure
-
+```
 i_story_dapp/
 ├── app/
 │   ├── api/                          # API Routes
@@ -247,6 +247,7 @@ i_story_dapp/
 ├── tailwind.config.ts                # Tailwind configuration
 ├── tsconfig.json                     # TypeScript configuration
 └── package.json                      # Dependencies
+```
 
 ## Getting Started
 
