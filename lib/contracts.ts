@@ -1,9 +1,9 @@
 // import { add } from "date-fns";
 
 // Replace these with your deployed address from Hardhat/Remix
-export const STORY_TOKEN_ADDRESS = "0xc50E1E89f65cA75CA2994Bf8C9AdB30870cf729a"; 
-export const STORY_PROTOCOL_ADDRESS = "0x539Bcac4FC31A8006BF080BBbcaA3D1218303E37";
-export const STORY_NFT_ADDRESS = "0xF61E9D022Df3835FdFbDD97069F293a39783635B";
+export const STORY_TOKEN_ADDRESS = "0xf9eDD76B55F58Bf4E8Ae2A90a1D6d8d44dfA74BC"; 
+export const STORY_PROTOCOL_ADDRESS = "0xA51a4cA00cC4C81A5F7cB916D0BFa1a4aD6f4a71";
+export const STORY_NFT_ADDRESS = "0x6D37ebc5eAEF37ecC888689f295D114187933342";
 
 // 1. IStoryToken ABI (ERC20 + Burnable)
 export const STORY_TOKEN_ABI = [

@@ -1,12 +1,15 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-hot-toast";
+
+// Relative paths (Preserving your working structure)
 import { useApp } from "../../components/Provider";
 import { useAuth } from "../../components/AuthProvider";
 import { supabaseClient } from "../../app/utils/supabase/supabaseClient";
 import { ipfsService } from "../../app/utils/ipfsService";
+
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -19,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label"; // Added Label for better UX
 import {
   Mic,
   Square,
@@ -30,27 +34,30 @@ import {
   FileText,
   Zap,
   Loader2,
-  User,
   PlayCircle,
   StopCircle,
-  Globe, 
+  Globe,
+  Calendar as CalendarIcon, // Renamed to avoid conflict
 } from "lucide-react";
 
 export default function RecordPage() {
   const { isConnected } = useApp();
   const authInfo = useAuth();
 
-  useEffect(() => {
-    console.log("Auth Info:", authInfo);
-  }, [authInfo]);
-  // State
+  // State Management
   const [isRecording, setIsRecording] = useState(false);
   const [transcribedText, setTranscribedText] = useState("");
   const [entryTitle, setEntryTitle] = useState("");
+
+  // NEW: Date Selection for Backdating (Defaults to Today)
+  const [storyDate, setStoryDate] = useState(
+    new Date().toISOString().split("T")[0]
+  );
+
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isPlayingTTS, setIsPlayingTTS] = useState(false); // New State for TTS
+  const [isPlayingTTS, setIsPlayingTTS] = useState(false);
 
   // Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -81,8 +88,6 @@ export default function RecordPage() {
         const blob = new Blob(chunks, { type: "audio/webm" });
         setAudioBlob(blob);
         stream.getTracks().forEach((track) => track.stop());
-
-        // Trigger Real AI Transcription
         handleTranscribe(blob);
       };
 
@@ -107,11 +112,11 @@ export default function RecordPage() {
       if (durationIntervalRef.current)
         clearInterval(durationIntervalRef.current);
       durationIntervalRef.current = null;
-      toast.success("Recording stopped");
+      toast.success("Recording stopped. Processing...");
     }
   };
 
-  // --- 2. Real AI Transcription ---
+  // --- 2. AI Transcription ---
   const handleTranscribe = async (blob: Blob) => {
     setIsProcessing(true);
     const formData = new FormData();
@@ -121,7 +126,10 @@ export default function RecordPage() {
       method: "POST",
       body: formData,
     }).then(async (res) => {
-      if (!res.ok) throw new Error("Transcription failed");
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Transcription failed");
+      }
       const data = await res.json();
       return data.text;
     });
@@ -130,24 +138,24 @@ export default function RecordPage() {
       loading: "AI is transcribing...",
       success: (text) => {
         setTranscribedText((prev) => (prev ? prev + " " + text : text));
+        // Use the selected date for the default title
         if (!entryTitle) {
-          setEntryTitle(
-            "Journal Entry " +
-              new Date().toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })
-          );
+          const dateObj = new Date(storyDate);
+          setEntryTitle(`Journal Entry - ${dateObj.toLocaleDateString()}`);
         }
         setIsProcessing(false);
         return "Transcription complete!";
       },
-      error: "Failed to transcribe audio.",
+      error: (err) => {
+        setIsProcessing(false);
+        console.error(err);
+        return "Failed to transcribe audio.";
+      },
     });
   };
 
-  // --- 3. Real AI Enhancement ---
-  const enhanceText = () => {
+  // --- 3. AI Enhancement ---
+  const enhanceText = async () => {
     if (!transcribedText.trim()) return;
     setIsProcessing(true);
 
@@ -156,13 +164,16 @@ export default function RecordPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text: transcribedText }),
     }).then(async (res) => {
-      if (!res.ok) throw new Error("Enhancement failed");
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Enhancement failed");
+      }
       const data = await res.json();
       return data.text;
     });
 
     toast.promise(promise, {
-      loading: "Gemini is polishing your story...",
+      loading: "Polishing story...",
       success: (enhanced) => {
         setTranscribedText(enhanced);
         setIsProcessing(false);
@@ -172,7 +183,7 @@ export default function RecordPage() {
     });
   };
 
-  // --- 4. Text-to-Speech (New Feature) ---
+  // --- 4. Text-to-Speech ---
   const toggleTTS = () => {
     if (isPlayingTTS) {
       window.speechSynthesis.cancel();
@@ -187,13 +198,12 @@ export default function RecordPage() {
     }
   };
 
-  // --- 5. Save Logic (Database + IPFS) ---
+  // --- 5. Save Logic (IPFS + Supabase + Backdating) ---
   const saveEntry = async () => {
-    if (!isConnected || !authInfo)
-      return toast.error("Please sign in to save.");
+    if (!isConnected || !authInfo) return toast.error("Please sign in.");
     if (!authInfo.id) return toast.error("User ID missing.");
     if (!transcribedText.trim() || !entryTitle.trim())
-      return toast.error("Please provide title and content.");
+      return toast.error("Story is empty.");
 
     setIsProcessing(true);
 
@@ -203,9 +213,9 @@ export default function RecordPage() {
       const userId = authInfo.id;
 
       try {
-        // A. Upload Audio (Supabase Storage)
+        // A. Upload Audio to Supabase
         if (audioBlob && supabase) {
-          const fileName = `${userId}/${new Date().toISOString()}.webm`;
+          const fileName = `${userId}/${new Date().getTime()}.webm`; // Unique name
           const { data: uploadData, error: uploadError } =
             await supabase.storage
               .from("story-audio")
@@ -219,19 +229,23 @@ export default function RecordPage() {
           }
         }
 
-        // B. Upload Metadata (IPFS via Pinata)
+        // B. Upload Content to IPFS (Immutable Record)
+        // NEW: We include the custom 'storyDate' in the metadata
         const ipfsMetadata = {
           title: entryTitle,
           content: transcribedText,
           author: authInfo.wallet_address,
           audio: audioUrl,
-          timestamp: new Date().toISOString(),
+          date: storyDate, // Explicitly store user-selected date
+          timestamp: new Date().toISOString(), // Capture actual upload time
           app: "IStory DApp",
         };
+
         const ipfsResult = await ipfsService.uploadMetadata(ipfsMetadata);
         ipfsHash = ipfsResult.hash;
+        console.log("Story pinned to IPFS:", ipfsHash);
 
-        // C. Save Record via API route (server-side Supabase)
+        // C. Save to Supabase DB
         const storyData = {
           author_id: userId,
           author_wallet: authInfo.wallet_address,
@@ -239,22 +253,20 @@ export default function RecordPage() {
           content: transcribedText,
           has_audio: !!audioBlob && !!audioUrl,
           audio_url: audioUrl,
+          likes: 0,
+          comments_count: 0,
+          shares: 0,
           tags: [],
           mood: "neutral",
           ipfs_hash: ipfsHash,
+          created_at: new Date(storyDate).toISOString(), // NEW: Backdate the entry in DB
         };
 
-        const res = await fetch("/api/stories", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(storyData),
-        });
+        const { error: insertError } = await supabase!
+          .from("stories")
+          .insert([storyData]);
 
-        if (!res.ok) {
-          const errJson = await res.json().catch(() => ({}));
-          throw new Error(errJson.error || "Failed to save story");
-        }
-
+        if (insertError) throw insertError;
         return "Story saved & pinned to IPFS!";
       } catch (err: any) {
         throw new Error(err.message || "Save failed");
@@ -262,7 +274,7 @@ export default function RecordPage() {
     };
 
     toast.promise(promiseToSave(), {
-      loading: "Saving to Blockchain & DB...",
+      loading: "Saving to Database & IPFS...",
       success: (msg) => {
         setIsProcessing(false);
         setTranscribedText("");
@@ -284,7 +296,6 @@ export default function RecordPage() {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  // --- Auth Guard UI ---
   if (!isConnected) {
     return (
       <div className="text-center space-y-8 py-16">
@@ -303,10 +314,8 @@ export default function RecordPage() {
     );
   }
 
-  // --- Main Render (Original UI Preserved) ---
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      {/* Header */}
+    <div className="max-w-4xl mx-auto space-y-8 pb-20">
       <div className="text-center space-y-4">
         <motion.div
           initial={{ scale: 0 }}
@@ -358,11 +367,7 @@ export default function RecordPage() {
                 size="lg"
                 onClick={isRecording ? stopRecording : startRecording}
                 disabled={isProcessing}
-                className={`w-32 h-32 rounded-full text-white shadow-xl ${
-                  isRecording
-                    ? "bg-red-500 hover:bg-red-600"
-                    : "bg-gradient-to-r from-purple-600 to-indigo-600"
-                }`}
+                className={`w-32 h-32 rounded-full text-white shadow-xl ${isRecording ? "bg-red-500 hover:bg-red-600" : "bg-gradient-to-r from-purple-600 to-indigo-600"}`}
               >
                 {isRecording ? (
                   <Square className="w-8 h-8" />
@@ -378,32 +383,67 @@ export default function RecordPage() {
               </div>
               <div className="flex items-center space-x-2">
                 <Zap className="w-4 h-4" />
-                <span>AI</span>
+                <span>Gemini AI</span>
               </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Transcription & Title */}
+      {/* Entry Details (Title & Date) */}
       <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-0 shadow-xl">
         <CardHeader>
-          <CardTitle className="text-lg">Entry Title</CardTitle>
+          <CardTitle className="text-lg">Entry Details</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 pb-0">
-          <Input
-            placeholder="Give your story a title..."
-            value={entryTitle}
-            onChange={(e) => setEntryTitle(e.target.value)}
-            className="text-lg"
-            disabled={isProcessing}
-          />
+          {/* NEW: Flex container for Title and Date */}
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1 space-y-2">
+              <Label
+                htmlFor="title"
+                className="text-sm font-medium text-gray-500"
+              >
+                Title
+              </Label>
+              <Input
+                id="title"
+                placeholder="Give your story a title..."
+                value={entryTitle}
+                onChange={(e) => setEntryTitle(e.target.value)}
+                className="text-lg"
+                disabled={isProcessing}
+              />
+            </div>
+
+            <div className="w-full md:w-48 space-y-2">
+              <Label
+                htmlFor="date"
+                className="text-sm font-medium text-gray-500"
+              >
+                Date of Memory
+              </Label>
+              <div className="relative">
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
+                  <CalendarIcon className="w-4 h-4" />
+                </div>
+                <Input
+                  id="date"
+                  type="date"
+                  value={storyDate}
+                  onChange={(e) => setStoryDate(e.target.value)}
+                  className="pl-10 font-medium"
+                  disabled={isProcessing}
+                />
+              </div>
+            </div>
+          </div>
         </CardContent>
+
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center space-x-2">
               <FileText className="w-5 h-5" />
-              <span>Transcription</span>
+              <span>Content</span>
             </CardTitle>
             <div className="flex items-center space-x-2">
               {audioBlob && (
@@ -423,7 +463,6 @@ export default function RecordPage() {
                   Processing...
                 </Badge>
               )}
-              {/* Added small indicator for IPFS capability */}
               <Badge
                 variant="outline"
                 className="border-indigo-200 text-indigo-600 hidden sm:flex items-center gap-1"
@@ -443,7 +482,6 @@ export default function RecordPage() {
           />
           <Separator />
           <div className="flex flex-col sm:flex-row gap-4">
-            {/* Added Read Aloud Button within existing layout structure */}
             <Button
               onClick={toggleTTS}
               disabled={!transcribedText.trim()}
@@ -452,7 +490,7 @@ export default function RecordPage() {
             >
               {isPlayingTTS ? (
                 <>
-                  <StopCircle className="w-4 h-4 mr-2" /> Stop Reading
+                  <StopCircle className="w-4 h-4 mr-2" /> Stop
                 </>
               ) : (
                 <>
@@ -460,15 +498,13 @@ export default function RecordPage() {
                 </>
               )}
             </Button>
-
             <Button
               onClick={enhanceText}
               disabled={!transcribedText.trim() || isProcessing}
               variant="outline"
               className="flex-1"
             >
-              <Wand2 className="w-4 h-4 mr-2" />
-              Enhance with AI
+              <Wand2 className="w-4 h-4 mr-2" /> Enhance AI
             </Button>
             <Button
               onClick={saveEntry}
@@ -481,12 +517,13 @@ export default function RecordPage() {
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               ) : (
                 <Save className="w-4 h-4 mr-2" />
-              )}
-              Save Entry
+              )}{" "}
+              Save & IPFS
             </Button>
           </div>
         </CardContent>
       </Card>
+
 
       {/* Recording Tips */}
       <Card className="bg-gradient-to-r from-purple-500/10 to-indigo-500/10 border-purple-200 dark:border-purple-800">
