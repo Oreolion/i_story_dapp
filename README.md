@@ -19,40 +19,40 @@ In a world where history has often been manipulated by conquerors, victors and d
 
 ### ✨ Core Functionality
 
-    Voice-to-Text Journaling: Record stories using browser-based audio capture with AI-powered transcription
-    AI Enhancements: Get creative prompts, grammar polishing, and AI-generated suggestions
-    Blockchain Immortality: Mint stories as NFTs on Base (Ethereum L2) with IPFS storage
-    Monetization Suite: Earn $STORY tokens from likes, tips, and paywall sales
+- Voice-to-Text Journaling: Record stories using browser-based audio capture with AI-powered transcription
+- AI Enhancements: Get creative prompts, grammar polishing, and AI-generated suggestions
+- Blockchain Immortality: Mint stories as NFTs on Base (Ethereum L2) with IPFS storage
+- Monetization Suite: Earn $STORY tokens from likes, tips, and paywall sales
 
 ### 💬 Social Features
 
-    Community Social Feed: Discover and engage with other stories
-    Like System: Earn rewards for community engagement ($STORY tokens)
-    Tip System: Support creators directly with custom $STORY token amounts
-    Comment System: Leave thoughts and build community discussions
-    Follow System: Build your storytelling community
-    Story Sharing: Share stories across social platforms
+- Community Social Feed: Discover and engage with other stories
+- Like System: Earn rewards for community engagement ($STORY tokens)
+- Tip System: Support creators directly with custom $STORY token amounts
+- Comment System: Leave thoughts and build community discussions
+- Follow System: Build your storytelling community
+- Story Sharing: Share stories across social platforms
 
 ### 💰 Monetization
 
-    Paywall System: Set custom prices for exclusive stories
-    $STORY Token Rewards: Earn from likes and community engagement
-    NFT Minting: Compile stories into digital books and mint as NFTs
-    Tip Jar: Accept voluntary tips from supporters
+- Paywall System: Set custom prices for exclusive stories
+- $STORY Token Rewards: Earn from likes and community engagement
+- NFT Minting: Compile stories into digital books and mint as NFTs
+- Tip Jar: Accept voluntary tips from supporters
 
 ### 📚 Library & Curation
 
-    Personal Library: Organize all your stories and books
-    Book Compilation: Combine multiple stories into digital books
-    Story Filtering: Search, filter, and organize by mood, date, and tags
-    Audio Storage: All recordings stored securely with public URLs
+- Personal Library: Organize all your stories and books
+- Book Compilation: Combine multiple stories into digital books
+- Story Filtering: Search, filter, and organize by mood, date, and tags
+- Audio Storage: All recordings stored securely with public URLs
 
 ### 👤 User Profiles
 
-    Profile Customization: Build your creator profile with bio and avatar
-    Streaks & Achievements: Track daily writing streaks and earn badges
-    Statistics Dashboard: View your impact and community engagement metrics
-    Writing Goals: Set and track monthly story targets
+- Profile Customization: Build your creator profile with bio and avatar
+- Streaks & Achievements: Track daily writing streaks and earn badges
+- Statistics Dashboard: View your impact and community engagement metrics
+- Writing Goals: Set and track monthly story targets
 
 **Tagline:** Speak Your Story, Mint Your Legacy
 
@@ -61,15 +61,19 @@ In a world where history has often been manipulated by conquerors, victors and d
 Follow these simple steps to start your storytelling journey:
 
 ### Step 1: Record Your Story 🎙️
+
 Use our AI Speech-to-Text feature to easily record your thoughts and experiences. Just hit record and speak naturally—no need to write!
 
 ### Step 2: Enhance & Polish ✨
+
 Leveraging Gemini Flash AI, get grammar corrections, creative suggestions, and writing enhancements to make your story shine.
 
 ### Step 3: Secure Your Entries 🔐
+
 Store your stories as NFTs on the blockchain for secure and permanent ownership. Your stories are immutable and truly yours forever.
 
 ### Step 4: Share & Earn 💰
+
 Engage with the community, share your stories, and earn $STORY tokens based on interactions. Build your audience and monetize your creativity!
 
 ## Why iStory?
@@ -80,101 +84,101 @@ History is written by the victors, but your story deserves to be heard unedited.
 
 ### Frontend
 
-    Framework: Next.js 14 (App Router) with React 18 and TypeScript for performant, SEO-friendly experiences
-    Styling: Tailwind CSS for responsive, modern UI with full dark/light mode support
-    Animations: Framer Motion for smooth, professional animations and transitions
-    UI Components: shadcn/ui for accessible, customizable components
-    Icons: Lucide React for consistent iconography
+- Framework: Next.js 14 (App Router) with React 18 and TypeScript for performant, SEO-friendly experiences
+- Styling: Tailwind CSS for responsive, modern UI with full dark/light mode support
+- Animations: Framer Motion for smooth, professional animations and transitions
+- UI Components: shadcn/ui for accessible, customizable components
+- Icons: Lucide React for consistent iconography
 
 ### Blockchain & Web3
 
-    Wallet Integration: Wagmi + RainbowKit for seamless wallet connections
-    Smart Contracts: Solidity contracts deployed on Base (Ethereum L2)
-    Contract Interaction: Viem for efficient blockchain interactions
-    Contracts Included:
-        iStoryToken.sol - ERC20 token for rewards and payments
-        LikeSystem.sol - Smart contract for like-based rewards
-        StoryBookNFT.sol - ERC721 NFT contract for minting story books
+- Wallet Integration: Wagmi + RainbowKit for seamless wallet connections
+- Smart Contracts: Solidity contracts deployed on Base (Ethereum L2)
+- Contract Interaction: Viem for efficient blockchain interactions
+- Contracts Included:
+  - iStoryToken.sol - ERC20 token for rewards and payments
+  - LikeSystem.sol - Smart contract for like-based rewards
+  - StoryBookNFT.sol - ERC721 NFT contract for minting story books
 
 ### Backend & Database
 
-    Database: Supabase (PostgreSQL) for real-time data and authentication
-    Storage: Supabase Storage for audio files and media
-    API: Next.js API Routes for serverless functions
+- Database: Supabase (PostgreSQL) for real-time data and authentication
+- Storage: Supabase Storage for audio files and media
+- API: Next.js API Routes for serverless functions
 
 ### AI & External Services
 
-    Speech-to-Text: Gemini Flash for accurate voice transcription
-    Text Enhancement: Gemini Flash for AI-powered writing suggestions
-    Text-to-Speech: Browser Speech Synthesis API for audio playback
+- Speech-to-Text: Gemini Flash for accurate voice transcription
+- Text Enhancement: Gemini Flash for AI-powered writing suggestions
+- Text-to-Speech: Browser Speech Synthesis API for audio playback
 
 ### Development & Deployment
 
-    Package Manager: npm/yarn/pnpm
-    Linting: ESLint with TypeScript support
-    Deployment: Vercel (recommended) or any Node.js hosting
+- Package Manager: npm/yarn/pnpm
+- Linting: ESLint with TypeScript support
+- Deployment: Vercel (recommended) or any Node.js hosting
 
 ## Pages & Features
 
 ### 🏠 Home Page (/)
 
-    Hero section showcasing app features and benefits
-    Key statistics (stories created, active users, tokens earned, books minted)
-    Feature cards with gradient backgrounds
-    Call-to-action buttons
-    Beautiful gradient animations and glassmorphism design
+- Hero section showcasing app features and benefits
+- Key statistics (stories created, active users, tokens earned, books minted)
+- Feature cards with gradient backgrounds
+- Call-to-action buttons
+- Beautiful gradient animations and glassmorphism design
 
 ### 🎙️ Record Page (/record)
 
-    Audio Recording: Mic input with duration tracking
-    Real-time Transcription: AI-powered speech-to-text using Gemini Flash
-    AI Enhancement: Polish and improve written content
-    Text-to-Speech: Preview stories with native browser audio
-    Media Management: Save audio files to Supabase Storage
-    Story Metadata: Add title, mood, tags, and paywall settings
-    Database Save: Store stories with author wallet and audio URLs
+- Audio Recording: Mic input with duration tracking
+- Real-time Transcription: AI-powered speech-to-text using Gemini Flash
+- AI Enhancement: Polish and improve written content
+- Text-to-Speech: Preview stories with native browser audio
+- Media Management: Save audio files to Supabase Storage
+- Story Metadata: Add title, mood, tags, and paywall settings
+- Database Save: Store stories with author wallet and audio URLs
 
 ### 📚 Library Page (/library)
 
-    Personal Collection: View all your recorded stories and compiled books
-    Advanced Filtering: Search by title, date, mood, and tags
-    Story Statistics: Track likes, views, and engagement per story
-    Book Compilation: Select multiple stories to compile into PDFs
-    Audio Playback: Listen to recorded stories
-    Mood Badges: Visual mood indicators for each story
+- Personal Collection: View all your recorded stories and compiled books
+- Advanced Filtering: Search by title, date, mood, and tags
+- Story Statistics: Track likes, views, and engagement per story
+- Book Compilation: Select multiple stories to compile into PDFs
+- Audio Playback: Listen to recorded stories
+- Mood Badges: Visual mood indicators for each story
 
 ### 🌐 Social Page (/social)
 
-    Community Feed: Discover stories from other users
-    Featured Writers: Showcase top storytellers
-    Trending Topics: View popular hashtags and themes
-    Story Cards: Rich story previews with author info, likes, and engagement
-    Multiple Views: Feed, Trending, and Following tabs
-    Community Stats: Display active users and engagement metrics
+- Community Feed: Discover stories from other users
+- Featured Writers: Showcase top storytellers
+- Trending Topics: View popular hashtags and themes
+- Story Cards: Rich story previews with author info, likes, and engagement
+- Multiple Views: Feed, Trending, and Following tabs
+- Community Stats: Display active users and engagement metrics
 
 ### 👥 Profile Page (/profile)
 
-    User Profile: Customize name, bio, location, website, and avatar
-    Writing Streaks: Track daily writing consistency with visual progress
-    Achievements: Earn and display badges (First Story, Community Star, etc.)
-    Statistics: View total stories, likes earned, followers, and impact metrics
-    Writing Goals: Set and track monthly story targets
-    Settings: User account and preference management
+- User Profile: Customize name, bio, location, website, and avatar
+- Writing Streaks: Track daily writing consistency with visual progress
+- Achievements: Earn and display badges (First Story, Community Star, etc.)
+- Statistics: View total stories, likes earned, followers, and impact metrics
+- Writing Goals: Set and track monthly story targets
+- Settings: User account and preference management
 
 ### 📖 Story Detail Page (/story/[storyId])
 
-    Full Story Display: Read complete story content with rich formatting
-    Author Profile: View author info, badges, and follower count
-    Engagement Metrics: See likes, shares, and view counts
-    Like System: Blockchain-integrated like button with $STORY rewards
-    Tip System: Send custom $STORY token amounts to support creators
-    Paywall Support: Unlock exclusive stories with token payment
-    Audio Player: Listen to story recordings if available
-    Comment Section: Post and read comments from community
-    Share Functionality: Share stories to social media or copy link
-    Save/Bookmark: Save stories for later reading
-    Edit Option: Author can edit their own stories
-    Enhanced UI: Mood-based gradient headers and smooth animations
+- Full Story Display: Read complete story content with rich formatting
+- Author Profile: View author info, badges, and follower count
+- Engagement Metrics: See likes, shares, and view counts
+- Like System: Blockchain-integrated like button with $STORY rewards
+- Tip System: Send custom $STORY token amounts to support creators
+- Paywall Support: Unlock exclusive stories with token payment
+- Audio Player: Listen to story recordings if available
+- Comment Section: Post and read comments from community
+- Share Functionality: Share stories to social media or copy link
+- Save/Bookmark: Save stories for later reading
+- Edit Option: Author can edit their own stories
+- Enhanced UI: Mood-based gradient headers and smooth animations
 
 ## Project Structure
 
@@ -248,15 +252,11 @@ i_story_dapp/
 
 ### Prerequisites
 
-    Node.js 18+ with npm, yarn, or pnpm
-
-    Supabase account with project setup (PostgreSQL database + auth)
-
-    MetaMask or compatible Web3 wallet configured for Base network
-
-    Base Sepolia testnet access for development
-
-    Google API key or similar for Gemini Flash AI services
+- Node.js 18+ with npm, yarn, or pnpm
+- Supabase account with project setup (PostgreSQL database + auth)
+- MetaMask or compatible Web3 wallet configured for Base network
+- Base Sepolia testnet access for development
+- Google API key or similar for Gemini Flash AI services
 
 ### Installation
 
@@ -267,11 +267,14 @@ cd i_story_dapp
 
 Install dependencies:
 
+```bash
 npm install
 # or: yarn install / pnpm install
+```
 
-Set up environment variables: Create a .env.local file in the root directory:
+Set up environment variables: Create a `.env.local` file in the root directory:
 
+```env
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
@@ -287,16 +290,18 @@ NEXT_PUBLIC_SEPOLIA_RPC_URL=https://sepolia.base.org
 NEXT_PUBLIC_ISTORY_TOKEN_ADDRESS=0x...
 NEXT_PUBLIC_LIKE_SYSTEM_ADDRESS=0x...
 NEXT_PUBLIC_STORYBOOK_NFT_ADDRESS=0x...
+```
 
 Set up Supabase:
 
-    Create tables: users, stories, comments, saved_stories, likes
-    Enable Row Level Security (RLS) for data privacy
-    Create storage bucket story-audio for audio files
-    Configure authentication with OAuth or email/password
+- Create tables: users, stories, comments, saved_stories, likes
+- Enable Row Level Security (RLS) for data privacy
+- Create storage bucket story-audio for audio files
+- Configure authentication with OAuth or email/password
 
 Deploy Smart Contracts (optional for testing):
 
+```bash
 # Install Hardhat
 npm install --save-dev hardhat
 
@@ -305,98 +310,108 @@ npx hardhat compile
 
 # Deploy to Base Sepolia
 npx hardhat run scripts/deploy.js --network baseSepolia
+```
 
 Run development server:
 
+```bash
 npm run dev
+```
 
-    Open http://localhost:3000 in your browser
+Open http://localhost:3000 in your browser
 
 Quick Start Guide
 
-    Connect Wallet: Click "Connect Wallet" using MetaMask (switch to Base network)
-    Create Profile: Navigate to /profile and set up your author information
-    Record Story: Go to /record, hit record button, and speak your story
-    Enhance: Use AI enhancement to polish your text
-    Save: Click save to store your story with audio on blockchain
-    Share: Go to /social and like/tip other stories to earn $STORY tokens
-    Compile: Visit /library to compile stories into a book
+- Connect Wallet: Click "Connect Wallet" using MetaMask (switch to Base network)
+- Create Profile: Navigate to /profile and set up your author information
+- Record Story: Go to /record, hit record button, and speak your story
+- Enhance: Use AI enhancement to polish your text
+- Save: Click save to store your story with audio on blockchain
+- Share: Go to /social and like/tip other stories to earn $STORY tokens
+- Compile: Visit /library to compile stories into a book
 
 ## Development Scripts
-Command 	Description
-npm run dev 	Start development server on http://localhost:3000
-npm run build 	Build for production
-npm run start 	Start production server
-npm run lint 	Run ESLint checks
-npm run lint:fix 	Fix ESLint issues automatically
+
+Command Description
+npm run dev Start development server on http://localhost:3000
+npm run build Build for production
+npm run start Start production server
+npm run lint Run ESLint checks
+npm run lint:fix Fix ESLint issues automatically
 
 ## API Endpoints
 
 ### AI Endpoints
 
-    POST /api/ai/transcribe - Convert audio to text using Gemini Flash
-    POST /api/ai/enhance - Enhance story text with AI suggestions
+- POST /api/ai/transcribe - Convert audio to text using Gemini Flash
+- POST /api/ai/enhance - Enhance story text with AI suggestions
 
 ### Story Endpoints
 
-    POST /api/journal/save - Save story to database
-    POST /api/book/compile - Compile stories into a book
+- POST /api/journal/save - Save story to database
+- POST /api/book/compile - Compile stories into a book
 
 ### Social Endpoints
 
-    POST /api/social/like - Like a story
-    POST /api/social/share - Share story to social media
+- POST /api/social/like - Like a story
+- POST /api/social/share - Share story to social media
 
 ### User Endpoints
 
-    POST /api/user/profile - Update user profile
-    GET /api/user/profile - Fetch user profile
+- POST /api/user/profile - Update user profile
+- GET /api/user/profile - Fetch user profile
 
 ## How to Contribute
 
 We welcome contributions from the community! Here's how to contribute:
 
-    Fork the repository and create a feature branch:
+1. Fork the repository and create a feature branch:
 
-    git checkout -b feature/your-amazing-feature
+```bash
+git checkout -b feature/your-amazing-feature
+```
 
-Make your changes with clear, descriptive commits:
+2. Make your changes with clear, descriptive commits:
 
+```bash
 git commit -m 'Add amazing feature: description'
+```
 
-Push to your branch:
+3. Push to your branch:
 
+```bash
 git push origin feature/your-amazing-feature
+```
 
-    Open a Pull Request with:
-        Clear description of changes
-        Why this change is needed
-        Any related issues or tickets
+4. Open a Pull Request with:
+   - Clear description of changes
+   - Why this change is needed
+   - Any related issues or tickets
 
 ### Guidelines
 
-    Follow the existing code style and patterns
-    Ensure TypeScript types are properly defined
-    Test changes locally before submitting PR
-    Update documentation if needed
-    Be respectful and inclusive in all interactions
+- Follow the existing code style and patterns
+- Ensure TypeScript types are properly defined
+- Test changes locally before submitting PR
+- Update documentation if needed
+- Be respectful and inclusive in all interactions
 
 ## Security
 
 ### Best Practices
 
-    Encryption: All sensitive data uses AES-256 encryption before IPFS storage
-    Authentication: Web3 signature verification via Wagmi
-    Database Security: Supabase Row Level Security (RLS) policies enforce access control
-    Smart Contract Audits: Contracts follow OpenZeppelin security standards
+- Encryption: All sensitive data uses AES-256 encryption before IPFS storage
+- Authentication: Web3 signature verification via Wagmi
+- Database Security: Supabase Row Level Security (RLS) policies enforce access control
+- Smart Contract Audits: Contracts follow OpenZeppelin security standards
 
 ### Reporting Vulnerabilities
 
 Found a security issue? Please report it privately to the team rather than opening a public issue:
 
-    Email: security@istory.app
-    Include detailed information about the vulnerability
-    Allow time for us to respond and patch
+- Email: security@istory.app
+- Include detailed information about the vulnerability
+- Allow time for us to respond and patch
 
 Do not disclose the vulnerability publicly until a patch is available.
 
@@ -406,26 +421,29 @@ Do not disclose the vulnerability publicly until a patch is available.
 
 Vercel (Recommended):
 
+```bash
 npm install -g vercel
 vercel --prod
+```
 
 Other Hosting:
 
-    Build: npm run build
-    Start: npm run start
-    Works on any Node.js 18+ hosting
+- Build: `npm run build`
+- Start: `npm run start`
+- Works on any Node.js 18+ hosting
 
 ### Smart Contract Deployment
 
-    Configure network in hardhat.config.js
-    Set private key in .env.local
-    Deploy: npx hardhat run scripts/deploy.js --network baseSepolia
-    Copy contract addresses to .env.local
+- Configure network in hardhat.config.js
+- Set private key in .env.local
+- Deploy: `npx hardhat run scripts/deploy.js --network baseSepolia`
+- Copy contract addresses to .env.local
 
 ### IPFS Pinning
 
 Use Pinata or similar for file permanence:
 
+```bash
 npm install --save-dev @pinata/sdk
 ```
 
@@ -439,93 +457,95 @@ MIT © 2024 iStory Team
 
 ### Current
 
-    MVP: Core journaling and story management
-    Voice recording and AI transcription
-    Social feed and engagement
-    Profile and user management
-    Paywall and monetization system
-    Beautiful footer component
-    Story detail page with full features
+- MVP: Core journaling and story management
+- Voice recording and AI transcription
+- Social feed and engagement
+- Profile and user management
+- Paywall and monetization system
+- Beautiful footer component
+- Story detail page with full features
 
 ### Q1 2026
 
-    Mobile app (React Native)
-    Advanced AI recommendations
-    Trending stories leaderboard
-    Cross-chain support (Optimism, Arbitrum)
-    Enhanced notification system
+- Mobile app (React Native)
+- Advanced AI recommendations
+- Trending stories leaderboard
+- Cross-chain support (Optimism, Arbitrum)
+- Enhanced notification system
 
 ### Q2 2026
 
-    Story marketplace (buy/sell books)
-    Community challenges (#MyLifeStoryChallenge)
-    Video story support
-    Collaborative storytelling
-    Advanced analytics dashboard
+- Story marketplace (buy/sell books)
+- Community challenges (#MyLifeStoryChallenge)
+- Video story support
+- Collaborative storytelling
+- Advanced analytics dashboard
 
 ### Future
 
-    AI-generated audiobook narration
-    Multi-language support
-    AI story translation
-    Community moderation system
-    Verified creator badges
+- AI-generated audiobook narration
+- Multi-language support
+- AI story translation
+- Community moderation system
+- Verified creator badges
 
 ## Feedback & Support
 
 ### Get Help
 
-    Discord: Join our community
-    Twitter/X: @iStoryApp
-    Email: support@istory.app
+- Discord: Join our community
+- Twitter/X: @iStoryApp
+- Email: support@istory.app
 
 ### Discussions
 
-    GitHub Discussions
-    Discord Server
-    Reddit Community
+- GitHub Discussions
+- Discord Server
+- Reddit Community
 
 ## Team & Contact
 
 ### Project Lead
 
-    Name: Remi Adedeji
-    Twitter: @remyOreo_
-    Email: remyoreo11@gmail.com
+- Name: Remi Adedeji
+- Twitter: @remyOreo_
+- Email: remyoreo11@gmail.com
 
 Contributing
 
 Special thanks to all contributors who help make iStory better! 🙏
-Target Audience
-Primary Demographics
 
-    Ages: 18-45 (Millennials & Gen Z focus)
-    Tech-Savviness: Comfortable with Web3 and blockchain
-    Geography: Global, with focus on blockchain-active regions (North America, Europe, Asia)
-    Interest: Storytelling, digital ownership, creative expression
+## Target Audience
 
-Key Personas
+### Primary Demographics
 
-    Aspiring Storytellers: People who journal via voice and want AI enhancements
-    Web3 Enthusiasts: Crypto users interested in NFTs and blockchain permanence
-    Content Creators: Influencers looking to monetize stories and build communities
-    Truth Advocates: Activists and historians preserving unfiltered narratives
-    Side Hustlers: Freelancers earning through story monetization
+- Ages: 18-45 (Millennials & Gen Z focus)
+- Tech-Savviness: Comfortable with Web3 and blockchain
+- Geography: Global, with focus on blockchain-active regions (North America, Europe, Asia)
+- Interest: Storytelling, digital ownership, creative expression
 
-Use Cases
+### Key Personas
 
-    Daily voice journaling with AI transcription
-    Compiling life stories into published books
-    Building personal brand as a creator
-    Earning passive income from story engagement
-    Creating permanent, tamper-proof records
-    Building engaged communities around storytelling
+- Aspiring Storytellers: People who journal via voice and want AI enhancements
+- Web3 Enthusiasts: Crypto users interested in NFTs and blockchain permanence
+- Content Creators: Influencers looking to monetize stories and build communities
+- Truth Advocates: Activists and historians preserving unfiltered narratives
+- Side Hustlers: Freelancers earning through story monetization
 
-Market Size
+### Use Cases
 
-    Total Addressable Market (TAM): ~10-20M users in journaling + NFT creator markets
-    Early Adopters: Crypto holders with MetaMask (5M+ in Web3 space)
-    Growth Potential: Emerging economies with strong Web3 adoption
+- Daily voice journaling with AI transcription
+- Compiling life stories into published books
+- Building personal brand as a creator
+- Earning passive income from story engagement
+- Creating permanent, tamper-proof records
+- Building engaged communities around storytelling
+
+### Market Size
+
+- Total Addressable Market (TAM): ~10-20M users in journaling + NFT creator markets
+- Early Adopters: Crypto holders with MetaMask (5M+ in Web3 space)
+- Growth Potential: Emerging economies with strong Web3 adoption
 
 The target customer for Speak Your Story is a diverse group of individuals who value personal expression, digital ownership, and financial empowerment through storytelling. Here's a breakdown:
 
