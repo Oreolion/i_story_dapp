@@ -7,9 +7,16 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
-    setupFiles: './__tests__/setup.ts', // We will create this next
+    setupFiles: './__tests__/setup.ts',
+    // FIX 1: Explicitly exclude e2e folder to prevent Playwright conflict
+    exclude: ['node_modules', 'e2e', '.next', 'out', 'dist'],
     alias: {
       '@': path.resolve(__dirname, './'),
+    },
+    // FIX 2: Provide mock Env Vars so Supabase client initializes without crashing
+    env: {
+      NEXT_PUBLIC_SUPABASE_URL: 'https://mock.supabase.co',
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: 'mock-anon-key',
     },
   },
 });

@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test('Landing page loads and navigation works', async ({ page }) => {
   // 1. Go to Home
-  await page.goto('http://localhost:3000');
+  await page.goto('http://localhost:3001');
 
   // 2. Check Title
   await expect(page).toHaveTitle(/IStory/);

@@ -47,3 +47,11 @@ next-env.d.ts
 /typechain-types
 /coverage
 /ignition/deployments
+
+# Playwright
+node_modules/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
