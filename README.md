@@ -560,4 +560,4 @@ Acquisition Channels: Crypto communities (e.g., X/Twitter, Discord, Reddit's r/c
 
 This app targets about 10-20 million potential users in the journaling (e.g., Day One app users) and NFT creator markets, with growth potential in emerging Web3 economies. Early adopters are likely crypto holders with wallets like MetaMask, seeking innovative dApps.
 
-Preserve your truth. Mint your legacy. Speak Your Story. Made with ❤️ by the iStory Team
+## *Preserve your truth. Mint your legacy. Speak Your Story. Made with ❤️ by the iStory Team*
