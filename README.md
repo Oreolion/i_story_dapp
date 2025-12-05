@@ -181,6 +181,7 @@ History is written by the victors, but your story deserves to be heard unedited.
 - Enhanced UI: Mood-based gradient headers and smooth animations
 
 ## Project Structure
+
 ```
 i_story_dapp/
 ├── app/
@@ -410,7 +411,7 @@ git push origin feature/your-amazing-feature
 
 Found a security issue? Please report it privately to the team rather than opening a public issue:
 
-- Email: security@istory.app
+- Email: remyoreo11@gmail.com
 - Include detailed information about the vulnerability
 - Allow time for us to respond and patch
 

@@ -1,7 +1,7 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import Link from 'next/link';
 import { useApp } from '../components/Provider';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -16,8 +16,14 @@ import {
   Zap,
   Shield,
   Globe,
-  Sparkles
+  Sparkles,
+  ExternalLink // Added for the link icon
 } from 'lucide-react';
+
+// Add this constant for your contract address
+const CONTRACTS = {
+  NFT: "0xF61E9D022Df3835FdFbDD97069F293a39783635B",
+};
 
 const features = [
   {
@@ -67,7 +73,7 @@ const stats = [
 
 export default function HomePage() {
   const { user, isConnected, connectWallet } = useApp();
-  
+  const router = useRouter();
 
   return (
     <div className="space-y-16">
@@ -78,18 +84,42 @@ export default function HomePage() {
         transition={{ duration: 0.8 }}
         className="text-center space-y-8"
       >
-        <div className="space-y-4">
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-            className="inline-flex items-center space-x-2 bg-gradient-to-r from-purple-100 to-indigo-100 dark:from-purple-900 dark:to-indigo-900 px-4 py-2 rounded-full"
-          >
-            <Zap className="w-5 h-5 text-purple-600" />
-            <span className="text-sm font-medium text-purple-600 dark:text-purple-300">
-              Powered by AI & Blockchain
-            </span>
-          </motion.div>
+        <div className="space-y-6">
+          
+          {/* Badges Container (Side by Side) */}
+          <div className="flex flex-wrap justify-center gap-4">
+            
+            {/* Badge 1: Powered by AI */}
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+              className="inline-flex items-center space-x-2 bg-gradient-to-r from-purple-100 to-indigo-100 dark:from-purple-900 dark:to-indigo-900 px-4 py-2 rounded-full"
+            >
+              <Zap className="w-4 h-4 text-purple-600" />
+              <span className="text-sm font-medium text-purple-600 dark:text-purple-300">
+                Powered by AI & Blockchain
+              </span>
+            </motion.div>
+
+            {/* Badge 2: Verified on Base (New) */}
+            <motion.a
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
+              href={`https://sepolia.basescan.org/address/${CONTRACTS.NFT}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center space-x-2 bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-800 px-4 py-2 rounded-full hover:shadow-md transition-all cursor-pointer group"
+            >
+              <Shield className="w-4 h-4 text-blue-500 fill-blue-500/20" />
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                Verified on Base Sepolia
+              </span>
+              <ExternalLink className="w-3 h-3 text-gray-400 group-hover:text-blue-500" />
+            </motion.a>
+
+          </div>
           
           <h1 className="text-4xl md:text-6xl font-bold">
             <span className="bg-gradient-to-r from-purple-600 via-indigo-600 to-emerald-600 bg-clip-text text-transparent">
@@ -109,12 +139,14 @@ export default function HomePage() {
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
           {isConnected ? (
-            <Link href="/record">
-              <Button size="lg" className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-lg px-8 py-3">
-                <Mic className="w-5 h-5 mr-2" />
-                Start Recording
-              </Button>
-            </Link>
+            <Button 
+              size="lg" 
+              onClick={() => router.push('/record')}
+              className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-lg px-8 py-3"
+            >
+              <Mic className="w-5 h-5 mr-2" />
+              Start Recording
+            </Button>
           ) : (
             <Button 
               size="lg" 
@@ -125,12 +157,15 @@ export default function HomePage() {
             </Button>
           )}
           
-          <Link href="/social">
-            <Button variant="outline" size="lg" className="text-lg px-8 py-3">
-              <Globe className="w-5 h-5 mr-2" />
-              Explore Stories
-            </Button>
-          </Link>
+          <Button 
+            variant="outline" 
+            size="lg" 
+            onClick={() => router.push('/social')}
+            className="text-lg px-8 py-3"
+          >
+            <Globe className="w-5 h-5 mr-2" />
+            Explore Stories
+          </Button>
         </div>
       </motion.section>
 
@@ -198,12 +233,13 @@ export default function HomePage() {
                   <div className="text-sm text-gray-600 dark:text-gray-400">Wallet Balance</div>
                 </div>
                 <div className="text-center">
-                  <Link href="/record">
-                    <Button className="w-full bg-gradient-to-r from-purple-600 to-indigo-600">
-                      <Mic className="w-4 h-4 mr-2" />
-                      Record New Story
-                    </Button>
-                  </Link>
+                  <Button 
+                    onClick={() => router.push('/record')}
+                    className="w-full bg-gradient-to-r from-purple-600 to-indigo-600"
+                  >
+                    <Mic className="w-4 h-4 mr-2" />
+                    Record New Story
+                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -271,18 +307,24 @@ export default function HomePage() {
           Start your journey today and be part of a community that values authentic storytelling and creative expression.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link href="/social">
-            <Button size="lg" className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-lg px-8 py-3">
-              <TrendingUp className="w-5 h-5 mr-2" />
-              Explore Community
-            </Button>
-          </Link>
-          <Link href="/library">
-            <Button variant="outline" size="lg" className="text-lg px-8 py-3">
-              <BookOpen className="w-5 h-5 mr-2" />
-              View Library
-            </Button>
-          </Link>
+          <Button 
+            size="lg" 
+            onClick={() => router.push('/social')}
+            className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-lg px-8 py-3"
+          >
+            <TrendingUp className="w-5 h-5 mr-2" />
+            Explore Community
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            size="lg" 
+            onClick={() => router.push('/library')}
+            className="text-lg px-8 py-3"
+          >
+            <BookOpen className="w-5 h-5 mr-2" />
+            View Library
+          </Button>
         </div>
       </motion.section>
     </div>

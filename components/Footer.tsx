@@ -36,6 +36,12 @@ const footerLinks = {
 };
 
 export function Footer() {
+  // Your Deployed Contract Addresses (Base Sepolia)
+  const CONTRACTS = {
+    NFT: "0xF61E9D022Df3835FdFbDD97069F293a39783635B",
+    TOKEN: "0xc50E1E89f65cA75CA2994Bf8C9AdB30870cf729a",
+  };
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -194,6 +200,32 @@ export function Footer() {
               </ul>
             </motion.div>
           </motion.div>
+            {/* Step C: Public Verification Links */}
+      <div className="flex gap-6 justify-end text-sm">
+        <div className="flex flex-col text-right gap-2  md:text-right">
+          <span className="font-semibold text-gray-900 dark:text-white">
+            Smart Contracts
+          </span>
+          <div className="flex gap-4 text-gray-500">
+            <a
+              href={`https://sepolia.basescan.org/address/${CONTRACTS.NFT}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-purple-600 flex items-center gap-1"
+            >
+              NFT Contract <ExternalLink className="w-3 h-3" />
+            </a>
+            <a
+              href={`https://sepolia.basescan.org/address/${CONTRACTS.TOKEN}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-emerald-600 flex items-center gap-1"
+            >
+              $ISTORY Token <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
+        </div>
+      </div>
 
           {/* Divider */}
           <Separator className="my-8 lg:my-10 bg-gradient-to-r from-transparent via-gray-200 dark:via-gray-700 to-transparent" />
@@ -256,6 +288,8 @@ export function Footer() {
           </motion.div>
         </div>
       </div>
+
+    
 
       {/* Subtle gradient bottom accent */}
       <div className="h-1 bg-gradient-to-r from-purple-600 via-indigo-600 to-emerald-600 opacity-50" />
