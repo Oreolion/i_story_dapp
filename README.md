@@ -182,7 +182,7 @@ History is written by the victors, but your story deserves to be heard unedited.
 
 ## Project Structure
 
-```
+```markdown
 i_story_dapp/
 ├── app/
 │   ├── api/                          # API Routes
@@ -264,11 +264,6 @@ i_story_dapp/
 
 Clone the repository:
 
-git clone https://github.com/Oreolion/web3_Ai_iStory.git
-cd i_story_dapp
-
-Install dependencies:
-
 ```bash
 npm install
 # or: yarn install / pnpm install
@@ -320,7 +315,7 @@ Run development server:
 npm run dev
 ```
 
-Open http://localhost:3000 in your browser
+Open <http://localhost:3000> in your browser
 
 Quick Start Guide
 
@@ -335,7 +330,7 @@ Quick Start Guide
 ## Development Scripts
 
 Command Description
-npm run dev Start development server on http://localhost:3000
+npm run dev Start development server on <http://localhost:3000>
 npm run build Build for production
 npm run start Start production server
 npm run lint Run ESLint checks
@@ -367,28 +362,29 @@ npm run lint:fix Fix ESLint issues automatically
 
 We welcome contributions from the community! Here's how to contribute:
 
-1. Fork the repository and create a feature branch:
+Fork the repository and create a feature branch:
 
 ```bash
 git checkout -b feature/your-amazing-feature
 ```
 
-2. Make your changes with clear, descriptive commits:
+Make your changes with clear, descriptive commits:
 
 ```bash
 git commit -m 'Add amazing feature: description'
 ```
 
-3. Push to your branch:
+Push to your branch:
 
 ```bash
 git push origin feature/your-amazing-feature
 ```
 
-4. Open a Pull Request with:
-   - Clear description of changes
-   - Why this change is needed
-   - Any related issues or tickets
+Open a Pull Request with:
+
+- Clear description of changes
+- Why this change is needed
+- Any related issues or tickets
 
 ### Guidelines
 
@@ -411,7 +407,7 @@ git push origin feature/your-amazing-feature
 
 Found a security issue? Please report it privately to the team rather than opening a public issue:
 
-- Email: remyoreo11@gmail.com
+- Email: <remyoreo11@gmail.com>
 - Include detailed information about the vulnerability
 - Allow time for us to respond and patch
 
@@ -497,7 +493,7 @@ MIT © 2024 iStory Team
 
 - Discord: Join our community
 - Twitter/X: @iStoryApp
-- Email: support@istory.app
+- Email: <support@istory.app>
 
 ### Discussions
 
@@ -511,7 +507,7 @@ MIT © 2024 iStory Team
 
 - Name: Remi Adedeji
 - Twitter: @remyOreo_
-- Email: remyoreo11@gmail.com
+- Email: <remyoreo11@gmail.com>
 
 Contributing
 
@@ -561,4 +557,4 @@ Acquisition Channels: Crypto communities (e.g., X/Twitter, Discord, Reddit's r/c
 
 This app targets about 10-20 million potential users in the journaling (e.g., Day One app users) and NFT creator markets, with growth potential in emerging Web3 economies. Early adopters are likely crypto holders with wallets like MetaMask, seeking innovative dApps.
 
-## *Preserve your truth. Mint your legacy. Speak Your Story. Made with ❤️ by the iStory Team*
+### *Preserve your truth. Mint your legacy. Speak Your Story. Made with ❤️ by the iStory Team*
