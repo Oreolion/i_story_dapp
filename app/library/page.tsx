@@ -3,10 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { useAccount } from "wagmi";
 import { toast } from "react-hot-toast";
 
-// FIX: Correct relative paths
 import { useApp } from "../../components/Provider";
 import { useAuth } from "../../components/AuthProvider";
 import { useStoryNFT } from "../hooks/useStoryNFT";
@@ -27,7 +25,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs,  TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   BookOpen,
   Search,
@@ -44,7 +42,10 @@ import {
   CheckCircle2,
   X,
   Library,
+  Globe, 
+  Lock,  
 } from "lucide-react";
+import {moodColors} from '../types/index';
 
 // --- Types ---
 interface BaseEntry {
@@ -62,6 +63,8 @@ interface StoryEntry extends BaseEntry {
   content: string;
   has_audio: boolean;
   audio_url: string | null;
+  is_public: boolean;
+  story_date: string;
 }
 
 interface BookEntry extends BaseEntry {
@@ -72,15 +75,6 @@ interface BookEntry extends BaseEntry {
 }
 
 type LibraryItem = StoryEntry | BookEntry;
-
-const moodColors: { [key: string]: string } = {
-  peaceful: "bg-green-100 dark:bg-green-900 text-green-600",
-  excited: "bg-yellow-100 dark:bg-yellow-900 text-yellow-600",
-  nostalgic: "bg-purple-100 dark:bg-purple-900 text-purple-600",
-  thoughtful: "bg-blue-100 dark:bg-blue-900 text-blue-600",
-  neutral: "bg-gray-100 dark:bg-gray-800 text-gray-600",
-  unknown: "bg-gray-100 dark:bg-gray-800 text-gray-600",
-};
 
 export default function LibraryPage() {
   const { isConnected } = useApp();
@@ -117,12 +111,12 @@ export default function LibraryPage() {
     setIsLoading(true);
 
     try {
-      // Fetch Stories
+      // Fetch Stories - Include new fields
       const { data: storiesData, error: storiesError } = await supabase
         .from("stories")
         .select("*")
         .eq("author_id", authInfo.id)
-        .order("created_at", { ascending: false });
+        .order("story_date", { ascending: false }); // Sorted by memory date
 
       if (storiesError) throw storiesError;
 
@@ -139,6 +133,10 @@ export default function LibraryPage() {
         title: s.title || "Untitled Story",
         content: s.content || "",
         created_at: s.created_at,
+        // Map new fields
+        story_date: s.story_date || s.created_at,
+        is_public: s.is_public || false,
+        
         likes: s.likes || 0,
         views: s.views || 0,
         has_audio: s.has_audio,
@@ -161,9 +159,13 @@ export default function LibraryPage() {
         tags: ["compilation"],
       }));
 
+      // Sort combined list: Prefer story_date for entries, created_at for books
       const allEntries = [...formattedStories, ...formattedBooks].sort(
-        (a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        (a, b) => {
+          const dateA = a.type === 'entry' ? (a as StoryEntry).story_date : a.created_at;
+          const dateB = b.type === 'entry' ? (b as StoryEntry).story_date : b.created_at;
+          return new Date(dateB).getTime() - new Date(dateA).getTime();
+        }
       );
 
       setEntries(allEntries);
@@ -329,7 +331,7 @@ export default function LibraryPage() {
   if (!isConnected) {
     return (
       <div className="text-center space-y-8 py-16">
-        <div className="w-24 h-24 mx-auto bg-gradient-to-r from-purple-100 to-indigo-100 dark:from-purple-900 dark:to-indigo-900 rounded-full flex items-center justify-center">
+        <div className="w-24 h-24 mx-auto bg-linear-to-r from-purple-100 to-indigo-100 dark:from-purple-900 dark:to-indigo-900 rounded-full flex items-center justify-center">
           <BookOpen className="w-12 h-12 text-purple-600" />
         </div>
         <div className="space-y-4">
@@ -346,12 +348,11 @@ export default function LibraryPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
-      {/* Header (Restored Centered Layout) */}
       <div className="text-center space-y-4">
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
-          className="w-16 h-16 mx-auto bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center"
+          className="w-16 h-16 mx-auto bg-linear-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center"
         >
           <Library className="w-8 h-8 text-white" />
         </motion.div>
@@ -525,19 +526,34 @@ export default function LibraryPage() {
                           {entry.title}
                         </CardTitle>
                       </div>
-                      <Badge
-                        variant="secondary"
-                        className={moodColors[entry.mood || "neutral"]}
-                      >
-                        {entry.mood}
-                      </Badge>
+                      
+                      <div className="flex gap-1">
+                        <Badge
+                          variant="secondary"
+                          className={moodColors[entry.mood || "neutral"]}
+                        >
+                          {entry.mood}
+                        </Badge>
+                        {/* Visibility Badge for Entries */}
+                        {entry.type === 'entry' && (
+                            <Badge variant="outline" className={`border-0 ${entry.is_public ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-200 text-gray-600'}`}>
+                                {entry.is_public ? <Globe size={12} /> : <Lock size={12} />}
+                            </Badge>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400 mt-2">
-                      <div className="flex items-center space-x-1">
+                      <div className="flex items-center space-x-1" title={entry.type === 'entry' ? "Memory Date" : "Created Date"}>
                         <Calendar className="w-4 h-4" />
                         <span>
-                          {new Date(entry.created_at).toLocaleDateString()}
+                          {new Date(
+                            entry.type === 'entry' ? (entry as StoryEntry).story_date : entry.created_at
+                          ).toLocaleDateString(undefined, {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          })}
                         </span>
                       </div>
                       {entry.type === "book" && (
@@ -550,7 +566,7 @@ export default function LibraryPage() {
                   </CardHeader>
 
                   <CardContent className="space-y-4">
-                    <p className="text-gray-600 dark:text-gray-300 line-clamp-3 min-h-[4.5rem]">
+                    <p className="text-gray-600 dark:text-gray-300 line-clamp-3 min-h-18">
                       {entry.type === "entry"
                         ? entry.content
                         : entry.description}
@@ -601,7 +617,7 @@ export default function LibraryPage() {
       {/* Empty State */}
       {!isLoading && filteredEntries.length === 0 && (
         <div className="text-center py-16 space-y-4">
-          <div className="w-24 h-24 mx-auto bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 rounded-full flex items-center justify-center">
+          <div className="w-24 h-24 mx-auto bg-linear-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 rounded-full flex items-center justify-center">
             <Search className="w-12 h-12 text-gray-400" />
           </div>
           <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
@@ -616,7 +632,7 @@ export default function LibraryPage() {
       )}
 
       {/* Quick Actions (Restored at Bottom) */}
-      <Card className="bg-gradient-to-r from-purple-500/10 to-indigo-500/10 border-purple-200 dark:border-purple-800">
+      <Card className="bg-linear-to-r from-purple-500/10 to-indigo-500/10 border-purple-200 dark:border-purple-800">
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
             <div>
@@ -640,7 +656,7 @@ export default function LibraryPage() {
                   </Button>
                   <Button
                     onClick={handleOpenBookDialog}
-                    className="bg-gradient-to-r from-purple-600 to-indigo-600"
+                    className="bg-linear-to-r from-purple-600 to-indigo-600"
                     disabled={selectedStoryIds.size < 2}
                   >
                     <Sparkles className="w-4 h-4 mr-2" />
@@ -658,7 +674,7 @@ export default function LibraryPage() {
                     Compile Book
                   </Button>
                   <Button
-                    className="bg-gradient-to-r from-emerald-600 to-teal-600"
+                    className="bg-linear-to-r from-emerald-600 to-teal-600"
                     onClick={() => router.push("/record")}
                   >
                     <Plus className="w-4 h-4 mr-2" /> New Entry
@@ -710,7 +726,7 @@ export default function LibraryPage() {
             <Button
               onClick={handleCreateBook}
               disabled={isSavingBook || isMinting}
-              className="bg-gradient-to-r from-purple-600 to-indigo-600"
+              className="bg-linear-to-r from-purple-600 to-indigo-600"
             >
               {isSavingBook || isMinting ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />

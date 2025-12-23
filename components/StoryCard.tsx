@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -10,41 +10,9 @@ import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import iStoryTokenABI from "@/lib/abis/iStoryToken.json";
 import { parseEther } from "viem";
 import Image from "next/image";
-import { Clock, Heart, MessageCircle, Share2 } from "lucide-react";
-
-// The author_walletProfile and StoryType interfaces should be imported from a central file
-// (like StoryFetcher.tsx or a types file), but for a single-file context,
-// they are defined here for clarity and consistency with the data structure.
-
-interface AuthorProfile {
-  id?: string; // Optional: Supabase ID
-  name: string | null;
-  username: string | null; // Used as identifier in some contract calls? Be careful.
-  avatar: string | null;
-  wallet_address: string | null;
-  badges: string[] | null;
-  followers: number; 
-  isFollowing: boolean; // Managed client-side
-}
-
-export interface StoryDataType {
-  id: number;
-  numeric_id: string;
-  author_wallet: AuthorProfile;
-  title: string;
-  content: string;
-  teaser?: string;
-  timestamp: string;
-  likes: number;
-//   comments: number;
-  shares: number;
-  hasAudio: boolean;
-  isLiked: boolean;
-  mood: string;
-  tags: string[];
-  paywallAmount: number;
-  isPaid?: boolean;
-}
+// Updated imports to include Calendar, Globe, Lock
+import {  Heart, MessageCircle, Share2, Calendar, Globe, Lock } from "lucide-react";
+import { StoryDataType } from "@/app/types";
 
 interface StoryCardProps {
   story: StoryDataType;
@@ -109,6 +77,19 @@ export function StoryCard({
     });
   };
 
+  // Helper to format the memory date nicely
+  const formatDate = (dateString: string) => {
+    try {
+      return new Date(dateString).toLocaleDateString(undefined, {
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric'
+      });
+    } catch (e) {
+      return dateString;
+    }
+  };
+
   const isLocked = story.paywallAmount > 0 && !story.isPaid;
 
   return (
@@ -147,13 +128,37 @@ export function StoryCard({
                   ))}
                 </div>
               </div>
-              <div className="flex items-center space-x-4 text-sm text-gray-500">
-                <div>
-                  <Clock className="w-3 h-3 inline mr-1" />
-                  {story.timestamp}
+
+              {/* UPDATED METADATA ROW: Date & Visibility */}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500">
+                {/* 1. Memory Date */}
+                <div className="flex items-center" title="Date of Memory">
+                  <Calendar className="w-3.5 h-3.5 mr-1" />
+                  {/* Prefer story_date (backdated), fallback to timestamp */}
+                  {/* Note: Ensure story.story_date is available in your Type definition */}
+                  {(story as any).story_date ? formatDate((story as any).story_date) : story.timestamp}
                 </div>
+
+                {/* 2. Visibility Status */}
+                <div className="flex items-center" title={(story as any).is_public ? "Visible to everyone" : "Only visible to you"}>
+                   {(story as any).is_public ? (
+                      <>
+                        <Globe className="w-3.5 h-3.5 mr-1 text-emerald-500" />
+                        <span className="text-xs text-emerald-600 font-medium">Public</span>
+                      </>
+                   ) : (
+                      <>
+                        <Lock className="w-3.5 h-3.5 mr-1 text-amber-500" />
+                        <span className="text-xs text-amber-600 font-medium">Private</span>
+                      </>
+                   )}
+                </div>
+
+                {/* 3. Followers */}
+                <div className="hidden sm:block text-gray-400">•</div>
                 <div>{story.author_wallet?.followers} followers</div>
               </div>
+
             </div>
           </div>
           <Button
@@ -177,7 +182,7 @@ export function StoryCard({
             <Button
               onClick={handlePaywall}
               disabled={isPaying}
-              className="bg-gradient-to-r from-purple-600 to-indigo-600"
+              className="bg-linear-to-r from-purple-600 to-indigo-600"
             >
               {isPaying
                 ? "Paying..."
@@ -185,7 +190,7 @@ export function StoryCard({
             </Button>
           </div>
         ) : (
-          <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
+          <p className="text-gray-600 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
             {story.content}
           </p>
         )}
@@ -240,7 +245,7 @@ export function StoryCard({
               max="50"
               value={tipAmount}
               onChange={(e) => setTipAmount(Number(e.target.value))}
-              className="w-20 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+              className="w-20 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer self-center"
             />
           </div>
         </div>

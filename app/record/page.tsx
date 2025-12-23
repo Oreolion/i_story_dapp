@@ -38,6 +38,8 @@ import {
   StopCircle,
   Globe,
   Calendar as CalendarIcon, // Renamed to avoid conflict
+  Lock,   // NEW: For Private icon
+  Unlock, // NEW: For Public icon
 } from "lucide-react";
 
 export default function RecordPage() {
@@ -48,6 +50,9 @@ export default function RecordPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [transcribedText, setTranscribedText] = useState("");
   const [entryTitle, setEntryTitle] = useState("");
+  
+  // NEW: Visibility State
+  const [isPublic, setIsPublic] = useState(false); // Default to Private
 
   // NEW: Date Selection for Backdating (Defaults to Today)
   const [storyDate, setStoryDate] = useState(
@@ -211,6 +216,10 @@ export default function RecordPage() {
       let audioUrl = null;
       let ipfsHash = null;
       const userId = authInfo.id;
+      
+      // Capture timestamps exactly when save is clicked
+      const actualCreatedDate = new Date().toISOString(); // Real system time
+      const backdatedStoryDate = new Date(storyDate).toISOString(); // User selected time
 
       try {
         // A. Upload Audio to Supabase
@@ -230,14 +239,15 @@ export default function RecordPage() {
         }
 
         // B. Upload Content to IPFS (Immutable Record)
-        // NEW: We include the custom 'storyDate' in the metadata
+        // NEW: We include the custom 'storyDate', 'isPublic' and real timestamp in metadata
         const ipfsMetadata = {
           title: entryTitle,
           content: transcribedText,
           author: authInfo.wallet_address,
           audio: audioUrl,
-          date: storyDate, // Explicitly store user-selected date
-          timestamp: new Date().toISOString(), // Capture actual upload time
+          date: storyDate, // User-selected date
+          timestamp: actualCreatedDate, // System upload time
+          is_public: isPublic, // Visibility state
           app: "IStory DApp",
         };
 
@@ -259,7 +269,11 @@ export default function RecordPage() {
           tags: [],
           mood: "neutral",
           ipfs_hash: ipfsHash,
-          created_at: new Date(storyDate).toISOString(), // NEW: Backdate the entry in DB
+          is_public: isPublic, // NEW: Save visibility status
+          created_at: actualCreatedDate, // NEW: Actual system creation time
+          story_date: backdatedStoryDate, // NEW: Explicit backdated field
+          // Fallback: If your legacy code relies on created_at being the story date, 
+          // you might need to swap these, but storing BOTH is safest.
         };
 
         const { error: insertError } = await supabase!
@@ -396,7 +410,6 @@ export default function RecordPage() {
           <CardTitle className="text-lg">Entry Details</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 pb-0">
-          {/* NEW: Flex container for Title and Date */}
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 space-y-2">
               <Label
@@ -436,6 +449,29 @@ export default function RecordPage() {
                 />
               </div>
             </div>
+
+            {/* NEW: Visibility Toggle */}
+            <div className="w-full md:w-32 space-y-2">
+              <Label className="text-sm font-medium text-gray-500">
+                Visibility
+              </Label>
+              <div 
+                className={`flex items-center justify-between px-3 py-2 rounded-md border cursor-pointer transition-colors ${isPublic ? 'bg-emerald-50 border-emerald-200' : 'bg-gray-50 border-gray-200'}`}
+                onClick={() => !isProcessing && setIsPublic(!isPublic)}
+              >
+                <div className="flex items-center gap-2">
+                  {isPublic ? (
+                    <Unlock className="w-4 h-4 text-emerald-600" />
+                  ) : (
+                    <Lock className="w-4 h-4 text-gray-500" />
+                  )}
+                  <span className={`text-sm font-medium ${isPublic ? 'text-emerald-700' : 'text-gray-600'}`}>
+                    {isPublic ? 'Public' : 'Private'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
           </div>
         </CardContent>
 
@@ -517,8 +553,8 @@ export default function RecordPage() {
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               ) : (
                 <Save className="w-4 h-4 mr-2" />
-              )}{" "}
-              Save & IPFS
+              )}
+              {isPublic ? 'Publish & Save' : 'Save Privately'}
             </Button>
           </div>
         </CardContent>

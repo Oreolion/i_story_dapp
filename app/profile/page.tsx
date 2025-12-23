@@ -1,19 +1,14 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useAccount } from "wagmi";
 import { toast } from "react-hot-toast";
-import Link from "next/link";
 
-// FIX: Components are at Root (Up 2 levels: profile -> app -> root)
 import { useApp } from "../../components/Provider";
 import { useAuth } from "../../components/AuthProvider";
 import { emailService } from "../utils/emailService"; 
-// FIX: Hooks are at Root (Up 2 levels)
 import { useStoryNFT } from "../hooks/useStoryNFT";
-
-// FIX: Utils are inside App folder (Up 1 level: profile -> app -> utils)
 import { supabaseClient } from "../utils/supabase/supabaseClient";
 import { ipfsService } from "../utils/ipfsService";
 
@@ -31,15 +26,11 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch"; 
 
 import {
   User,
   Settings,
   Award,
-  TrendingUp,
-  Calendar,
   Heart,
   Eye,
   BookOpen,
@@ -53,10 +44,7 @@ import {
   Loader2,
   Edit3,
   Sparkles,
-  CheckCircle2,
-  Bell,
-  Lock,
-  Cpu
+
 } from "lucide-react";
 
 // --- Types ---
@@ -418,7 +406,7 @@ export default function ProfilePage() {
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
-          className="w-16 h-16 mx-auto bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center"
+          className="w-16 h-16 mx-auto bg-linear-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center"
         >
           <User className="w-8 h-8 text-white" />
         </motion.div>
@@ -500,7 +488,7 @@ export default function ProfilePage() {
 
               <Button
                 onClick={() => setCurrentTab("settings")}
-                className="w-full bg-gradient-to-r from-purple-600 to-indigo-600"
+                className="w-full bg-linear-to-r from-purple-600 to-indigo-600"
               >
                 <Edit3 className="w-4 h-4 mr-2" />
                 Edit Profile
@@ -509,7 +497,7 @@ export default function ProfilePage() {
           </Card>
 
           {/* Quick Stats */}
-          <Card className="mt-6 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border-emerald-200 dark:border-emerald-800">
+          <Card className="mt-6 bg-linear-to-r from-emerald-500/10 to-teal-500/10 border-emerald-200 dark:border-emerald-800">
             <CardHeader>
               <CardTitle className="text-lg">Your Impact</CardTitle>
             </CardHeader>
@@ -554,7 +542,7 @@ export default function ProfilePage() {
             <TabsContent value="overview" className="space-y-6">
               {/* Daily Journal Compilation Feature */}
               {todaysStories.length > 1 && (
-                 <Card className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border-dashed border-purple-300">
+                 <Card className="bg-linear-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border-dashed border-purple-300">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-purple-700 dark:text-purple-300">
                             <Sparkles className="w-5 h-5" /> Daily Recap Available
@@ -648,7 +636,7 @@ export default function ProfilePage() {
               </Card>
             </TabsContent>
 
-            {/* 3. Activity Tab (With Heatmap & List) */}
+          {/* 3. Activity Tab (With Heatmap & List) */}
             <TabsContent value="activity" className="space-y-6">
               <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-0 shadow-lg">
                 <CardHeader>
@@ -658,36 +646,110 @@ export default function ProfilePage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    {/* Heatmap Grid */}
-                    <div className="flex flex-wrap gap-1 mb-8 p-4 bg-gray-50 dark:bg-black/20 rounded-xl justify-center">
-                        {heatmapData.map((day, i) => (
-                            <div 
-                                key={i} 
-                                title={`${day.date}: ${day.count} stories`}
-                                className={`w-3 h-3 rounded-sm ${getHeatmapColor(day.count)}`} 
-                            />
-                        ))}
+                  {/* Heatmap Grid - GitHub Style */}
+                  <div className="flex flex-col space-y-2 mb-8">
+                    {/* Month Labels (Approximate distribution) */}
+                    <div className="flex justify-between px-8 text-xs text-gray-400 select-none">
+                      <span>Jan</span><span>Mar</span><span>May</span><span>Jul</span><span>Sep</span><span>Nov</span>
                     </div>
 
-                    {/* Recent List */}
-                    <h3 className="text-sm font-semibold mb-4 text-gray-500">Recent Activity</h3>
-                    <div className="space-y-4">
-                        {activityData.length > 0 ? activityData.map((day) => (
-                        <div key={day.date} className="border-l-4 border-purple-200 dark:border-purple-800 pl-4 py-2">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <h4 className="font-medium text-gray-900 dark:text-white">
-                                      {new Date(day.date).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
-                                    </h4>
-                                    <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                        <span className="flex items-center space-x-1"><BookOpen className="w-3 h-3" /><span>{day.entries} entries</span></span>
-                                        <span className="flex items-center space-x-1"><Heart className="w-3 h-3" /><span>{day.likes} likes</span></span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        )) : <p className="text-center text-gray-500 py-4">No recent activity recorded.</p>}
+                    <div className="flex gap-2 items-start overflow-x-auto pb-2">
+                      {/* Weekday Labels */}
+                      <div className="grid grid-rows-7 gap-1 text-[10px] text-gray-400 leading-2.5 pt-0.5 select-none">
+                        <span className="h-2.5"></span> 
+                        <span className="h-2.5">Mon</span>
+                        <span className="h-2.5"></span> 
+                        <span className="h-2.5">Wed</span>
+                        <span className="h-2.5"></span> 
+                        <span className="h-2.5">Fri</span>
+                        <span className="h-2.5"></span> 
+                      </div>
+
+                      {/* Grid Container */}
+                      <div className="grid grid-rows-7 grid-flow-col gap-1">
+                        {(() => {
+                          // 1. Generate a calendar for the last ~365 days aligned to Sunday
+                          const today = new Date();
+                          const days = [];
+                          
+                          // Start roughly 52 weeks ago
+                          const startDate = new Date(today);
+                          startDate.setDate(today.getDate() - 364);
+                          
+                          // Rewind start date to the previous Sunday to align with grid rows (Row 1 = Sun)
+                          while (startDate.getDay() !== 0) {
+                            startDate.setDate(startDate.getDate() - 1);
+                          }
+
+                          // Fill array until today
+                          const iterDate = new Date(startDate);
+                          // Add a few extra days to finish the week if needed, or stop at today
+                          while (iterDate <= today || iterDate.getDay() !== 0) { 
+                             if (iterDate > today && iterDate.getDay() === 0) break;
+                             days.push(new Date(iterDate));
+                             iterDate.setDate(iterDate.getDate() + 1);
+                          }
+
+                          // 2. Map visual grid
+                          return days.map((date, i) => {
+                            const dateStr = date.toISOString().split('T')[0];
+                            
+                            // Find match in your existing heatmapData
+                            // Assumes heatmapData has { date: "YYYY-MM-DD", count: number }
+                            const match = heatmapData.find(d => d.date.startsWith(dateStr));
+                            const count = match ? match.count : 0;
+
+                            return (
+                              <div
+                                key={i}
+                                title={`${date.toDateString()}: ${count} stories`}
+                                className={`w-3 h-3 rounded-[6px] ${getHeatmapColor(count)}`}
+                              />
+                            );
+                          });
+                        })()}
+                      </div>
                     </div>
+                  </div>
+
+                  {/* Recent List */}
+                  <h3 className="text-sm font-semibold mb-4 text-gray-500">Recent Activity</h3>
+                  <div className="space-y-4">
+                    {activityData.length > 0 ? (
+                      activityData.map((day) => (
+                        <div
+                          key={day.date}
+                          className="border-l-4 border-purple-200 dark:border-purple-800 pl-4 py-2"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="font-medium text-gray-900 dark:text-white">
+                                {new Date(day.date).toLocaleDateString("en-US", {
+                                  weekday: "long",
+                                  month: "short",
+                                  day: "numeric",
+                                })}
+                              </h4>
+                              <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                <span className="flex items-center space-x-1">
+                                  <BookOpen className="w-3 h-3" />
+                                  <span>{day.entries} entries</span>
+                                </span>
+                                <span className="flex items-center space-x-1">
+                                  <Heart className="w-3 h-3" />
+                                  <span>{day.likes} likes</span>
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-center text-gray-500 py-4">
+                        No recent activity recorded.
+                      </p>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -727,7 +789,7 @@ export default function ProfilePage() {
                             <Input id="website" value={formData.website} onChange={handleInputChange} />
                         </div>
                     </div>
-                    <Button type="submit" disabled={isSaving} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600">
+                    <Button type="submit" disabled={isSaving} className="w-full bg-linear-to-r from-purple-600 to-indigo-600">
                       {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                       Save Changes
                     </Button>

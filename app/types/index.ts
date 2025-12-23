@@ -1,17 +1,18 @@
-interface AuthorProfile {
+export interface AuthorProfile {
   id?: string; // Optional: Supabase ID
   name: string | null;
   username: string | null; // Used as identifier in some contract calls? Be careful.
   avatar: string | null;
-  wallet_address: string | null; 
+  wallet_address: string | null;
   badges: string[] | null;
-  followers: number; 
+  followers: number;
   isFollowing: boolean; // Managed client-side
 }
 
-interface StoryDataType {
+export interface StoryDataType {
   id: number;
   numeric_id: string;
+  author: AuthorProfile;
   author_wallet: AuthorProfile;
   title: string;
   content: string;
@@ -21,11 +22,15 @@ interface StoryDataType {
   comments: number;
   shares: number;
   hasAudio: boolean;
+   audio_url?: string;
   isLiked: boolean;
   mood: string;
   tags: string[];
   paywallAmount: number;
   isPaid?: boolean;
+  is_public: boolean;
+  story_date: string;
+  created_at: string;
 }
 
 export interface StoryCardProps {
@@ -128,6 +133,17 @@ export const mockStories: StoryDataType[] = [
   },
 ];
 
+export interface CommentDataTypes {
+  id: string;
+  content: string;
+  created_at: string;
+  author: {
+    name: string | null;
+    avatar: string | null;
+    wallet_address: string | null;
+  };
+}
+
 export const featuredWriters = [
   {
     name: "David Kim",
@@ -158,8 +174,13 @@ export const featuredWriters = [
   },
 ];
 
-export const moodColors = {
-  peaceful: "bg-green-100 dark:bg-green-900 text-green-600",
-  inspiring: "bg-yellow-100 dark:bg-yellow-900 text-yellow-600",
-  adventurous: "bg-blue-100 dark:bg-blue-900 text-blue-600",
+export const moodColors: { [key: string]: string } = {
+  peaceful: "from-green-400 to-emerald-600",
+  inspiring: "from-yellow-400 to-orange-500",
+  adventurous: "from-blue-400 to-cyan-600",
+  nostalgic: "from-purple-400 to-pink-600",
+  thoughtful: "from-indigo-400 to-purple-600",
+  exciting: "from-red-400 to-orange-600",
+  neutral: "from-gray-400 to-slate-600",
+  unknown: "from-gray-400 to-slate-600",
 };
