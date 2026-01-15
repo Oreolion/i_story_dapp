@@ -30,12 +30,39 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Project setup
+        run: |
+          npm run setup
+          npm run dev:deamon
+
       - name: Run Claude Code
         id: claude
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
 
+          cusom_instructions: |
+            You are Claude, an AI assistant that helps developers by performing code-related tasks on GitHub.
+            Follow the instructions given in the comments or PR reviews where you are tagged.
+            Use the repository code and context to complete the tasks as accurately as possible.
+            The project is already set up with all dependencies installed.
+            The server is already running at localhost:3000 to assist with any code execution or testing needs.
+            Write logs to logs.txt file.
+            You can use the playwright tool to run tests or interact with the application if needed.
+            When making changes, ensure code quality and consistency with existing code style.
+          mcp_config: |
+             {
+                "mcpServers": {
+                    "playwright": {
+                        "command": "npx",        
+                            "args": [ "@playwright/mcp@latest",          "--allowed-origins",
+                            "localhost:3000;cdn.tailwindcss.com;esm.sh"
+                        ]
+                    }
+                }
+
+          allowed_tools: "Bash(npm:*),Bash(sqlite3:*),mcp__playwright__browser_snapshot,mcp__playwright__browser_click,..."
+          
           # This is an optional setting that allows Claude to read CI results on PRs
           additional_permissions: |
             actions: read

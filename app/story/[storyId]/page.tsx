@@ -243,12 +243,12 @@ export default function StoryPage({
 
   const handleUnlock = async () => {
     if (!story) return;
-    const requiredAmount = parseEther(story.paywall_amount.toString());
+    const requiredAmount = parseEther(story.paywallAmount.toString());
 
     // Step 1: Approve if needed
     if (allowance < requiredAmount) {
       try {
-        await approve(story.paywall_amount.toString());
+        await approve(story.paywallAmount.toString());
         return;
       } catch (e) {
         return;
@@ -258,7 +258,7 @@ export default function StoryPage({
     // Step 2: Pay
     await payPaywall(
       story.author.wallet_address as string,
-      story.paywall_amount,
+      story.paywallAmount,
       BigInt(Number(story.numeric_id))
     );
   };
@@ -376,7 +376,7 @@ export default function StoryPage({
     authInfo?.wallet_address?.toLowerCase() ===
     story?.author.wallet_address?.toLowerCase();
   const isPaywalled =
-    (story?.paywall_amount || 0) > 0 && !isUnlocked && !isAuthor;
+    (story?.paywallAmount || 0) > 0 && !isUnlocked && !isAuthor;
   const gradientClass = story
     ? moodColors[story.mood] || moodColors.neutral
     : "";
@@ -403,7 +403,7 @@ export default function StoryPage({
       };
 
     const requiredAmount = story
-      ? parseEther(story.paywall_amount.toString())
+      ? parseEther(story.paywallAmount.toString())
       : BigInt(0);
     if (allowance < requiredAmount) {
       return {
@@ -589,7 +589,7 @@ export default function StoryPage({
                     className="bg-linear-to-r from-purple-600 to-indigo-600 shadow-lg hover:scale-105 transition-transform"
                     onClick={() => setShowPaywallDialog(true)}
                   >
-                    Unlock for {story.paywall_amount} $ISTORY
+                    Unlock for {story.paywallAmount} $ISTORY
                   </Button>
                 </div>
                 <div className="absolute inset-0 -z-10 opacity-10 blur-sm p-8 select-none overflow-hidden">
@@ -598,7 +598,7 @@ export default function StoryPage({
               </div>
             ) : (
               <div className="space-y-6">
-                {story.has_audio && story.audio_url && (
+                {story.hasAudio && story.audio_url && (
                   <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-xl flex items-center gap-4">
                     <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white">
                       <Volume2 className="w-5 h-5" />
@@ -749,7 +749,7 @@ export default function StoryPage({
             <Lock className="w-12 h-12 mx-auto text-emerald-500 mb-4" />
             <p>Price to Unlock</p>
             <p className="text-3xl font-bold text-emerald-600">
-              {story?.paywall_amount} $ISTORY
+              {story?.paywallAmount} $ISTORY
             </p>
           </div>
           <DialogFooter>
