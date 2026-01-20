@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { StoryDataType, CommentDataTypes, moodColors } from '../../types/index';
+import { StoryInsights } from '@/components/StoryInsights';
 
 import {
   Heart,
@@ -127,6 +128,11 @@ export default function StoryPage({
         if (storyError) throw storyError;
 
         if (storyData && storyData.author) {
+          // Handle author data - could be array or single object from Supabase
+          const authorData = Array.isArray(storyData.author)
+            ? storyData.author[0]
+            : storyData.author;
+
           setStory({
             id: storyData.id,
             numeric_id: storyData.numeric_id,
@@ -134,24 +140,37 @@ export default function StoryPage({
             content: storyData.content,
             teaser: storyData.teaser,
             created_at: storyData.created_at,
-            story_date: storyData.story_date || storyData.created_at, // Fallback to created_at if null
+            story_date: storyData.story_date || storyData.created_at,
             is_public: storyData.is_public || false,
-            
+            timestamp: storyData.created_at,
             likes: storyData.likes || 0,
+            comments: 0,
             shares: storyData.shares || 0,
-            has_audio: storyData.has_audio || false,
+            hasAudio: storyData.has_audio || false,
             audio_url: storyData.audio_url,
+            isLiked: false,
             mood: storyData.mood || "neutral",
             tags: storyData.tags || [],
-            paywall_amount: storyData.paywall_amount || 0,
+            paywallAmount: storyData.paywall_amount || 0,
             author: {
-              id: storyData.author.id,
-              name: storyData.author.name,
-              username: storyData.author.username,
-              avatar: storyData.author.avatar,
-              wallet_address: storyData.author.wallet_address,
-              followers_count: storyData.author.followers_count || 0,
-              badges: storyData.author.badges || [],
+              id: authorData?.id,
+              name: authorData?.name || null,
+              username: authorData?.username || null,
+              avatar: authorData?.avatar || null,
+              wallet_address: authorData?.wallet_address || null,
+              followers: authorData?.followers_count || 0,
+              badges: authorData?.badges || [],
+              isFollowing: false,
+            },
+            author_wallet: {
+              id: authorData?.id,
+              name: authorData?.name || null,
+              username: authorData?.username || null,
+              avatar: authorData?.avatar || null,
+              wallet_address: authorData?.wallet_address || null,
+              followers: authorData?.followers_count || 0,
+              badges: authorData?.badges || [],
+              isFollowing: false,
             },
           });
 
@@ -674,6 +693,11 @@ export default function StoryPage({
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* AI Insights Section - only show when story content is accessible */}
+      {!isPaywalled && story.content && (
+        <StoryInsights storyId={storyId} storyText={story.content} />
+      )}
 
       {/* Comments Section */}
       <div className="space-y-6">

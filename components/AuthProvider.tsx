@@ -114,6 +114,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      // Don't attempt insert if wallet_address is null (NOT NULL constraint)
+      // The wallet-based flow (line 235+) will handle user creation properly
+      if (!walletLower) {
+        console.warn("[AUTH] No wallet_address available, skipping user creation from session");
+        setProfile(null);
+        return;
+      }
+
       const insertPayload = {
         id: session.user.id,
         wallet_address: walletLower,

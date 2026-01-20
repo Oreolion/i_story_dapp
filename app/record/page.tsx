@@ -272,15 +272,31 @@ export default function RecordPage() {
           is_public: isPublic, // NEW: Save visibility status
           created_at: actualCreatedDate, // NEW: Actual system creation time
           story_date: backdatedStoryDate, // NEW: Explicit backdated field
-          // Fallback: If your legacy code relies on created_at being the story date, 
+          // Fallback: If your legacy code relies on created_at being the story date,
           // you might need to swap these, but storing BOTH is safest.
         };
 
-        const { error: insertError } = await supabase!
+        const { data: insertedStory, error: insertError } = await supabase!
           .from("stories")
-          .insert([storyData]);
+          .insert([storyData])
+          .select("id")
+          .single();
 
         if (insertError) throw insertError;
+
+        // Trigger AI analysis in background (fire-and-forget)
+        if (insertedStory?.id) {
+          fetch("/api/ai/analyze", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              storyId: insertedStory.id,
+              storyText: transcribedText,
+            }),
+            keepalive: true,
+          }).catch((err) => console.warn("Analysis trigger failed:", err));
+        }
+
         return "Story saved & pinned to IPFS!";
       } catch (err: any) {
         throw new Error(err.message || "Save failed");

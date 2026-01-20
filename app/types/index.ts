@@ -184,3 +184,70 @@ export const moodColors: { [key: string]: string } = {
   neutral: "from-gray-400 to-slate-600",
   unknown: "from-gray-400 to-slate-600",
 };
+
+// === Phase 1: Cognitive Layer Types ===
+
+// Emotional tone options for AI analysis
+export type EmotionalTone =
+  | 'reflective'
+  | 'joyful'
+  | 'anxious'
+  | 'hopeful'
+  | 'melancholic'
+  | 'grateful'
+  | 'frustrated'
+  | 'peaceful'
+  | 'excited'
+  | 'uncertain'
+  | 'neutral';
+
+// Life domain categories
+export type LifeDomain =
+  | 'work'
+  | 'relationships'
+  | 'health'
+  | 'identity'
+  | 'growth'
+  | 'creativity'
+  | 'spirituality'
+  | 'family'
+  | 'adventure'
+  | 'learning'
+  | 'general';
+
+// Story metadata extracted by AI
+export interface StoryMetadata {
+  id: string;
+  story_id: string;
+  themes: string[];
+  emotional_tone: EmotionalTone;
+  life_domain: LifeDomain;
+  intensity_score: number;
+  significance_score: number;
+  is_canonical: boolean;
+  ai_readable: boolean;
+  people_mentioned: string[];
+  places_mentioned: string[];
+  time_references: string[];
+  brief_insight: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Extended story type with metadata (Narrative Object)
+export interface NarrativeObject extends StoryDataType {
+  metadata?: StoryMetadata | null;
+}
+
+// Notification type
+export interface Notification {
+  id: string;
+  user_id: string;
+  type: 'like' | 'comment' | 'tip' | 'follow' | 'book_published' | 'story_mentioned';
+  title: string;
+  message: string;
+  is_read: boolean;
+  story_id?: string;
+  from_user_id?: string;
+  created_at: string;
+}
