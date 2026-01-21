@@ -1,13 +1,15 @@
 # Speak Your Story (iStory): AI-Powered Blockchain Journaling App
 
-![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js)
+![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-3-cyan?logo=tailwind-css)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-4-cyan?logo=tailwind-css)
+![React](https://img.shields.io/badge/React-19-blue?logo=react)
 ![Supabase](https://img.shields.io/badge/Supabase-DB-orange?logo=supabase)
-![Wagmi](https://img.shields.io/badge/Wagmi-2-green?logo=ethereum)
-![Viem](https://img.shields.io/badge/Viem-2-green?logo=viem)
+![Wagmi](https://img.shields.io/badge/Wagmi-2.17-green?logo=ethereum)
+![Viem](https://img.shields.io/badge/Viem-2.38-green?logo=viem)
 ![Base](https://img.shields.io/badge/Base-L2-blue?logo=base)
-![Framer Motion](https://img.shields.io/badge/Framer%20Motion-Latest-purple?logo=framer)
+![Vitest](https://img.shields.io/badge/Vitest-4-green?logo=vitest)
+![Playwright](https://img.shields.io/badge/Playwright-E2E-orange?logo=playwright)
 
 ## Overview
 
@@ -19,10 +21,18 @@ In a world where history has often been manipulated by conquerors, victors and d
 
 ### ✨ Core Functionality
 
-- Voice-to-Text Journaling: Record stories using browser-based audio capture with AI-powered transcription
-- AI Enhancements: Get creative prompts, grammar polishing, and AI-generated suggestions
-- Blockchain Immortality: Mint stories as NFTs on Base (Ethereum L2) with IPFS storage
+- Voice-to-Text Journaling: Record stories using browser-based audio capture with AI-powered transcription (ElevenLabs Scribe)
+- AI Enhancements: Get creative prompts, grammar polishing, and AI-generated suggestions (Google Gemini 2.5 Flash)
+- Blockchain Immortality: Mint stories as NFTs on Base (Ethereum L2) with IPFS storage via Pinata
 - Monetization Suite: Earn $STORY tokens from likes, tips, and paywall sales
+
+### 🧠 Cognitive Layer (Phase 1 - NEW)
+
+- AI Story Analysis: Automatic extraction of themes, emotions, and life domains from stories
+- Emotional Insights: AI-detected emotional tone (hopeful, reflective, joyful, etc.)
+- Entity Extraction: Automatically identifies people, places, and time references mentioned
+- Significance Scoring: AI evaluates intensity and significance of each story
+- Story Insights UI: Beautiful component displaying AI-generated insights for each story
 
 ### 💬 Social Features
 
@@ -108,14 +118,25 @@ History is written by the victors, but your story deserves to be heard unedited.
 
 ### AI & External Services
 
-- Speech-to-Text: Gemini Flash for accurate voice transcription
-- Text Enhancement: Gemini Flash for AI-powered writing suggestions
+- Speech-to-Text: ElevenLabs Scribe for accurate voice transcription
+- Text Enhancement: Google Gemini 2.5 Flash for AI-powered writing suggestions
+- Story Analysis: Google Gemini 2.5 Flash for cognitive metadata extraction
 - Text-to-Speech: Browser Speech Synthesis API for audio playback
+- IPFS Storage: Pinata for decentralized file storage
+- Email: Resend for transactional emails
+
+### Testing Infrastructure
+
+- Unit Testing: Vitest with React Testing Library
+- E2E Testing: Playwright (Chrome, Firefox, Safari)
+- Coverage: @vitest/coverage-v8 for code coverage reports
+- Mocking: vi.mock for dependency mocking
 
 ### Development & Deployment
 
-- Package Manager: npm/yarn/pnpm
+- Package Manager: npm (Node.js 19+)
 - Linting: ESLint with TypeScript support
+- Smart Contracts: Hardhat for Solidity development
 - Deployment: Vercel (recommended) or any Node.js hosting
 
 ## Pages & Features
@@ -187,6 +208,7 @@ i_story_dapp/
 ├── app/
 │   ├── api/                          # API Routes
 │   │   ├── ai/
+│   │   │   ├── analyze/              # Story analysis endpoint (Phase 1)
 │   │   │   ├── enhance/              # Text enhancement endpoint
 │   │   │   └── transcribe/           # Speech-to-text endpoint
 │   │   ├── auth/                     # Authentication
@@ -194,16 +216,19 @@ i_story_dapp/
 │   │   │   └── compile/              # Book compilation
 │   │   ├── journal/
 │   │   │   └── save/                 # Save journal entries
+│   │   ├── notifications/            # Notification system
 │   │   ├── social/
-│   │   │   ├── like/                 # Like functionality
-│   │   │   └── share/                # Share functionality
+│   │   │   └── like/                 # Like functionality
+│   │   ├── tip/                      # Tipping system
+│   │   ├── paywall/                  # Paywall payments
 │   │   └── user/
 │   │       └── profile/              # User profile API
 │   ├── hooks/
 │   │   ├── useBrowserSupabase.ts     # Supabase singleton hook
 │   │   ├── useIStoryToken.ts         # Token contract interactions
-│   │   ├── useLikeSystem.ts          # Like system contract
-│   │   └── useStoryBookNFT.ts        # NFT contract interactions
+│   │   ├── useStoryProtocol.ts       # Protocol contract (tips/paywall)
+│   │   ├── useStoryNFT.ts            # NFT contract interactions
+│   │   └── useNotifications.ts       # Notification system hook
 │   ├── story/
 │   │   └── [storyId]/
 │   │       └── page.tsx              # Story detail page
@@ -216,33 +241,50 @@ i_story_dapp/
 │   ├── social/
 │   │   └── page.tsx                  # Social feed
 │   ├── types/
-│   │   └── index.ts                  # TypeScript interfaces
+│   │   └── index.ts                  # TypeScript interfaces (includes StoryMetadata)
 │   ├── utils/
-│   │   └── supabase/                 # Supabase clients
+│   │   ├── supabase/                 # Supabase clients (browser, server, admin)
+│   │   ├── ipfsService.ts            # IPFS/Pinata service
+│   │   └── emailService.ts           # Resend email service
 │   ├── layout.tsx                    # Root layout with Footer
 │   ├── page.tsx                      # Home page
 │   └── globals.css                   # Global styles
+├── __tests__/                        # Unit tests (Vitest)
+│   ├── api/
+│   │   └── analyze.test.ts           # Analyze endpoint tests (32 tests)
+│   ├── components/
+│   │   └── StoryInsights.test.tsx    # StoryInsights tests (41 tests)
+│   ├── RecordPage.test.tsx           # Record page tests
+│   └── setup.ts                      # Test setup & mocks
+├── e2e/                              # E2E tests (Playwright)
+│   └── navigation.spec.ts
 ├── components/
-│   ├── Footer.tsx                    # Beautiful footer component
+│   ├── Footer.tsx                    # Footer component
 │   ├── Navigation.tsx                # Top navigation bar
 │   ├── Provider.tsx                  # Web3 & Theme providers
-│   ├── ProvidersDynamic.tsx          # Dynamic provider wrapping
 │   ├── StoryCard.tsx                 # Story card component
+│   ├── StoryInsights.tsx             # AI insights display (Phase 1)
 │   ├── AuthProvider.tsx              # Auth context
 │   └── ui/                           # shadcn/ui components
 ├── contracts/                        # Solidity smart contracts
-│   ├── iStoryToken.sol
-│   ├── LikeSystem.sol
-│   └── StoryBookNFT.sol
+│   ├── iStoryToken.sol               # ERC20 $STORY token
+│   ├── StoryProtocol.sol             # Tips & paywall payments
+│   └── StoryNFT.sol                  # ERC721 book NFTs
+├── scripts/                          # Utility scripts
+│   ├── deploy.ts                     # Contract deployment
+│   ├── verify.ts                     # Contract verification
+│   ├── think.ts                      # Claude thinking agent (Phase 1.5)
+│   └── backfill-metadata.ts          # Metadata backfill script
 ├── lib/
-│   ├── ai.ts                         # AI utility functions
-│   ├── database.ts                   # Database helpers
-│   ├── ipfs.ts                       # IPFS integration
-│   ├── utils.ts                      # General utilities
+│   ├── contracts.ts                  # Contract addresses & ABIs
 │   ├── wagmi.config.ts               # Wagmi configuration
 │   ├── wagmi.config.server.ts        # Server-side Wagmi config
-│   └── abis/                         # Contract ABIs
+│   ├── viemClient.ts                 # Viem client setup
+│   └── abis/                         # Contract ABI JSON files
 ├── public/                           # Static assets
+├── vitest.config.ts                  # Vitest configuration
+├── playwright.config.ts              # Playwright configuration
+├── hardhat.config.ts                 # Hardhat configuration
 ├── components.json                   # shadcn/ui config
 ├── next.config.mjs                   # Next.js configuration
 ├── tailwind.config.ts                # Tailwind configuration
@@ -329,29 +371,64 @@ Quick Start Guide
 
 ## Development Scripts
 
-Command Description
-npm run dev Start development server on <http://localhost:3000>
-npm run build Build for production
-npm run start Start production server
-npm run lint Run ESLint checks
-npm run lint:fix Fix ESLint issues automatically
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start development server on http://localhost:3000 |
+| `npm run build` | Build for production |
+| `npm run start` | Start production server |
+| `npm run lint` | Run ESLint checks |
+
+### Testing Commands
+
+| Command | Description |
+|---------|-------------|
+| `npx vitest` | Run unit tests (watch mode) |
+| `npx vitest run` | Run unit tests once |
+| `npx vitest run --coverage` | Run tests with coverage report |
+| `npx playwright test` | Run E2E tests |
+| `npx playwright test --ui` | Run E2E tests with interactive UI |
+
+### Smart Contract Commands
+
+| Command | Description |
+|---------|-------------|
+| `npx hardhat compile` | Compile Solidity contracts |
+| `npx hardhat run scripts/deploy.ts --network baseSepolia` | Deploy to Base Sepolia |
+| `npx hardhat run scripts/verify.ts --network baseSepolia` | Verify on Basescan |
+
+### Utility Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npx ts-node scripts/think.ts "problem"` | Run Claude thinking agent for complex problems |
+| `npx ts-node scripts/backfill-metadata.ts` | Backfill metadata for existing stories |
 
 ## API Endpoints
 
 ### AI Endpoints
 
-- POST /api/ai/transcribe - Convert audio to text using Gemini Flash
-- POST /api/ai/enhance - Enhance story text with AI suggestions
+- POST /api/ai/transcribe - Convert audio to text using ElevenLabs Scribe
+- POST /api/ai/enhance - Enhance story text with AI suggestions (Gemini Flash)
+- POST /api/ai/analyze - Extract cognitive metadata from stories (themes, emotions, entities)
 
 ### Story Endpoints
 
 - POST /api/journal/save - Save story to database
+- GET /api/stories/[storyId]/metadata - Get story metadata/insights
 - POST /api/book/compile - Compile stories into a book
 
 ### Social Endpoints
 
-- POST /api/social/like - Like a story
-- POST /api/social/share - Share story to social media
+- POST /api/social/like - Like a story (earns $STORY tokens)
+- POST /api/tip - Send $STORY tokens to creators
+- POST /api/paywall - Unlock paywalled content
+
+### Notification Endpoints
+
+- GET /api/notifications - Fetch user notifications (with pagination)
+- POST /api/notifications - Create notification
+- PUT /api/notifications - Mark as read
+- DELETE /api/notifications - Delete notification(s)
 
 ### User Endpoints
 
@@ -453,39 +530,54 @@ MIT © 2024 iStory Team
 
 ## Roadmap
 
-### Current
+### Phase 1: Story Metadata Foundation ✅ COMPLETE
 
-- MVP: Core journaling and story management
-- Voice recording and AI transcription
-- Social feed and engagement
-- Profile and user management
-- Paywall and monetization system
-- Beautiful footer component
-- Story detail page with full features
+- AI-powered story analysis with Gemini Flash
+- Automatic extraction of themes, emotions, and life domains
+- Entity extraction (people, places, time references)
+- Intensity and significance scoring
+- StoryInsights UI component
+- story_metadata database table with RLS
 
-### Q1 2026
+### Phase 1.5: Validation & Hardening 🔨 IN PROGRESS
 
-- Mobile app (React Native)
-- Advanced AI recommendations
-- Trending stories leaderboard
-- Cross-chain support (Optimism, Arbitrum)
-- Enhanced notification system
+- [x] Claude SDK thinking agent utility (scripts/think.ts)
+- [x] Comprehensive test suite for /api/ai/analyze endpoint (32 tests)
+- [x] StoryInsights component tests (41 tests)
+- [ ] Observability layer (logging, performance monitoring)
+- [ ] Edge case hardening (retry logic, rate limiting)
+- [ ] Database optimization
+- [ ] Documentation updates
+
+### Phase 2: Patterns & Discovery (PLANNED)
+
+- Themes tab in Library for story grouping
+- Life Domains view
+- "Mark as Important" feature for canonical stories
+- Monthly summary component
+- Pattern visualization
+
+### Phase 3: AI Reflection (PLANNED)
+
+- Weekly AI-generated reflections
+- Pattern recognition across stories
+- Personalized insights dashboard
 
 ### Q2 2026
 
+- Mobile app (React Native)
 - Story marketplace (buy/sell books)
 - Community challenges (#MyLifeStoryChallenge)
 - Video story support
-- Collaborative storytelling
-- Advanced analytics dashboard
+- Cross-chain support (Optimism, Arbitrum)
 
 ### Future
 
+- Graph-based memory (theme relationships)
 - AI-generated audiobook narration
-- Multi-language support
-- AI story translation
-- Community moderation system
-- Verified creator badges
+- Multi-language support with AI translation
+- Memory API for external AI agents
+- ERC-8004 agent identity integration
 
 ## Feedback & Support
 
