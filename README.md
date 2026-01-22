@@ -372,8 +372,8 @@ Quick Start Guide
 ## Development Scripts
 
 | Command | Description |
-|---------|-------------|
-| `npm run dev` | Start development server on http://localhost:3000 |
+| --------- | ------------- |
+| `npm run dev` | Start development server on <http://localhost:3000> |
 | `npm run build` | Build for production |
 | `npm run start` | Start production server |
 | `npm run lint` | Run ESLint checks |
@@ -381,7 +381,7 @@ Quick Start Guide
 ### Testing Commands
 
 | Command | Description |
-|---------|-------------|
+| --------- | ------------- |
 | `npx vitest` | Run unit tests (watch mode) |
 | `npx vitest run` | Run unit tests once |
 | `npx vitest run --coverage` | Run tests with coverage report |
@@ -391,16 +391,16 @@ Quick Start Guide
 ### Smart Contract Commands
 
 | Command | Description |
-|---------|-------------|
+| --------- | ------------- |
 | `npx hardhat compile` | Compile Solidity contracts |
 | `npx hardhat run scripts/deploy.ts --network baseSepolia` | Deploy to Base Sepolia |
 | `npx hardhat run scripts/verify.ts --network baseSepolia` | Verify on Basescan |
 
 ### Utility Scripts
 
-| Command | Description |
-|---------|-------------|
-| `npx ts-node scripts/think.ts "problem"` | Run Claude thinking agent for complex problems |
+| Command                                       | Description                                    |
+|-----------------------------------------------|------------------------------------------------|
+| `npx ts-node scripts/think.ts "problem"`| Run Claude thinking agent for complex problems |
 | `npx ts-node scripts/backfill-metadata.ts` | Backfill metadata for existing stories |
 
 ## API Endpoints

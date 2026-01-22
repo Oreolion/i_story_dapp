@@ -1,0 +1,722 @@
+/**
+ * iStory Design System - Memory Space Theme
+ *
+ * A comprehensive design system for the cognitive journaling experience.
+ * Includes space-inspired colors, emotional tone mappings, and animations.
+ */
+
+/* ============================================
+   SECTION 1: Core Color Variables
+   ============================================ */
+
+:root {
+  /* === Void Colors (Background Depths) === */
+  --void-deep: 233 10% 4%;
+  --void-medium: 233 10% 8%;
+  --void-light: 233 10% 12%;
+  --void-surface: 233 10% 16%;
+
+  /* === Memory Blue (Primary - Trust & Stability) === */
+  --memory-50: 217 91% 95%;
+  --memory-100: 217 91% 90%;
+  --memory-200: 217 91% 80%;
+  --memory-300: 217 91% 70%;
+  --memory-400: 217 91% 60%;
+  --memory-500: 217 91% 50%;
+  --memory-600: 217 91% 40%;
+  --memory-700: 217 91% 30%;
+  --memory-800: 217 91% 20%;
+  --memory-900: 217 91% 10%;
+
+  /* === Insight Purple (Secondary - Cognition & Wisdom) === */
+  --insight-50: 258 90% 95%;
+  --insight-100: 258 90% 90%;
+  --insight-200: 258 90% 80%;
+  --insight-300: 258 90% 70%;
+  --insight-400: 258 90% 60%;
+  --insight-500: 258 90% 55%;
+  --insight-600: 258 90% 45%;
+  --insight-700: 258 90% 35%;
+  --insight-800: 258 90% 25%;
+  --insight-900: 258 90% 15%;
+
+  /* === Story Amber (Accent - Personal Warmth) === */
+  --story-50: 38 92% 95%;
+  --story-100: 38 92% 90%;
+  --story-200: 38 92% 80%;
+  --story-300: 38 92% 70%;
+  --story-400: 38 92% 60%;
+  --story-500: 38 92% 50%;
+  --story-600: 38 92% 40%;
+  --story-700: 38 92% 30%;
+  --story-800: 38 92% 20%;
+  --story-900: 38 92% 10%;
+
+  /* === Growth Emerald (Success - Progress & Achievement) === */
+  --growth-50: 160 84% 95%;
+  --growth-100: 160 84% 90%;
+  --growth-200: 160 84% 80%;
+  --growth-300: 160 84% 65%;
+  --growth-400: 160 84% 55%;
+  --growth-500: 160 84% 45%;
+  --growth-600: 160 84% 35%;
+  --growth-700: 160 84% 25%;
+  --growth-800: 160 84% 18%;
+  --growth-900: 160 84% 10%;
+
+  /* ============================================
+     SECTION 2: Emotional Tone Colors
+     ============================================ */
+
+  /* Each emotional tone has a primary color and a subtle variant */
+  --tone-reflective: 220 60% 50%;
+  --tone-reflective-subtle: 220 40% 25%;
+
+  --tone-joyful: 45 90% 55%;
+  --tone-joyful-subtle: 45 60% 25%;
+
+  --tone-anxious: 0 70% 55%;
+  --tone-anxious-subtle: 0 50% 25%;
+
+  --tone-hopeful: 170 70% 45%;
+  --tone-hopeful-subtle: 170 50% 25%;
+
+  --tone-melancholic: 250 40% 50%;
+  --tone-melancholic-subtle: 250 30% 25%;
+
+  --tone-grateful: 330 70% 55%;
+  --tone-grateful-subtle: 330 50% 25%;
+
+  --tone-frustrated: 15 80% 50%;
+  --tone-frustrated-subtle: 15 60% 25%;
+
+  --tone-peaceful: 180 50% 45%;
+  --tone-peaceful-subtle: 180 35% 25%;
+
+  --tone-excited: 35 90% 55%;
+  --tone-excited-subtle: 35 70% 25%;
+
+  --tone-uncertain: 200 20% 50%;
+  --tone-uncertain-subtle: 200 15% 25%;
+
+  --tone-neutral: 220 10% 50%;
+  --tone-neutral-subtle: 220 8% 25%;
+
+  /* ============================================
+     SECTION 3: Life Domain Colors
+     ============================================ */
+
+  --domain-work: 220 70% 50%;
+  --domain-relationships: 340 75% 55%;
+  --domain-health: 150 70% 45%;
+  --domain-identity: 280 65% 55%;
+  --domain-growth: 160 84% 45%;
+  --domain-creativity: 30 85% 55%;
+  --domain-spirituality: 270 60% 60%;
+  --domain-family: 350 70% 55%;
+  --domain-adventure: 195 85% 50%;
+  --domain-learning: 45 80% 50%;
+  --domain-general: 220 15% 50%;
+
+  /* ============================================
+     SECTION 4: Glow Effects
+     ============================================ */
+
+  --glow-memory: 0 0 20px hsl(217 91% 50% / 0.4);
+  --glow-memory-strong: 0 0 30px hsl(217 91% 50% / 0.6);
+
+  --glow-insight: 0 0 20px hsl(258 90% 55% / 0.4);
+  --glow-insight-strong: 0 0 30px hsl(258 90% 55% / 0.6);
+
+  --glow-story: 0 0 20px hsl(38 92% 50% / 0.4);
+  --glow-story-strong: 0 0 30px hsl(38 92% 50% / 0.6);
+
+  --glow-growth: 0 0 20px hsl(160 84% 45% / 0.4);
+  --glow-growth-strong: 0 0 30px hsl(160 84% 45% / 0.6);
+
+  --glow-canonical: 0 0 25px hsl(38 92% 50% / 0.5), 0 0 50px hsl(38 92% 50% / 0.2);
+
+  /* ============================================
+     SECTION 5: Animation Timing Functions
+     ============================================ */
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-sine: cubic-bezier(0.37, 0, 0.63, 1);
+  --ease-out-back: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-spring: cubic-bezier(0.5, 1.8, 0.5, 0.8);
+
+  /* Duration tokens */
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 400ms;
+  --duration-slower: 600ms;
+  --duration-slowest: 1000ms;
+
+  /* ============================================
+     SECTION 6: Z-Layer System
+     ============================================ */
+
+  --layer-base: 0;
+  --layer-elevated: 10;
+  --layer-dropdown: 100;
+  --layer-sticky: 200;
+  --layer-modal-backdrop: 300;
+  --layer-modal: 400;
+  --layer-popover: 500;
+  --layer-tooltip: 600;
+  --layer-toast: 700;
+  --layer-max: 9999;
+
+  /* ============================================
+     SECTION 7: Spacing & Sizing
+     ============================================ */
+
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+  --space-3xl: 4rem;
+
+  /* Card elevations */
+  --elevation-sm: 0 1px 2px hsl(0 0% 0% / 0.05);
+  --elevation-md: 0 4px 6px hsl(0 0% 0% / 0.1);
+  --elevation-lg: 0 10px 15px hsl(0 0% 0% / 0.15);
+  --elevation-xl: 0 20px 25px hsl(0 0% 0% / 0.2);
+}
+
+/* === Light Mode Overrides === */
+:root:not(.dark) {
+  --void-deep: 0 0% 98%;
+  --void-medium: 0 0% 96%;
+  --void-light: 0 0% 94%;
+  --void-surface: 0 0% 100%;
+}
+
+/* === Dark Mode Overrides === */
+.dark {
+  --elevation-sm: 0 1px 2px hsl(0 0% 0% / 0.2);
+  --elevation-md: 0 4px 6px hsl(0 0% 0% / 0.3);
+  --elevation-lg: 0 10px 15px hsl(0 0% 0% / 0.4);
+  --elevation-xl: 0 20px 25px hsl(0 0% 0% / 0.5);
+}
+
+/* ============================================
+   SECTION 8: Keyframe Animations
+   ============================================ */
+
+@keyframes pulse-subtle {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes float-gentle {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: var(--glow-canonical);
+  }
+  50% {
+    box-shadow: var(--glow-story-strong);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ============================================
+   SECTION 9: Animation Utility Classes
+   ============================================ */
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s var(--ease-in-out-sine) infinite;
+}
+
+.animate-float-gentle {
+  animation: float-gentle 4s var(--ease-in-out-sine) infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 2s linear infinite;
+  background-size: 200% 100%;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 3s var(--ease-in-out-sine) infinite;
+}
+
+.animate-fade-in {
+  animation: fade-in var(--duration-normal) var(--ease-out-expo) forwards;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up var(--duration-slow) var(--ease-out-expo) forwards;
+}
+
+.animate-scale-in {
+  animation: scale-in var(--duration-normal) var(--ease-out-back) forwards;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 8s linear infinite;
+}
+
+/* ============================================
+   SECTION 10: Reduced Motion Support
+   ============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .animate-pulse-subtle,
+  .animate-float-gentle,
+  .animate-shimmer,
+  .animate-glow-pulse,
+  .animate-spin-slow {
+    animation: none !important;
+  }
+}
+
+/* ============================================
+   SECTION 11: Component Classes - Cards
+   ============================================ */
+
+.card-elevated {
+  background: hsl(var(--void-surface));
+  border: 1px solid hsl(var(--memory-500) / 0.1);
+  box-shadow: var(--elevation-md);
+  transition: box-shadow var(--duration-normal) var(--ease-out-expo),
+              transform var(--duration-normal) var(--ease-out-expo);
+}
+
+.card-elevated:hover {
+  box-shadow: var(--elevation-lg);
+  transform: translateY(-2px);
+}
+
+.card-canonical {
+  background: hsl(var(--void-surface));
+  border: 1px solid hsl(var(--story-500) / 0.3);
+  box-shadow: var(--glow-canonical);
+  position: relative;
+}
+
+.card-canonical::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    hsl(var(--story-500) / 0.2),
+    transparent 50%,
+    hsl(var(--story-400) / 0.1)
+  );
+  pointer-events: none;
+  z-index: -1;
+}
+
+.card-insight {
+  background: hsl(var(--void-surface));
+  border: 1px solid hsl(var(--insight-500) / 0.2);
+  box-shadow: var(--glow-insight);
+}
+
+.card-memory {
+  background: hsl(var(--void-surface));
+  border: 1px solid hsl(var(--memory-500) / 0.2);
+  box-shadow: var(--glow-memory);
+}
+
+/* ============================================
+   SECTION 12: Component Classes - Emotional Tones
+   ============================================ */
+
+.tone-reflective {
+  background: hsl(var(--tone-reflective-subtle));
+  color: hsl(var(--tone-reflective));
+  border-color: hsl(var(--tone-reflective) / 0.3);
+}
+
+.tone-joyful {
+  background: hsl(var(--tone-joyful-subtle));
+  color: hsl(var(--tone-joyful));
+  border-color: hsl(var(--tone-joyful) / 0.3);
+}
+
+.tone-anxious {
+  background: hsl(var(--tone-anxious-subtle));
+  color: hsl(var(--tone-anxious));
+  border-color: hsl(var(--tone-anxious) / 0.3);
+}
+
+.tone-hopeful {
+  background: hsl(var(--tone-hopeful-subtle));
+  color: hsl(var(--tone-hopeful));
+  border-color: hsl(var(--tone-hopeful) / 0.3);
+}
+
+.tone-melancholic {
+  background: hsl(var(--tone-melancholic-subtle));
+  color: hsl(var(--tone-melancholic));
+  border-color: hsl(var(--tone-melancholic) / 0.3);
+}
+
+.tone-grateful {
+  background: hsl(var(--tone-grateful-subtle));
+  color: hsl(var(--tone-grateful));
+  border-color: hsl(var(--tone-grateful) / 0.3);
+}
+
+.tone-frustrated {
+  background: hsl(var(--tone-frustrated-subtle));
+  color: hsl(var(--tone-frustrated));
+  border-color: hsl(var(--tone-frustrated) / 0.3);
+}
+
+.tone-peaceful {
+  background: hsl(var(--tone-peaceful-subtle));
+  color: hsl(var(--tone-peaceful));
+  border-color: hsl(var(--tone-peaceful) / 0.3);
+}
+
+.tone-excited {
+  background: hsl(var(--tone-excited-subtle));
+  color: hsl(var(--tone-excited));
+  border-color: hsl(var(--tone-excited) / 0.3);
+}
+
+.tone-uncertain {
+  background: hsl(var(--tone-uncertain-subtle));
+  color: hsl(var(--tone-uncertain));
+  border-color: hsl(var(--tone-uncertain) / 0.3);
+}
+
+.tone-neutral {
+  background: hsl(var(--tone-neutral-subtle));
+  color: hsl(var(--tone-neutral));
+  border-color: hsl(var(--tone-neutral) / 0.3);
+}
+
+/* ============================================
+   SECTION 13: Component Classes - Life Domains
+   ============================================ */
+
+.domain-work {
+  --domain-color: var(--domain-work);
+}
+
+.domain-relationships {
+  --domain-color: var(--domain-relationships);
+}
+
+.domain-health {
+  --domain-color: var(--domain-health);
+}
+
+.domain-identity {
+  --domain-color: var(--domain-identity);
+}
+
+.domain-growth {
+  --domain-color: var(--domain-growth);
+}
+
+.domain-creativity {
+  --domain-color: var(--domain-creativity);
+}
+
+.domain-spirituality {
+  --domain-color: var(--domain-spirituality);
+}
+
+.domain-family {
+  --domain-color: var(--domain-family);
+}
+
+.domain-adventure {
+  --domain-color: var(--domain-adventure);
+}
+
+.domain-learning {
+  --domain-color: var(--domain-learning);
+}
+
+.domain-general {
+  --domain-color: var(--domain-general);
+}
+
+/* Domain badge styling */
+[class*="domain-"] .domain-badge {
+  background: hsl(var(--domain-color) / 0.15);
+  color: hsl(var(--domain-color));
+  border: 1px solid hsl(var(--domain-color) / 0.3);
+}
+
+/* ============================================
+   SECTION 14: Gradient Text Classes
+   ============================================ */
+
+.text-gradient-memory {
+  background: linear-gradient(135deg, hsl(var(--memory-400)), hsl(var(--memory-600)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.text-gradient-insight {
+  background: linear-gradient(135deg, hsl(var(--insight-400)), hsl(var(--insight-600)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.text-gradient-story {
+  background: linear-gradient(135deg, hsl(var(--story-400)), hsl(var(--story-600)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.text-gradient-growth {
+  background: linear-gradient(135deg, hsl(var(--growth-400)), hsl(var(--growth-600)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.text-gradient-cosmic {
+  background: linear-gradient(135deg, hsl(var(--memory-500)), hsl(var(--insight-500)), hsl(var(--story-500)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ============================================
+   SECTION 15: Background Utility Classes
+   ============================================ */
+
+.bg-void-deep {
+  background: hsl(var(--void-deep));
+}
+
+.bg-void-medium {
+  background: hsl(var(--void-medium));
+}
+
+.bg-void-light {
+  background: hsl(var(--void-light));
+}
+
+.bg-void-surface {
+  background: hsl(var(--void-surface));
+}
+
+/* Gradient backgrounds */
+.bg-gradient-void {
+  background: linear-gradient(180deg, hsl(var(--void-deep)), hsl(var(--void-medium)));
+}
+
+.bg-gradient-memory {
+  background: linear-gradient(135deg, hsl(var(--memory-600)), hsl(var(--memory-400)));
+}
+
+.bg-gradient-insight {
+  background: linear-gradient(135deg, hsl(var(--insight-600)), hsl(var(--insight-400)));
+}
+
+.bg-gradient-story {
+  background: linear-gradient(135deg, hsl(var(--story-600)), hsl(var(--story-400)));
+}
+
+.bg-gradient-growth {
+  background: linear-gradient(135deg, hsl(var(--growth-600)), hsl(var(--growth-400)));
+}
+
+/* ============================================
+   SECTION 16: Focus & Interaction States
+   ============================================ */
+
+.focus-ring-memory:focus-visible {
+  outline: 2px solid hsl(var(--memory-500));
+  outline-offset: 2px;
+}
+
+.focus-ring-insight:focus-visible {
+  outline: 2px solid hsl(var(--insight-500));
+  outline-offset: 2px;
+}
+
+.focus-ring-story:focus-visible {
+  outline: 2px solid hsl(var(--story-500));
+  outline-offset: 2px;
+}
+
+/* Hover glow effects */
+.hover-glow-memory:hover {
+  box-shadow: var(--glow-memory);
+}
+
+.hover-glow-insight:hover {
+  box-shadow: var(--glow-insight);
+}
+
+.hover-glow-story:hover {
+  box-shadow: var(--glow-story);
+}
+
+.hover-glow-canonical:hover {
+  box-shadow: var(--glow-canonical);
+}
+
+/* ============================================
+   SECTION 17: Shimmer Loading Effect
+   ============================================ */
+
+.shimmer-loading {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--void-light)) 0%,
+    hsl(var(--void-surface)) 50%,
+    hsl(var(--void-light)) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* ============================================
+   SECTION 18: Canonical Story Indicator
+   ============================================ */
+
+.canonical-indicator {
+  position: relative;
+}
+
+.canonical-indicator::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 12px;
+  height: 12px;
+  background: hsl(var(--story-500));
+  border-radius: 50%;
+  box-shadow: 0 0 8px hsl(var(--story-500) / 0.6);
+}
+
+/* ============================================
+   SECTION 19: Significance Score Bars
+   ============================================ */
+
+.significance-bar {
+  height: 4px;
+  background: hsl(var(--void-light));
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.significance-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, hsl(var(--memory-500)), hsl(var(--insight-500)));
+  border-radius: 2px;
+  transition: width var(--duration-slow) var(--ease-out-expo);
+}
+
+.significance-bar-fill[data-level="high"] {
+  background: linear-gradient(90deg, hsl(var(--story-500)), hsl(var(--story-400)));
+}
+
+/* ============================================
+   SECTION 20: Transition Utilities
+   ============================================ */
+
+.transition-fast {
+  transition-duration: var(--duration-fast);
+  transition-timing-function: var(--ease-out-expo);
+}
+
+.transition-normal {
+  transition-duration: var(--duration-normal);
+  transition-timing-function: var(--ease-out-expo);
+}
+
+.transition-slow {
+  transition-duration: var(--duration-slow);
+  transition-timing-function: var(--ease-out-expo);
+}
+
+.transition-colors-fast {
+  transition-property: color, background-color, border-color;
+  transition-duration: var(--duration-fast);
+  transition-timing-function: var(--ease-out-expo);
+}
+
+.transition-all-normal {
+  transition-property: all;
+  transition-duration: var(--duration-normal);
+  transition-timing-function: var(--ease-out-expo);
+}

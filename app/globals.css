@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "../styles/design-system.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -194,6 +195,88 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* === Memory Space Theme Colors === */
+
+  /* Void (Background Depths) */
+  --color-void-deep: var(--void-deep);
+  --color-void-medium: var(--void-medium);
+  --color-void-light: var(--void-light);
+  --color-void-surface: var(--void-surface);
+
+  /* Memory Blue Scale */
+  --color-memory-50: var(--memory-50);
+  --color-memory-100: var(--memory-100);
+  --color-memory-200: var(--memory-200);
+  --color-memory-300: var(--memory-300);
+  --color-memory-400: var(--memory-400);
+  --color-memory-500: var(--memory-500);
+  --color-memory-600: var(--memory-600);
+  --color-memory-700: var(--memory-700);
+  --color-memory-800: var(--memory-800);
+  --color-memory-900: var(--memory-900);
+
+  /* Insight Purple Scale */
+  --color-insight-50: var(--insight-50);
+  --color-insight-100: var(--insight-100);
+  --color-insight-200: var(--insight-200);
+  --color-insight-300: var(--insight-300);
+  --color-insight-400: var(--insight-400);
+  --color-insight-500: var(--insight-500);
+  --color-insight-600: var(--insight-600);
+  --color-insight-700: var(--insight-700);
+  --color-insight-800: var(--insight-800);
+  --color-insight-900: var(--insight-900);
+
+  /* Story Amber Scale */
+  --color-story-50: var(--story-50);
+  --color-story-100: var(--story-100);
+  --color-story-200: var(--story-200);
+  --color-story-300: var(--story-300);
+  --color-story-400: var(--story-400);
+  --color-story-500: var(--story-500);
+  --color-story-600: var(--story-600);
+  --color-story-700: var(--story-700);
+  --color-story-800: var(--story-800);
+  --color-story-900: var(--story-900);
+
+  /* Growth Emerald Scale */
+  --color-growth-50: var(--growth-50);
+  --color-growth-100: var(--growth-100);
+  --color-growth-200: var(--growth-200);
+  --color-growth-300: var(--growth-300);
+  --color-growth-400: var(--growth-400);
+  --color-growth-500: var(--growth-500);
+  --color-growth-600: var(--growth-600);
+  --color-growth-700: var(--growth-700);
+  --color-growth-800: var(--growth-800);
+  --color-growth-900: var(--growth-900);
+
+  /* Emotional Tone Colors */
+  --color-tone-reflective: var(--tone-reflective);
+  --color-tone-joyful: var(--tone-joyful);
+  --color-tone-anxious: var(--tone-anxious);
+  --color-tone-hopeful: var(--tone-hopeful);
+  --color-tone-melancholic: var(--tone-melancholic);
+  --color-tone-grateful: var(--tone-grateful);
+  --color-tone-frustrated: var(--tone-frustrated);
+  --color-tone-peaceful: var(--tone-peaceful);
+  --color-tone-excited: var(--tone-excited);
+  --color-tone-uncertain: var(--tone-uncertain);
+  --color-tone-neutral: var(--tone-neutral);
+
+  /* Life Domain Colors */
+  --color-domain-work: var(--domain-work);
+  --color-domain-relationships: var(--domain-relationships);
+  --color-domain-health: var(--domain-health);
+  --color-domain-identity: var(--domain-identity);
+  --color-domain-growth: var(--domain-growth);
+  --color-domain-creativity: var(--domain-creativity);
+  --color-domain-spirituality: var(--domain-spirituality);
+  --color-domain-family: var(--domain-family);
+  --color-domain-adventure: var(--domain-adventure);
+  --color-domain-learning: var(--domain-learning);
+  --color-domain-general: var(--domain-general);
 }
 
 .dark {
