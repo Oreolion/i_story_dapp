@@ -255,3 +255,52 @@ export interface Notification {
   from_user_id?: string;
   created_at: string;
 }
+
+// === Phase 2: Patterns & Discovery Types ===
+
+// Story with joined metadata
+export interface StoryWithMetadata extends StoryDataType {
+  story_metadata: StoryMetadata | null;
+}
+
+// Theme grouping for patterns view
+export interface ThemeGroup {
+  theme: string;
+  stories: StoryWithMetadata[];
+  count: number;
+  latestDate: string;
+}
+
+// Life domain grouping for patterns view
+export interface DomainGroup {
+  domain: LifeDomain;
+  stories: StoryWithMetadata[];
+  count: number;
+  dominantTone: EmotionalTone | null;
+}
+
+// Monthly summary statistics
+export interface MonthlySummary {
+  month: string;
+  year: number;
+  storyCount: number;
+  canonicalCount: number;
+  topThemes: string[];
+  dominantDomain: LifeDomain | null;
+  dominantTone: EmotionalTone | null;
+  avgSignificance: number;
+}
+
+// Domain icon and color mapping
+export interface DomainConfig {
+  icon: string;
+  bgColor: string;
+  textColor: string;
+  label: string;
+}
+
+// Theme color mapping
+export interface ThemeConfig {
+  bgColor: string;
+  textColor: string;
+}

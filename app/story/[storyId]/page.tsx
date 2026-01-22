@@ -33,6 +33,8 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { StoryDataType, CommentDataTypes, moodColors } from '../../types/index';
 import { StoryInsights } from '@/components/StoryInsights';
+import { CanonicalBadge } from '@/components/CanonicalBadge';
+import { useStoryMetadata } from '../../hooks/useStoryMetadata';
 
 import {
   Heart,
@@ -68,6 +70,9 @@ export default function StoryPage({
 
   // Blockchain Hooks
   const { allowance, approve, isPending: isApproving } = useIStoryToken();
+
+  // Metadata hook for canonical status
+  const { metadata: storyMetadata } = useStoryMetadata(storyId);
   const {
     payPaywall,
     isPending: isPayingProtocol,
@@ -519,9 +524,17 @@ export default function StoryPage({
                         )}
                     </Badge>
                   </div>
-                  <h1 className="text-3xl md:text-4xl font-bold shadow-sm">
-                    {story.title}
-                  </h1>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <h1 className="text-3xl md:text-4xl font-bold shadow-sm">
+                      {story.title}
+                    </h1>
+                    <CanonicalBadge
+                      storyId={storyId}
+                      isCanonical={storyMetadata?.is_canonical ?? false}
+                      isAuthor={isAuthor}
+                      size="md"
+                    />
+                  </div>
                 </div>
                 
                 {/* UPDATED: Date Display using story_date */}

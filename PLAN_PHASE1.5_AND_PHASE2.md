@@ -1,942 +1,1785 @@
-# iStory Implementation Prompt — Phase 1.5: Validation & Hardening
+# PLAN_PHASE1.5_AND_PHASE2.md — Post-Foundation Validation & Patterns Implementation
 
-> **For Claude Code with Extended Thinking Enabled**
-> **Project:** iStory Cognitive Layer
-> **Current State:** Phase 1 Complete (Story Metadata Foundation)
-> **Active Phase:** 1.5 — Validation & Hardening
-> **Next Phase:** Phase 2 — Patterns & Discovery (DO NOT START UNTIL PHASE 1.5 COMPLETE)
+> **Current Phase:** Phase 1.5 — Validation & Hardening  
+> **Next Phase:** Phase 2 — Patterns & Discovery  
+> **Last Updated:** January 2026
 
 ---
 
-## 🎯 Current Mission: Phase 1.5 ONLY
+## Phase 1.5: Validation & Hardening
 
-**DO NOT proceed to Phase 2 until Phase 1.5 is fully complete and verified.**
+### 🎯 Objective
+Ensure Phase 1 implementation is production-ready before building additional features. Establish metrics baselines and fix any edge cases.
 
-Phase 1.5 focuses on:
-1. Automated test coverage for Phase 1 code
-2. Error monitoring and logging infrastructure
-3. Performance tracking and baselines
-4. Edge case hardening
-5. Database optimization
-6. Documentation updates
-
-**Duration:** 3-5 days
-**Goal:** Production-ready foundation before adding new features
+### Duration: 3-5 days
 
 ---
 
-## 🤖 Claude SDK Thinking Agent Protocol
+### Step 1: Automated Testing Suite
 
-When you encounter complex problems that require deep analysis, spawn a thinking agent using the Claude SDK. This is for:
+**Priority:** 🔴 Critical | **Time:** 4-6 hours
 
-- Architectural decisions with multiple valid approaches
-- Debugging persistent issues after 2+ failed attempts
-- Performance optimization strategies
-- Security considerations
-- Complex algorithm design
+#### 1.1 Unit Tests for Analysis Endpoint
 
-### When to Spawn a Thinking Agent
-
-```
-TRIGGER CONDITIONS:
-1. You've attempted a solution 2+ times without success
-2. You're unsure which of multiple approaches is best
-3. The problem involves complex trade-offs
-4. You need to reason about edge cases systematically
-5. You're implementing security-sensitive code
-6. You're optimizing performance-critical paths
-```
-
-### How to Use Claude SDK for Thinking
+**File:** `__tests__/api/analyze.test.ts`
 
 ```typescript
-// File: scripts/think.ts
-// Run with: npx ts-node scripts/think.ts "your problem description"
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { POST, GET } from "@/app/api/ai/analyze/route";
+import { NextRequest } from "next/server";
 
-import Anthropic from "@anthropic-ai/sdk";
-
-const client = new Anthropic();
-
-interface ThinkingRequest {
-  problem: string;
-  context: string;
-  constraints: string[];
-  currentApproach?: string;
-  failedAttempts?: string[];
-}
-
-async function thinkDeep(request: ThinkingRequest): Promise<string> {
-  const systemPrompt = `You are a senior software architect and PhD-level engineer. 
-Your role is to think deeply about complex problems and provide well-reasoned solutions.
-
-When analyzing a problem:
-1. Restate the problem to ensure understanding
-2. Identify all constraints and requirements
-3. Consider multiple approaches (at least 3)
-4. Analyze trade-offs of each approach
-5. Recommend the best approach with justification
-6. Provide implementation guidance
-7. Identify potential pitfalls and how to avoid them
-
-Be thorough, precise, and practical.`;
-
-  const userPrompt = `
-## Problem
-${request.problem}
-
-## Context
-${request.context}
-
-## Constraints
-${request.constraints.map((c, i) => `${i + 1}. ${c}`).join("\n")}
-
-${request.currentApproach ? `## Current Approach\n${request.currentApproach}` : ""}
-
-${request.failedAttempts?.length ? `## Failed Attempts\n${request.failedAttempts.map((a, i) => `${i + 1}. ${a}`).join("\n")}` : ""}
-
-Please analyze this problem deeply and provide a recommended solution.
-`;
-
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 16000,
-    thinking: {
-      type: "enabled",
-      budget_tokens: 10000, // Allow extensive thinking
-    },
-    system: systemPrompt,
-    messages: [
-      {
-        role: "user",
-        content: userPrompt,
-      },
-    ],
-  });
-
-  // Extract thinking and response
-  let thinking = "";
-  let answer = "";
-
-  for (const block of response.content) {
-    if (block.type === "thinking") {
-      thinking = block.thinking;
-    } else if (block.type === "text") {
-      answer = block.text;
-    }
-  }
-
-  return `
-## Thinking Process
-${thinking}
-
-## Recommended Solution
-${answer}
-`;
-}
-
-// CLI usage
-const problem = process.argv[2];
-if (!problem) {
-  console.error("Usage: npx ts-node scripts/think.ts 'problem description'");
-  process.exit(1);
-}
-
-// Example with full context
-thinkDeep({
-  problem: problem,
-  context: `
-    iStory is a Web3 AI-powered journaling dApp.
-    Tech stack: Next.js 15, React 19, Supabase, Gemini AI, Base blockchain.
-    Currently implementing Phase 1.5: Validation & Hardening.
-    Phase 1 (Story Metadata) is complete - we have automatic story analysis.
-  `,
-  constraints: [
-    "Must maintain backward compatibility",
-    "Must not break existing functionality",
-    "Must follow existing code patterns in the project",
-    "Performance must not degrade",
-    "Must work with Supabase RLS policies",
-  ],
-}).then(console.log).catch(console.error);
-```
-
-### Create the Thinking Script First
-
-Before starting Phase 1.5 tasks, create this utility:
-
-```bash
-# Install Claude SDK if not present
-npm install @anthropic-ai/sdk
-
-# Create the script
-# (Create scripts/think.ts with the code above)
-```
-
-### Usage During Implementation
-
-When you hit a complex problem:
-
-```bash
-# Example: Debugging a persistent test failure
-npx ts-node scripts/think.ts "My Vitest mock for Supabase is not working. 
-The mock is defined but the actual Supabase client is still being called. 
-I've tried vi.mock() at the top of the file and in beforeEach. 
-The test file imports from @/app/utils/supabase/supabaseServer."
-
-# Example: Architectural decision
-npx ts-node scripts/think.ts "Should I implement retry logic with exponential 
-backoff inside the analyze endpoint, or create a separate queue system with 
-a cron job? The endpoint currently processes synchronously."
-
-# Example: Performance optimization
-npx ts-node scripts/think.ts "The usePatterns hook is re-computing themeGroups 
-on every render even though the stories array hasn't changed. How should I 
-structure the memoization to prevent unnecessary recomputation?"
-```
-
-### Integrate Thinking Results
-
-After running the thinking agent:
-1. Read the analysis carefully
-2. Extract the recommended approach
-3. Implement the solution
-4. Verify it works
-5. Document what you learned
-
----
-
-## 📚 Required Reading (Execute First)
-
-Before writing ANY code, read these files in order:
-
-```
-<read_sequence>
-1. CLAUDE.md                      — Architecture, conventions, current state
-2. PLAN_PHASE1.5_AND_PHASE2.md   — Detailed Phase 1.5 specifications  
-3. app/types/metadata.ts          — Type definitions from Phase 1
-4. app/api/ai/analyze/route.ts    — Analysis endpoint to test
-5. components/StoryInsights.tsx   — Component to test
-6. app/hooks/useStoryMetadata.ts  — Hook to test
-</read_sequence>
-```
-
-**After reading, confirm understanding:**
-- What does the analyze endpoint do?
-- What edge cases exist in current implementation?
-- What types are defined for metadata?
-- What is the current error handling approach?
-
----
-
-## 🧠 Thinking Protocol
-
-For EACH task, follow this sequence:
-
-### Pre-Implementation (Always Do This)
-
-```xml
-<think>
-1. WHAT exactly am I building/testing?
-2. WHAT files need to be created or modified?
-3. WHAT are the inputs and expected outputs?
-4. WHAT could go wrong? (List at least 5 edge cases)
-5. WHAT existing patterns should I follow?
-6. DO I need to spawn a thinking agent for this?
-</think>
-```
-
-### When Stuck (Spawn Thinking Agent)
-
-```xml
-<stuck>
-Problem: [Describe the issue]
-Attempts: [What I've tried]
-Constraint: [What must be maintained]
-
-ACTION: Run thinking agent
-npx ts-node scripts/think.ts "[problem description]"
-</stuck>
-```
-
-### Post-Implementation (Always Do This)
-
-```xml
-<verify>
-1. TypeScript: npx tsc --noEmit ✅/❌
-2. Lint: npm run lint ✅/❌
-3. Build: npm run build ✅/❌
-4. Tests: npx vitest run ✅/❌
-5. Manual test: [description] ✅/❌
-</verify>
-```
-
----
-
-## 📋 Phase 1.5 Tasks
-
-### Task 1.5.0: Setup Thinking Agent Utility
-
-<task id="1.5.0">
-<objective>Create Claude SDK thinking agent script</objective>
-<priority>FIRST — Do this before anything else</priority>
-
-<steps>
-1. Verify @anthropic-ai/sdk is installed (check package.json)
-2. If not installed: `npm install @anthropic-ai/sdk`
-3. Create `scripts/think.ts` with the code provided above
-4. Verify ANTHROPIC_API_KEY is in .env.local
-5. Test with: `npx ts-node scripts/think.ts "test problem"`
-</steps>
-
-<acceptance_criteria>
-- [x] @anthropic-ai/sdk in package.json ✅
-- [x] scripts/think.ts exists and is valid TypeScript ✅
-- [x] ANTHROPIC_API_KEY configured ✅
-- [x] Test run returns thinking + solution ✅
-</acceptance_criteria>
-
-<status>✅ COMPLETE</status>
-
-<on_completion>
-Report: "Task 1.5.0 complete. Thinking agent ready."
-</on_completion>
-</task>
-
----
-
-### Task 1.5.1: Test Infrastructure for Analyze Endpoint
-
-<task id="1.5.1">
-<objective>Create comprehensive test suite for /api/ai/analyze</objective>
-
-<file_to_create>
-__tests__/api/analyze.test.ts
-</file_to_create>
-
-<test_cases_required>
-```typescript
-describe('POST /api/ai/analyze', () => {
-  // Input validation
-  it('returns 400 when storyId is missing');
-  it('returns 400 when storyText is missing');
-  it('returns 400 when storyText is too short (<50 chars)');
-  it('returns 400 when storyId is not a valid UUID');
-  
-  // Success cases
-  it('returns 200 with valid metadata for normal story');
-  it('truncates content over 10000 characters');
-  it('handles stories with special characters');
-  it('handles stories with non-English content');
-  
-  // Gemini integration
-  it('parses valid Gemini JSON response');
-  it('handles Gemini response with markdown code blocks');
-  it('uses fallback values for invalid emotional_tone');
-  it('uses fallback values for invalid life_domain');
-  it('clamps scores to 0-1 range');
-  
-  // Database operations  
-  it('creates new metadata record');
-  it('updates existing metadata record (upsert)');
-  it('sets analysis_status to completed on success');
-  it('sets analysis_status to failed on error');
-  
-  // Error handling
-  it('handles Gemini API timeout');
-  it('handles Gemini API rate limit');
-  it('handles database write failure');
-  it('handles malformed JSON from Gemini');
-});
-
-describe('GET /api/ai/analyze', () => {
-  it('returns 400 when storyId param is missing');
-  it('returns 404 when metadata not found');
-  it('returns 200 with metadata when found');
-});
-```
-</test_cases_required>
-
-<mocking_strategy>
-```typescript
 // Mock Supabase
-vi.mock('@/app/utils/supabase/supabaseServer', () => ({
-  createClient: vi.fn(() => mockSupabaseClient),
+vi.mock("@/app/utils/supabase/supabaseServer", () => ({
+  createClient: vi.fn(() => ({
+    from: vi.fn(() => ({
+      upsert: vi.fn(() => ({ select: vi.fn(() => ({ single: vi.fn(() => ({ data: mockMetadata, error: null })) })) })),
+      select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn(() => ({ data: mockMetadata, error: null })) })) })),
+      update: vi.fn(() => ({ eq: vi.fn(() => ({ data: null, error: null })) })),
+    })),
+  })),
 }));
 
 // Mock Gemini
-vi.mock('@google/generative-ai', () => ({
-  GoogleGenerativeAI: vi.fn(() => mockGeminiClient),
+vi.mock("@google/generative-ai", () => ({
+  GoogleGenerativeAI: vi.fn(() => ({
+    getGenerativeModel: vi.fn(() => ({
+      generateContent: vi.fn(() => Promise.resolve({
+        response: {
+          text: () => JSON.stringify({
+            themes: ["growth", "reflection"],
+            emotional_tone: "hopeful",
+            life_domain: "identity",
+            intensity_score: 0.7,
+            significance_score: 0.6,
+            people_mentioned: ["Mom"],
+            places_mentioned: ["New York"],
+            time_references: ["last year"],
+            brief_insight: "A journey of self-discovery.",
+          }),
+        },
+      })),
+    })),
+  })),
 }));
 
-// Create configurable mocks that can be adjusted per test
-const mockSupabaseClient = {
-  from: vi.fn(() => ({
-    upsert: vi.fn().mockReturnThis(),
-    update: vi.fn().mockReturnThis(),
-    select: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockReturnThis(),
-    single: vi.fn(),
-  })),
+const mockMetadata = {
+  id: "test-id",
+  story_id: "story-123",
+  themes: ["growth"],
+  emotional_tone: "hopeful",
+  life_domain: "identity",
+  intensity_score: 0.7,
+  significance_score: 0.6,
+  is_canonical: false,
+  analysis_status: "completed",
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
 };
-```
-</mocking_strategy>
 
-<if_stuck>
-Spawn thinking agent:
+describe("/api/ai/analyze", () => {
+  describe("POST", () => {
+    it("should return 400 for missing storyId", async () => {
+      const request = new NextRequest("http://localhost:3000/api/ai/analyze", {
+        method: "POST",
+        body: JSON.stringify({ storyText: "Some text" }),
+      });
+
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.success).toBe(false);
+      expect(data.error).toContain("storyId");
+    });
+
+    it("should return 400 for missing storyText", async () => {
+      const request = new NextRequest("http://localhost:3000/api/ai/analyze", {
+        method: "POST",
+        body: JSON.stringify({ storyId: "123" }),
+      });
+
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.success).toBe(false);
+    });
+
+    it("should return 400 for story text too short", async () => {
+      const request = new NextRequest("http://localhost:3000/api/ai/analyze", {
+        method: "POST",
+        body: JSON.stringify({ storyId: "123", storyText: "Too short" }),
+      });
+
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toContain("too short");
+    });
+
+    it("should successfully analyze a valid story", async () => {
+      const request = new NextRequest("http://localhost:3000/api/ai/analyze", {
+        method: "POST",
+        body: JSON.stringify({
+          storyId: "story-123",
+          storyText: "Today I realized something important about myself. After years of struggling with self-doubt, I finally understood that growth comes from embracing uncertainty.",
+        }),
+      });
+
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.success).toBe(true);
+      expect(data.metadata).toBeDefined();
+      expect(data.metadata.themes).toContain("growth");
+    });
+  });
+
+  describe("GET", () => {
+    it("should return 400 for missing storyId parameter", async () => {
+      const request = new NextRequest("http://localhost:3000/api/ai/analyze");
+
+      const response = await GET(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toContain("storyId");
+    });
+
+    it("should return metadata for valid storyId", async () => {
+      const request = new NextRequest("http://localhost:3000/api/ai/analyze?storyId=story-123");
+
+      const response = await GET(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.success).toBe(true);
+      expect(data.metadata).toBeDefined();
+    });
+  });
+});
+```
+
+#### 1.2 Component Tests
+
+**File:** `__tests__/components/StoryInsights.test.tsx`
+
+```typescript
+import { describe, it, expect } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { StoryInsights } from "@/components/StoryInsights";
+import { StoryMetadata } from "@/app/types/metadata";
+
+const mockMetadata: StoryMetadata = {
+  id: "test-id",
+  story_id: "story-123",
+  themes: ["growth", "reflection", "change"],
+  emotional_tone: "hopeful",
+  life_domain: "identity",
+  intensity_score: 0.7,
+  significance_score: 0.85,
+  is_canonical: false,
+  ai_readable: true,
+  people_mentioned: ["Mom", "Dad"],
+  places_mentioned: ["New York", "Chicago"],
+  time_references: ["last summer"],
+  brief_insight: "A story about finding oneself through change.",
+  analysis_status: "completed",
+  analysis_error: null,
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+};
+
+describe("StoryInsights", () => {
+  it("renders loading state correctly", () => {
+    render(<StoryInsights metadata={null} isLoading={true} />);
+    
+    // Should show skeleton/loading UI
+    expect(document.querySelector(".animate-pulse")).toBeInTheDocument();
+  });
+
+  it("renders nothing when no metadata and not loading", () => {
+    const { container } = render(<StoryInsights metadata={null} isLoading={false} />);
+    
+    expect(container.firstChild).toBeNull();
+  });
+
+  it("renders themes correctly", () => {
+    render(<StoryInsights metadata={mockMetadata} />);
+    
+    expect(screen.getByText("growth")).toBeInTheDocument();
+    expect(screen.getByText("reflection")).toBeInTheDocument();
+  });
+
+  it("renders emotional tone", () => {
+    render(<StoryInsights metadata={mockMetadata} />);
+    
+    expect(screen.getByText("hopeful")).toBeInTheDocument();
+  });
+
+  it("renders brief insight", () => {
+    render(<StoryInsights metadata={mockMetadata} />);
+    
+    expect(screen.getByText(/finding oneself/)).toBeInTheDocument();
+  });
+
+  it("shows key life moment indicator for high significance", () => {
+    render(<StoryInsights metadata={mockMetadata} />);
+    
+    expect(screen.getByText("Key life moment")).toBeInTheDocument();
+  });
+
+  it("renders compact mode correctly", () => {
+    render(<StoryInsights metadata={mockMetadata} compact={true} />);
+    
+    // Compact mode shows fewer themes
+    expect(screen.getByText("growth")).toBeInTheDocument();
+    expect(screen.queryByText("Story Insights")).not.toBeInTheDocument();
+  });
+});
+```
+
+#### 1.3 Integration Test
+
+**File:** `__tests__/integration/story-analysis-flow.test.ts`
+
+```typescript
+import { describe, it, expect, vi } from "vitest";
+
+describe("Story Analysis Integration Flow", () => {
+  it("should create metadata record when story is saved", async () => {
+    // This tests the full flow: save story → trigger analysis → metadata created
+    // Implementation depends on your test infrastructure
+  });
+
+  it("should handle analysis failure gracefully", async () => {
+    // Test that story save succeeds even if analysis fails
+  });
+
+  it("should update existing metadata on re-analysis", async () => {
+    // Test upsert behavior
+  });
+});
+```
+
+**Run tests:**
 ```bash
-npx ts-node scripts/think.ts "How do I properly mock Supabase client chain 
-methods (from().upsert().select().single()) in Vitest so I can test different 
-responses for different test cases?"
+npx vitest run
 ```
-</if_stuck>
 
-<acceptance_criteria>
-- [x] All test cases listed above are implemented ✅
-- [x] Mocks are properly configured ✅ (using vi.hoisted pattern)
-- [x] Tests run without errors: `npx vitest run __tests__/api/analyze.test.ts` ✅
-- [x] All tests pass ✅ (32 tests passing)
-- [x] Coverage > 80% for analyze route ✅ (100% line coverage)
-</acceptance_criteria>
-
-<status>✅ COMPLETE</status>
-
-<verification>
-```bash
-npx vitest run __tests__/api/analyze.test.ts --reporter=verbose
-npx vitest run __tests__/api/analyze.test.ts --coverage
-```
-</verification>
-
-<on_completion>
-Report status with:
-- Number of tests written
-- Number passing
-- Coverage percentage
-- Any issues encountered
-</on_completion>
-</task>
+**Checkpoint:** ✅ All tests pass
 
 ---
 
-### Task 1.5.2: Test Infrastructure for Components
+### Step 2: Error Monitoring & Logging
 
-<task id="1.5.2">
-<objective>Create test suite for StoryInsights component and useStoryMetadata hook</objective>
+**Priority:** 🔴 Critical | **Time:** 2-3 hours
 
-<files_to_create>
-- __tests__/components/StoryInsights.test.tsx
-- __tests__/hooks/useStoryMetadata.test.ts
-</files_to_create>
+#### 2.1 Create Analysis Logger Utility
 
-<component_test_cases>
+**File:** `app/utils/analysisLogger.ts`
+
 ```typescript
-describe('StoryInsights', () => {
-  // Render states
-  it('renders loading skeleton when isLoading=true');
-  it('renders nothing when metadata=null and not loading');
-  it('renders nothing when analysis_status=pending');
-  it('renders processing state when analysis_status=processing');
-  it('renders error state with retry when analysis_status=failed');
-  
-  // Content rendering
-  it('renders brief_insight in quotes');
-  it('renders all themes as badges');
-  it('renders emotional_tone with correct color');
-  it('renders life_domain with icon');
-  it('renders people_mentioned when present');
-  it('renders places_mentioned when present');
-  it('shows "Key life moment" when significance_score > 0.7');
-  
-  // Compact mode
-  it('renders compact mode with limited themes');
-  it('hides detailed sections in compact mode');
-  
-  // Interactions
-  it('calls onRetry when retry button clicked');
-});
-```
-</component_test_cases>
+type LogLevel = 'info' | 'warn' | 'error';
 
-<hook_test_cases>
-```typescript
-describe('useStoryMetadata', () => {
-  it('returns loading=true initially');
-  it('fetches metadata on mount');
-  it('returns metadata after fetch');
-  it('returns null when metadata not found (PGRST116)');
-  it('sets error on fetch failure');
-  it('refetch function triggers new fetch');
-  it('markAsCanonical updates database');
-  it('markAsCanonical updates local state optimistically');
-  it('markAsCanonical reverts on error');
-  it('does nothing when storyId is null');
-  it('does nothing when supabase is null');
-});
-```
-</hook_test_cases>
-
-<acceptance_criteria>
-- [x] All component test cases implemented ✅ (41 tests for StoryInsights)
-- [x] Hook tests: Note - useStoryMetadata hook doesn't exist; component manages own state
-- [x] Tests use @testing-library/react properly ✅
-- [x] Tests pass: `npx vitest run __tests__/components/StoryInsights.test.tsx` ✅
-</acceptance_criteria>
-
-<status>✅ COMPLETE</status>
-
-<on_completion>
-Report status with test counts and any issues.
-</on_completion>
-</task>
-
----
-
-### Task 1.5.3: Observability Layer
-
-<task id="1.5.3">
-<objective>Implement logging and performance monitoring</objective>
-
-<files_to_create>
-- app/utils/analysisLogger.ts
-- app/utils/performanceMonitor.ts  
-- app/api/admin/analysis-stats/route.ts
-</files_to_create>
-
-<files_to_modify>
-- app/api/ai/analyze/route.ts (add logging calls)
-</files_to_modify>
-
-<logger_requirements>
-```typescript
-interface AnalysisLog {
-  timestamp: string;
-  level: 'info' | 'warn' | 'error';
+interface AnalysisLogEntry {
+  level: LogLevel;
   storyId: string;
   action: string;
   duration?: number;
   error?: string;
   metadata?: Record<string, unknown>;
+  timestamp: string;
 }
 
-// Required methods
-logger.info(storyId, action, metadata?)
-logger.warn(storyId, action, metadata?)  
-logger.error(storyId, action, error, metadata?)
-logger.getRecentLogs(count): AnalysisLog[]
-```
-</logger_requirements>
+class AnalysisLogger {
+  private logs: AnalysisLogEntry[] = [];
 
-<performance_monitor_requirements>
+  log(level: LogLevel, storyId: string, action: string, extra?: Partial<AnalysisLogEntry>) {
+    const entry: AnalysisLogEntry = {
+      level,
+      storyId,
+      action,
+      timestamp: new Date().toISOString(),
+      ...extra,
+    };
+
+    this.logs.push(entry);
+    
+    // Console output for development
+    const prefix = level === 'error' ? '❌' : level === 'warn' ? '⚠️' : '✅';
+    console.log(`${prefix} [Analysis] ${action} | Story: ${storyId}`, extra || '');
+
+    // In production, send to logging service (e.g., Axiom, LogTail, Sentry)
+    if (process.env.NODE_ENV === 'production' && level === 'error') {
+      this.sendToLoggingService(entry);
+    }
+  }
+
+  info(storyId: string, action: string, extra?: Partial<AnalysisLogEntry>) {
+    this.log('info', storyId, action, extra);
+  }
+
+  warn(storyId: string, action: string, extra?: Partial<AnalysisLogEntry>) {
+    this.log('warn', storyId, action, extra);
+  }
+
+  error(storyId: string, action: string, error: unknown, extra?: Partial<AnalysisLogEntry>) {
+    this.log('error', storyId, action, {
+      ...extra,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  private async sendToLoggingService(entry: AnalysisLogEntry) {
+    // Implement based on your logging provider
+    // Example: Sentry, LogTail, Axiom, etc.
+  }
+
+  getRecentLogs(count = 100): AnalysisLogEntry[] {
+    return this.logs.slice(-count);
+  }
+}
+
+export const analysisLogger = new AnalysisLogger();
+```
+
+#### 2.2 Update Analysis Endpoint with Logging
+
+Add to `app/api/ai/analyze/route.ts`:
+
 ```typescript
-interface PerformanceStats {
-  operation: string;
-  count: number;
-  successRate: number;
-  avgDuration: number;
-  p50: number;
-  p95: number;
-  p99: number;
+import { analysisLogger } from "@/app/utils/analysisLogger";
+
+// In POST handler, add logging:
+export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  let storyId = 'unknown';
+
+  try {
+    const body = await request.json();
+    storyId = body.storyId || 'unknown';
+
+    analysisLogger.info(storyId, 'analysis_started');
+
+    // ... existing logic ...
+
+    const duration = Date.now() - startTime;
+    analysisLogger.info(storyId, 'analysis_completed', { duration });
+
+    return NextResponse.json({ success: true, metadata, processingTime: duration });
+
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    analysisLogger.error(storyId, 'analysis_failed', error, { duration });
+
+    return NextResponse.json(
+      { success: false, error: "Analysis failed" },
+      { status: 500 }
+    );
+  }
 }
-
-// Required methods
-monitor.record(operation, duration, success)
-monitor.getStats(operation): PerformanceStats | null
 ```
-</performance_monitor_requirements>
 
-<admin_endpoint_requirements>
-- Protected with ADMIN_SECRET header
-- Returns analysis status counts from database
-- Returns performance stats from monitor
-- Returns recent error logs
-</admin_endpoint_requirements>
-
-<acceptance_criteria>
-- [x] Logger created with all required methods ✅
-- [x] Performance monitor created with percentile calculations ✅
-- [x] Admin endpoint protected and returns stats ✅
-- [x] Analyze endpoint logs all operations ✅
-- [x] Errors include full context for debugging ✅
-</acceptance_criteria>
-
-<status>✅ COMPLETE</status>
-
-<verification>
-```bash
-# Create a test story and check logs
-curl -X POST http://localhost:3000/api/ai/analyze \
-  -H "Content-Type: application/json" \
-  -d '{"storyId": "test-123", "storyText": "This is a test story..."}'
-
-# Check admin stats
-curl http://localhost:3000/api/admin/analysis-stats \
-  -H "Authorization: Bearer $ADMIN_SECRET"
-```
-</verification>
-</task>
+**Checkpoint:** ✅ Errors are logged with context
 
 ---
 
-### Task 1.5.4: Edge Case Hardening
+### Step 3: Performance Baseline
 
-<task id="1.5.4">
-<objective>Handle all edge cases gracefully in analysis pipeline</objective>
+**Priority:** 🟡 Medium | **Time:** 2 hours
 
-<file_to_modify>
-app/api/ai/analyze/route.ts
-</file_to_modify>
+#### 3.1 Create Performance Monitoring
 
-<edge_cases_to_handle>
+**File:** `app/utils/performanceMonitor.ts`
 
-1. **Long Content**
-   - Truncate at 10,000 characters
-   - Add "[truncated]" indicator
-   - Log warning
-
-2. **Retry Logic**
-   - 3 attempts max
-   - Exponential backoff: 1s, 2s, 4s
-   - Different error types: timeout vs rate limit vs other
-
-3. **Invalid Gemini Response**
-   - Handle non-JSON response
-   - Handle partial JSON
-   - Handle missing required fields
-   - Use safe defaults
-
-4. **Concurrent Analysis**
-   - Check if already processing
-   - Skip or queue duplicate requests
-
-5. **Rate Limiting**
-   - Track requests per minute
-   - Return 429 if exceeded
-   - Include retry-after header
-
-</edge_cases_to_handle>
-
-<implementation_pattern>
 ```typescript
-async function analyzeWithRetry(
-  storyId: string,
-  text: string,
-  maxRetries = 3
-): Promise<AnalysisResponse> {
+interface PerformanceMetric {
+  operation: string;
+  duration: number;
+  timestamp: string;
+  success: boolean;
+}
+
+class PerformanceMonitor {
+  private metrics: PerformanceMetric[] = [];
+
+  record(operation: string, duration: number, success: boolean) {
+    this.metrics.push({
+      operation,
+      duration,
+      success,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Keep only last 1000 metrics in memory
+    if (this.metrics.length > 1000) {
+      this.metrics = this.metrics.slice(-1000);
+    }
+  }
+
+  getStats(operation: string) {
+    const relevant = this.metrics.filter(m => m.operation === operation);
+    if (relevant.length === 0) return null;
+
+    const durations = relevant.map(m => m.duration);
+    const successful = relevant.filter(m => m.success);
+
+    return {
+      count: relevant.length,
+      successRate: (successful.length / relevant.length) * 100,
+      avgDuration: durations.reduce((a, b) => a + b, 0) / durations.length,
+      p50: this.percentile(durations, 50),
+      p95: this.percentile(durations, 95),
+      p99: this.percentile(durations, 99),
+    };
+  }
+
+  private percentile(arr: number[], p: number): number {
+    const sorted = [...arr].sort((a, b) => a - b);
+    const index = Math.ceil((p / 100) * sorted.length) - 1;
+    return sorted[index];
+  }
+}
+
+export const perfMonitor = new PerformanceMonitor();
+```
+
+#### 3.2 Add API Endpoint for Stats
+
+**File:** `app/api/admin/analysis-stats/route.ts`
+
+```typescript
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/app/utils/supabase/supabaseServer";
+import { perfMonitor } from "@/app/utils/performanceMonitor";
+
+export async function GET(request: NextRequest) {
+  // Basic auth check (improve for production)
+  const authHeader = request.headers.get('authorization');
+  if (authHeader !== `Bearer ${process.env.ADMIN_SECRET}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const supabase = await createClient();
+
+  // Get database stats
+  const { data: statusCounts } = await supabase
+    .from('story_metadata')
+    .select('analysis_status')
+    .then(({ data }) => {
+      const counts = { pending: 0, processing: 0, completed: 0, failed: 0 };
+      data?.forEach(row => {
+        counts[row.analysis_status as keyof typeof counts]++;
+      });
+      return { data: counts };
+    });
+
+  // Get performance stats
+  const performanceStats = perfMonitor.getStats('story_analysis');
+
+  return NextResponse.json({
+    database: statusCounts,
+    performance: performanceStats,
+    timestamp: new Date().toISOString(),
+  });
+}
+```
+
+**Checkpoint:** ✅ Can monitor analysis success rate and latency
+
+---
+
+### Step 4: Edge Case Handling
+
+**Priority:** 🟡 Medium | **Time:** 3 hours
+
+#### 4.1 Handle Edge Cases in Analysis
+
+Update `app/api/ai/analyze/route.ts`:
+
+```typescript
+// Add these edge case handlers
+
+// 1. Handle very long content
+const MAX_CONTENT_LENGTH = 10000;
+const truncatedText = storyText.length > MAX_CONTENT_LENGTH 
+  ? storyText.substring(0, MAX_CONTENT_LENGTH) + "... [truncated]"
+  : storyText;
+
+// 2. Handle non-English content (basic detection)
+const hasNonLatinChars = /[^\u0000-\u007F]/.test(storyText);
+if (hasNonLatinChars) {
+  analysisLogger.info(storyId, 'non_latin_content_detected');
+}
+
+// 3. Handle content with excessive special characters
+const specialCharRatio = (storyText.match(/[^a-zA-Z0-9\s]/g) || []).length / storyText.length;
+if (specialCharRatio > 0.3) {
+  analysisLogger.warn(storyId, 'high_special_char_ratio', { ratio: specialCharRatio });
+}
+
+// 4. Retry logic for transient failures
+async function analyzeWithRetry(text: string, maxRetries = 2): Promise<AnalysisResponse> {
   let lastError: Error | null = null;
   
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      analysisLogger.info(storyId, `attempt_${attempt}`);
-      
-      const result = await callGemini(text);
-      
-      analysisLogger.info(storyId, 'gemini_success', { attempt });
-      return result;
-      
+      if (attempt > 0) {
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
+      }
+      return await callGemini(text);
     } catch (error) {
       lastError = error as Error;
-      analysisLogger.warn(storyId, `attempt_${attempt}_failed`, {
-        error: lastError.message,
-        willRetry: attempt < maxRetries,
-      });
-      
-      if (attempt < maxRetries) {
-        const delay = Math.pow(2, attempt - 1) * 1000; // 1s, 2s, 4s
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
+      analysisLogger.warn(storyId, `analysis_retry_${attempt}`, { error: lastError.message });
     }
   }
   
   throw lastError;
 }
 ```
-</implementation_pattern>
 
-<if_stuck>
-Spawn thinking agent for complex retry/circuit-breaker patterns:
-```bash
-npx ts-node scripts/think.ts "What's the best pattern for handling 
-Gemini API failures in a Next.js API route? Should I use retry with 
-backoff, circuit breaker, or a queue system? Consider: user experience, 
-cost, complexity, and reliability."
-```
-</if_stuck>
+#### 4.2 Handle UI Edge Cases
 
-<acceptance_criteria>
-- [x] Long content truncated with warning log ✅
-- [x] Retry logic with exponential backoff implemented ✅
-- [x] Invalid JSON from Gemini handled with fallbacks ✅
-- [x] Concurrent request handling (skip duplicates) ✅
-- [x] All edge cases have corresponding tests ✅ (38 tests total)
-- [x] No unhandled promise rejections possible ✅
-</acceptance_criteria>
+Update `components/StoryInsights.tsx`:
 
-<status>✅ COMPLETE</status>
-
-<verification>
-```bash
-# Test long content
-node -e "console.log(JSON.stringify({storyId:'test',storyText:'x'.repeat(15000)}))" | \
-  curl -X POST http://localhost:3000/api/ai/analyze \
-  -H "Content-Type: application/json" -d @-
-
-# Test retry (temporarily break Gemini key)
-# Observe retry logs in console
-```
-</verification>
-</task>
-
----
-
-### Task 1.5.5: UI Edge Case Handling
-
-<task id="1.5.5">
-<objective>Handle all analysis states in StoryInsights component</objective>
-
-<file_to_modify>
-components/StoryInsights.tsx
-</file_to_modify>
-
-<states_to_handle>
-1. `analysis_status = 'pending'` → Show "Analysis queued..."
-2. `analysis_status = 'processing'` → Show spinner + "Analyzing..."
-3. `analysis_status = 'failed'` → Show error + retry button
-4. `analysis_status = 'completed'` but empty themes → Show minimal view
-5. `metadata = null` → Show nothing (not yet analyzed)
-</states_to_handle>
-
-<add_retry_functionality>
 ```typescript
-interface StoryInsightsProps {
-  metadata: StoryMetadata | null;
-  storyId: string;  // Add this
-  isLoading?: boolean;
-  compact?: boolean;
-  onRetryAnalysis?: () => Promise<void>;  // Add this
+// Handle incomplete metadata
+if (metadata.analysis_status === 'failed') {
+  return (
+    <Card className="border-destructive/50">
+      <CardContent className="py-4">
+        <p className="text-sm text-muted-foreground">
+          Unable to analyze this story. 
+          <button 
+            onClick={onRetry} 
+            className="ml-2 text-primary underline"
+          >
+            Try again
+          </button>
+        </p>
+      </CardContent>
+    </Card>
+  );
 }
 
-// Retry handler
-const handleRetry = async () => {
-  setRetrying(true);
-  try {
-    await fetch(`/api/ai/analyze`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ storyId, storyText: /* need to pass this */ }),
-    });
-    onRetryAnalysis?.();
-  } catch (error) {
-    toast.error('Retry failed. Please try again.');
-  } finally {
-    setRetrying(false);
-  }
-};
-```
-</add_retry_functionality>
+if (metadata.analysis_status === 'processing') {
+  return (
+    <Card>
+      <CardContent className="py-4 flex items-center gap-2">
+        <Loader2 className="w-4 h-4 animate-spin" />
+        <p className="text-sm text-muted-foreground">Analyzing story...</p>
+      </CardContent>
+    </Card>
+  );
+}
 
-<acceptance_criteria>
-- [ ] All 5 states render correctly
-- [ ] Retry button triggers re-analysis
-- [ ] Loading state during retry
-- [ ] Error toast on retry failure
-- [ ] Success triggers refetch of metadata
-</acceptance_criteria>
-</task>
+// Handle empty themes
+if (!metadata.themes?.length && !metadata.brief_insight) {
+  return null; // Don't show empty insights card
+}
+```
+
+**Checkpoint:** ✅ Edge cases handled gracefully
 
 ---
 
-### Task 1.5.6: Database Optimization
+### Step 5: Database Optimization
 
-<task id="1.5.6">
-<objective>Verify and optimize database performance</objective>
+**Priority:** 🟡 Medium | **Time:** 1-2 hours
 
-<verification_queries>
+#### 5.1 Add Missing Indexes (if needed)
+
 ```sql
--- 1. Check existing indexes
+-- Check existing indexes
 SELECT indexname, indexdef 
 FROM pg_indexes 
 WHERE tablename = 'story_metadata';
 
--- 2. Check query plans
-EXPLAIN ANALYZE 
-SELECT * FROM story_metadata WHERE story_id = '[any-uuid]';
+-- Add composite index for common queries
+CREATE INDEX IF NOT EXISTS idx_story_metadata_user_canonical 
+ON story_metadata(story_id, is_canonical) 
+WHERE is_canonical = TRUE;
 
-EXPLAIN ANALYZE
-SELECT * FROM story_metadata WHERE is_canonical = true;
-
-EXPLAIN ANALYZE
-SELECT * FROM story_metadata WHERE 'growth' = ANY(themes);
-
-EXPLAIN ANALYZE
-SELECT sm.*, s.title, s.content
-FROM story_metadata sm
-JOIN stories s ON s.id = sm.story_id
-WHERE s.author_wallet = '[test-wallet]';
-
--- 3. Check for missing indexes
--- If any query shows "Seq Scan" on large tables, add index
+-- Add index for status monitoring
+CREATE INDEX IF NOT EXISTS idx_story_metadata_status_created 
+ON story_metadata(analysis_status, created_at DESC);
 ```
-</verification_queries>
 
-<indexes_to_verify>
+#### 5.2 Verify RLS Performance
+
 ```sql
--- These should exist (created in Phase 1)
-idx_story_metadata_story_id
-idx_story_metadata_themes (GIN)
-idx_story_metadata_domain
-idx_story_metadata_canonical
-
--- Add if missing
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_story_metadata_status 
-ON  story_metadata(analysis_status);
-
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_story_metadata_created
-ON story_metadata(created_at DESC);
+-- Test RLS policy performance
+EXPLAIN ANALYZE
+SELECT * FROM story_metadata 
+WHERE story_id IN (
+  SELECT id FROM stories WHERE author_wallet = 'test-wallet'
+);
 ```
-</indexes_to_verify>
 
-<acceptance_criteria>
-- [ ] All expected indexes exist
-- [ ] No Seq Scans on indexed columns
-- [ ] Join queries use indexes
-- [ ] Query times < 100ms for single record lookups
-</acceptance_criteria>
-</task>
+**Checkpoint:** ✅ Queries perform well with indexes
 
 ---
 
-### Task 1.5.7: Documentation Update
+### Step 6: Documentation Update
 
-<task id="1.5.7">
-<objective>Update CLAUDE.md to reflect Phase 1.5 completion</objective>
+**Priority:** 🟢 Low | **Time:** 1 hour
 
-<file_to_modify>
-CLAUDE.md
-</file_to_modify>
+#### 6.1 Update CLAUDE.md
 
-<updates_required>
-1. Mark Phase 1 as ✅ COMPLETE
-2. Mark Phase 1.5 as ✅ COMPLETE
-3. Add new utilities to documentation:
-   - analysisLogger
-   - performanceMonitor
-   - admin/analysis-stats endpoint
-   - scripts/think.ts
-4. Update "Current Phase" to Phase 2
-5. Document any deviations from original plan
-</updates_required>
+Mark Phase 1 as complete:
 
-<acceptance_criteria>
-- [ ] Phase 1 marked complete with checklist
-- [ ] Phase 1.5 marked complete with checklist
-- [ ] New utilities documented
-- [ ] Current phase updated
-</acceptance_criteria>
-</task>
-
----
-
-## 🔄 Feedback Loop
-
-After EACH task:
-
-### 1. Verification Commands
-```bash
-npx tsc --noEmit          # Type check
-npm run lint              # Lint
-npm run build             # Build
-npx vitest run            # Tests
-```
-
-### 2. Status Report Format
 ```markdown
-## Task [1.5.X] Complete
+### Phase 1: Story Metadata Foundation ✅ COMPLETE
 
-### Files Created/Modified
-- [list files]
-
-### Tests
-- Written: X
-- Passing: X
-- Coverage: X%
-
-### Verification
-- TypeScript: ✅/❌
-- Lint: ✅/❌
-- Build: ✅/❌
-- Tests: ✅/❌
-
-### Thinking Agent Used
-- [Yes/No]
-- [If yes, for what problem?]
-
-### Issues Encountered
-- [Any blockers or concerns]
-
-### Ready for Next Task: Yes/No
+**Completed:**
+- [x] `story_metadata` table created with RLS
+- [x] TypeScript types defined and exported
+- [x] `/api/ai/analyze` endpoint working
+- [x] Journal save triggers analysis
+- [x] `StoryInsights` component displays metadata
+- [x] `useStoryMetadata` hook working
+- [x] Story detail page shows insights
+- [x] Unit tests passing
+- [x] Edge cases handled
+- [x] Performance monitoring in place
 ```
 
-### 3. Wait for Confirmation
-**Do not proceed to next task until human confirms.**
+**Checkpoint:** ✅ Documentation reflects current state
 
 ---
 
-## 🚨 Error Recovery
+## Phase 1.5 Completion Checklist
 
-### If Tests Fail
-1. Read the specific assertion that failed
-2. Determine if test bug or implementation bug
-3. Fix and re-run specific test
-4. If stuck after 2 attempts → Spawn thinking agent
-
-### If Build Fails
-1. Read the full error message
-2. Fix the specific issue
-3. Re-run build
-4. If stuck after 2 attempts → Spawn thinking agent
-
-### If Stuck
-```bash
-npx ts-node scripts/think.ts "I'm stuck on [problem]. 
-I've tried [attempt 1] and [attempt 2]. 
-The error is [error message]. 
-The relevant code is [code snippet]."
-```
+- [ ] All unit tests passing
+- [ ] Component tests passing
+- [ ] Error logging implemented
+- [ ] Performance monitoring in place
+- [ ] Edge cases handled (long content, failures, retries)
+- [ ] Database indexes optimized
+- [ ] Documentation updated
+- [ ] Manual QA completed (test 10 different story types)
 
 ---
 
-## ✅ Phase 1.5 Completion Checklist
+# Phase 2: Patterns & Discovery
 
-All must be checked before proceeding to Phase 2:
+### 🎯 Objective
+Enable users to see patterns across their stories through themes, life domains, and canonical story marking.
 
-- [x] Task 1.5.0: Thinking agent utility created ✅ (scripts/think.ts)
-- [x] Task 1.5.1: Analyze endpoint fully tested ✅ (32 tests, 100% line coverage)
-- [x] Task 1.5.2: Components and hooks fully tested ✅ (41 tests for StoryInsights)
-- [x] Task 1.5.3: Logging and monitoring implemented ✅ (analysisLogger, performanceMonitor, admin endpoint)
-- [x] Task 1.5.4: Edge cases hardened in API ✅ (38 tests, retry logic, rate limiting, truncation)
-- [ ] Task 1.5.5: Edge cases hardened in UI
-- [ ] Task 1.5.6: Database optimized
-- [x] Task 1.5.7: Documentation updated ✅ (README.md, CLAUDE.md)
-- [x] All tests passing ✅ (73 tests total)
-- [ ] Build succeeds
-- [ ] No lint errors
+### Duration: 2-3 weeks
+
+### Success Metrics
+- [ ] Users can view stories grouped by theme
+- [ ] Users can view stories grouped by life domain
+- [ ] Users can mark stories as canonical
+- [ ] Monthly summary displays correctly
+- [ ] Navigation reflects new hierarchy
+
+---
+
+## Implementation Steps
+
+### Step 1: Patterns Data Layer
+
+**Priority:** 🔴 Critical | **Time:** 3-4 hours
+
+#### 1.1 Create Patterns Hook
+
+**File:** `app/hooks/usePatterns.ts`
+
+```typescript
+"use client";
+
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useBrowserSupabase } from "./useBrowserSupabase";
+import { StoryMetadata, LifeDomain } from "@/app/types/metadata";
+import { StoryDataType } from "@/app/types";
+
+interface StoryWithMetadata extends StoryDataType {
+  story_metadata: StoryMetadata | null;
+}
+
+interface ThemeGroup {
+  theme: string;
+  stories: StoryWithMetadata[];
+  count: number;
+  latestDate: string;
+}
+
+interface DomainGroup {
+  domain: LifeDomain;
+  stories: StoryWithMetadata[];
+  count: number;
+  dominantTone: string | null;
+}
+
+interface MonthlySummary {
+  month: string;
+  year: number;
+  storyCount: number;
+  canonicalCount: number;
+  topThemes: string[];
+  dominantDomain: LifeDomain | null;
+  dominantTone: string | null;
+  avgSignificance: number;
+}
+
+interface UsePatternsReturn {
+  // Data
+  stories: StoryWithMetadata[];
+  themeGroups: ThemeGroup[];
+  domainGroups: DomainGroup[];
+  canonicalStories: StoryWithMetadata[];
+  monthlySummary: MonthlySummary | null;
+  
+  // State
+  isLoading: boolean;
+  error: string | null;
+  
+  // Actions
+  refetch: () => Promise<void>;
+}
+
+export function usePatterns(userWallet: string | null): UsePatternsReturn {
+  const supabase = useBrowserSupabase();
+  const [stories, setStories] = useState<StoryWithMetadata[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchStories = useCallback(async () => {
+    if (!userWallet || !supabase) {
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const { data, error: fetchError } = await supabase
+        .from("stories")
+        .select(`
+          *,
+          story_metadata (*)
+        `)
+        .eq("author_wallet", userWallet)
+        .order("created_at", { ascending: false });
+
+      if (fetchError) throw fetchError;
+
+      setStories((data as StoryWithMetadata[]) || []);
+    } catch (err) {
+      console.error("Error fetching patterns:", err);
+      setError("Failed to load story patterns");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [userWallet, supabase]);
+
+  useEffect(() => {
+    fetchStories();
+  }, [fetchStories]);
+
+  // Compute theme groups
+  const themeGroups = useMemo(() => {
+    const groups = new Map<string, StoryWithMetadata[]>();
+
+    stories.forEach(story => {
+      const themes = story.story_metadata?.themes || [];
+      themes.forEach(theme => {
+        if (!groups.has(theme)) {
+          groups.set(theme, []);
+        }
+        groups.get(theme)!.push(story);
+      });
+    });
+
+    return Array.from(groups.entries())
+      .map(([theme, themeStories]) => ({
+        theme,
+        stories: themeStories,
+        count: themeStories.length,
+        latestDate: themeStories[0]?.created_at || '',
+      }))
+      .sort((a, b) => b.count - a.count);
+  }, [stories]);
+
+  // Compute domain groups
+  const domainGroups = useMemo(() => {
+    const groups = new Map<LifeDomain, StoryWithMetadata[]>();
+
+    stories.forEach(story => {
+      const domain = story.story_metadata?.life_domain;
+      if (domain) {
+        if (!groups.has(domain)) {
+          groups.set(domain, []);
+        }
+        groups.get(domain)!.push(story);
+      }
+    });
+
+    return Array.from(groups.entries())
+      .map(([domain, domainStories]) => {
+        // Find dominant tone in this domain
+        const tones = domainStories
+          .map(s => s.story_metadata?.emotional_tone)
+          .filter(Boolean);
+        const toneCounts = tones.reduce((acc, tone) => {
+          acc[tone!] = (acc[tone!] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>);
+        const dominantTone = Object.entries(toneCounts)
+          .sort(([, a], [, b]) => b - a)[0]?.[0] || null;
+
+        return {
+          domain,
+          stories: domainStories,
+          count: domainStories.length,
+          dominantTone,
+        };
+      })
+      .sort((a, b) => b.count - a.count);
+  }, [stories]);
+
+  // Canonical stories
+  const canonicalStories = useMemo(() => {
+    return stories.filter(s => s.story_metadata?.is_canonical);
+  }, [stories]);
+
+  // Monthly summary (current month)
+  const monthlySummary = useMemo(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    const monthStories = stories.filter(story => {
+      const storyDate = new Date(story.created_at);
+      return storyDate.getMonth() === currentMonth && 
+             storyDate.getFullYear() === currentYear;
+    });
+
+    if (monthStories.length === 0) return null;
+
+    // Aggregate themes
+    const allThemes = monthStories.flatMap(s => s.story_metadata?.themes || []);
+    const themeCounts = allThemes.reduce((acc, theme) => {
+      acc[theme] = (acc[theme] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    const topThemes = Object.entries(themeCounts)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5)
+      .map(([theme]) => theme);
+
+    // Dominant domain
+    const domains = monthStories
+      .map(s => s.story_metadata?.life_domain)
+      .filter(Boolean);
+    const domainCounts = domains.reduce((acc, domain) => {
+      acc[domain!] = (acc[domain!] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    const dominantDomain = Object.entries(domainCounts)
+      .sort(([, a], [, b]) => b - a)[0]?.[0] as LifeDomain || null;
+
+    // Dominant tone
+    const tones = monthStories
+      .map(s => s.story_metadata?.emotional_tone)
+      .filter(Boolean);
+    const toneCounts = tones.reduce((acc, tone) => {
+      acc[tone!] = (acc[tone!] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    const dominantTone = Object.entries(toneCounts)
+      .sort(([, a], [, b]) => b - a)[0]?.[0] || null;
+
+    // Average significance
+    const significanceScores = monthStories
+      .map(s => s.story_metadata?.significance_score || 0);
+    const avgSignificance = significanceScores.reduce((a, b) => a + b, 0) / significanceScores.length;
+
+    return {
+      month: now.toLocaleString('default', { month: 'long' }),
+      year: currentYear,
+      storyCount: monthStories.length,
+      canonicalCount: monthStories.filter(s => s.story_metadata?.is_canonical).length,
+      topThemes,
+      dominantDomain,
+      dominantTone,
+      avgSignificance,
+    };
+  }, [stories]);
+
+  return {
+    stories,
+    themeGroups,
+    domainGroups,
+    canonicalStories,
+    monthlySummary,
+    isLoading,
+    error,
+    refetch: fetchStories,
+  };
+}
+```
+
+**Checkpoint:** ✅ Hook returns grouped data correctly
+
+---
+
+### Step 2: Themes View Component
+
+**Priority:** 🔴 Critical | **Time:** 3-4 hours
+
+#### 2.1 Create Themes View
+
+**File:** `components/patterns/ThemesView.tsx`
+
+```typescript
+"use client";
+
+import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ChevronDown, ChevronUp, Hash } from "lucide-react";
+import { StoryCard } from "@/components/StoryCard";
+import { cn } from "@/lib/utils";
+
+interface ThemeGroup {
+  theme: string;
+  stories: any[];
+  count: number;
+  latestDate: string;
+}
+
+interface ThemesViewProps {
+  themeGroups: ThemeGroup[];
+  isLoading?: boolean;
+}
+
+const themeColors: Record<string, string> = {
+  growth: "bg-green-500/10 text-green-600 border-green-500/20",
+  reflection: "bg-blue-500/10 text-blue-600 border-blue-500/20",
+  change: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  loss: "bg-gray-500/10 text-gray-600 border-gray-500/20",
+  discovery: "bg-amber-500/10 text-amber-600 border-amber-500/20",
+  conflict: "bg-red-500/10 text-red-600 border-red-500/20",
+  connection: "bg-pink-500/10 text-pink-600 border-pink-500/20",
+  transition: "bg-cyan-500/10 text-cyan-600 border-cyan-500/20",
+  challenge: "bg-orange-500/10 text-orange-600 border-orange-500/20",
+  success: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+};
+
+function getThemeColor(theme: string): string {
+  return themeColors[theme.toLowerCase()] || "bg-muted text-muted-foreground";
+}
+
+export function ThemesView({ themeGroups, isLoading }: ThemesViewProps) {
+  const [expandedTheme, setExpandedTheme] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        {[1, 2, 3].map(i => (
+          <Card key={i} className="animate-pulse">
+            <CardHeader>
+              <div className="h-6 bg-muted rounded w-32" />
+            </CardHeader>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  if (themeGroups.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-8 text-center">
+          <Hash className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
+          <p className="text-muted-foreground">No themes detected yet.</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Keep writing stories and patterns will emerge.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const displayedGroups = showAll ? themeGroups : themeGroups.slice(0, 6);
+
+  return (
+    <div className="space-y-4">
+      {/* Theme Pills Overview */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        {themeGroups.slice(0, 10).map(group => (
+          <Badge
+            key={group.theme}
+            variant="outline"
+            className={cn(
+              "cursor-pointer transition-all hover:scale-105",
+              getThemeColor(group.theme),
+              expandedTheme === group.theme && "ring-2 ring-primary"
+            )}
+            onClick={() => setExpandedTheme(
+              expandedTheme === group.theme ? null : group.theme
+            )}
+          >
+            {group.theme} ({group.count})
+          </Badge>
+        ))}
+      </div>
+
+      {/* Theme Cards */}
+      <div className="grid gap-4">
+        {displayedGroups.map(group => (
+          <Card 
+            key={group.theme}
+            className={cn(
+              "transition-all",
+              expandedTheme === group.theme && "ring-2 ring-primary"
+            )}
+          >
+            <CardHeader 
+              className="cursor-pointer"
+              onClick={() => setExpandedTheme(
+                expandedTheme === group.theme ? null : group.theme
+              )}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Badge className={getThemeColor(group.theme)}>
+                    {group.theme}
+                  </Badge>
+                  <CardTitle className="text-lg">
+                    {group.count} {group.count === 1 ? 'story' : 'stories'}
+                  </CardTitle>
+                </div>
+                {expandedTheme === group.theme ? (
+                  <ChevronUp className="w-5 h-5 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                )}
+              </div>
+            </CardHeader>
+
+            {expandedTheme === group.theme && (
+              <CardContent>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {group.stories.slice(0, 4).map(story => (
+                    <StoryCard key={story.id} story={story} compact />
+                  ))}
+                </div>
+                {group.stories.length > 4 && (
+                  <p className="text-sm text-muted-foreground mt-4 text-center">
+                    +{group.stories.length - 4} more stories
+                  </p>
+                )}
+              </CardContent>
+            )}
+          </Card>
+        ))}
+      </div>
+
+      {/* Show More Button */}
+      {themeGroups.length > 6 && (
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={() => setShowAll(!showAll)}
+        >
+          {showAll ? "Show Less" : `Show All ${themeGroups.length} Themes`}
+        </Button>
+      )}
+    </div>
+  );
+}
+```
+
+**Checkpoint:** ✅ Themes view renders and expands correctly
+
+---
+
+### Step 3: Life Domains View
+
+**Priority:** 🔴 Critical | **Time:** 3 hours
+
+#### 3.1 Create Domains View
+
+**File:** `components/patterns/DomainsView.tsx`
+
+```typescript
+"use client";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { 
+  Briefcase, Heart, Activity, User, Sprout, 
+  Palette, Sparkles, Users, Compass, BookOpen 
+} from "lucide-react";
+import { LifeDomain } from "@/app/types/metadata";
+import { cn } from "@/lib/utils";
+
+interface DomainGroup {
+  domain: LifeDomain;
+  stories: any[];
+  count: number;
+  dominantTone: string | null;
+}
+
+interface DomainsViewProps {
+  domainGroups: DomainGroup[];
+  totalStories: number;
+  isLoading?: boolean;
+}
+
+const domainConfig: Record<LifeDomain, { icon: any; color: string; label: string }> = {
+  work: { icon: Briefcase, color: "text-blue-500", label: "Work & Career" },
+  relationships: { icon: Heart, color: "text-pink-500", label: "Relationships" },
+  health: { icon: Activity, color: "text-green-500", label: "Health & Wellness" },
+  identity: { icon: User, color: "text-purple-500", label: "Identity & Self" },
+  growth: { icon: Sprout, color: "text-emerald-500", label: "Personal Growth" },
+  creativity: { icon: Palette, color: "text-orange-500", label: "Creativity" },
+  spirituality: { icon: Sparkles, color: "text-indigo-500", label: "Spirituality" },
+  family: { icon: Users, color: "text-rose-500", label: "Family" },
+  adventure: { icon: Compass, color: "text-amber-500", label: "Adventure" },
+  learning: { icon: BookOpen, color: "text-cyan-500", label: "Learning" },
+};
+
+export function DomainsView({ domainGroups, totalStories, isLoading }: DomainsViewProps) {
+  if (isLoading) {
+    return (
+      <div className="grid gap-4 md:grid-cols-2">
+        {[1, 2, 3, 4].map(i => (
+          <Card key={i} className="animate-pulse">
+            <CardContent className="py-6">
+              <div className="h-8 bg-muted rounded w-full" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  if (domainGroups.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-8 text-center">
+          <Compass className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
+          <p className="text-muted-foreground">No life domains detected yet.</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Your stories will be categorized as you write more.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Domain Distribution */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Life Domain Distribution</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {domainGroups.map(group => {
+            const config = domainConfig[group.domain];
+            const Icon = config.icon;
+            const percentage = totalStories > 0 
+              ? Math.round((group.count / totalStories) * 100)
+              : 0;
+
+            return (
+              <div key={group.domain} className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Icon className={cn("w-4 h-4", config.color)} />
+                    <span className="text-sm font-medium">{config.label}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">
+                      {group.count} stories
+                    </span>
+                    <Badge variant="secondary" className="text-xs">
+                      {percentage}%
+                    </Badge>
+                  </div>
+                </div>
+                <Progress value={percentage} className="h-2" />
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+
+      {/* Domain Cards */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {domainGroups.map(group => {
+          const config = domainConfig[group.domain];
+          const Icon = config.icon;
+
+          return (
+            <Card key={group.domain} className="hover:shadow-md transition-shadow">
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-3">
+                  <div className={cn(
+                    "p-2 rounded-lg",
+                    config.color.replace("text-", "bg-").replace("500", "500/10")
+                  )}>
+                    <Icon className={cn("w-5 h-5", config.color)} />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base">{config.label}</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      {group.count} {group.count === 1 ? 'story' : 'stories'}
+                    </p>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {group.dominantTone && (
+                  <p className="text-sm text-muted-foreground">
+                    Dominant mood: <span className="capitalize">{group.dominantTone}</span>
+                  </p>
+                )}
+                <div className="mt-3 flex flex-wrap gap-1">
+                  {group.stories.slice(0, 3).map(story => (
+                    <Badge key={story.id} variant="outline" className="text-xs">
+                      {story.title?.substring(0, 20) || "Untitled"}...
+                    </Badge>
+                  ))}
+                  {group.stories.length > 3 && (
+                    <Badge variant="outline" className="text-xs">
+                      +{group.stories.length - 3}
+                    </Badge>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+```
+
+**Checkpoint:** ✅ Domains view shows distribution correctly
+
+---
+
+### Step 4: Canonical Story Feature
+
+**Priority:** 🔴 Critical | **Time:** 2-3 hours
+
+#### 4.1 Create Canonical Badge Component
+
+**File:** `components/CanonicalBadge.tsx`
+
+```typescript
+"use client";
+
+import { useState } from "react";
+import { Star } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
+import { useStoryMetadata } from "@/app/hooks/useStoryMetadata";
+import { toast } from "sonner";
+
+interface CanonicalBadgeProps {
+  storyId: string;
+  isAuthor: boolean;
+  initialValue?: boolean;
+  showLabel?: boolean;
+  size?: "sm" | "md" | "lg";
+}
+
+export function CanonicalBadge({
+  storyId,
+  isAuthor,
+  initialValue = false,
+  showLabel = true,
+  size = "md",
+}: CanonicalBadgeProps) {
+  const { metadata, markAsCanonical } = useStoryMetadata(storyId);
+  const [isUpdating, setIsUpdating] = useState(false);
+  
+  const isCanonical = metadata?.is_canonical ?? initialValue;
+
+  const handleToggle = async () => {
+    if (!isAuthor) return;
+    
+    setIsUpdating(true);
+    try {
+      await markAsCanonical(!isCanonical);
+      toast.success(
+        isCanonical 
+          ? "Removed from key moments" 
+          : "Marked as key moment"
+      );
+    } catch (error) {
+      toast.error("Failed to update. Please try again.");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const sizeClasses = {
+    sm: "h-7 text-xs gap-1",
+    md: "h-9 text-sm gap-1.5",
+    lg: "h-11 text-base gap-2",
+  };
+
+  const iconSizes = {
+    sm: "w-3 h-3",
+    md: "w-4 h-4",
+    lg: "w-5 h-5",
+  };
+
+  // Display-only badge for non-authors
+  if (!isAuthor) {
+    if (!isCanonical) return null;
+    
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className={cn(
+              "inline-flex items-center px-2 py-1 rounded-full",
+              "bg-amber-500/10 text-amber-600",
+              sizeClasses[size]
+            )}>
+              <Star className={cn(iconSizes[size], "fill-current")} />
+              {showLabel && <span>Key Moment</span>}
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>The author marked this as an important story</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
+  // Interactive button for authors
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant={isCanonical ? "default" : "outline"}
+            size="sm"
+            onClick={handleToggle}
+            disabled={isUpdating}
+            className={cn(
+              sizeClasses[size],
+              isCanonical && "bg-amber-500 hover:bg-amber-600 text-white",
+              !isCanonical && "hover:bg-amber-500/10 hover:text-amber-600"
+            )}
+          >
+            <Star className={cn(
+              iconSizes[size],
+              isCanonical && "fill-current"
+            )} />
+            {showLabel && (
+              <span>{isCanonical ? "Key Moment" : "Mark as Key Moment"}</span>
+            )}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>
+            {isCanonical 
+              ? "This is marked as an important story in your life"
+              : "Mark this story as a key moment in your life"
+            }
+          </p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+```
+
+#### 4.2 Add to Story Detail Page
+
+In `app/story/[storyId]/page.tsx`, add:
+
+```typescript
+import { CanonicalBadge } from "@/components/CanonicalBadge";
+
+// In the story header section:
+<div className="flex items-center gap-3">
+  <h1>{story.title}</h1>
+  <CanonicalBadge 
+    storyId={story.id}
+    isAuthor={isAuthor}
+  />
+</div>
+```
+
+**Checkpoint:** ✅ Canonical marking works, persists to database
+
+---
+
+### Step 5: Monthly Summary Component
+
+**Priority:** 🟡 Medium | **Time:** 2-3 hours
+
+#### 5.1 Create Monthly Summary
+
+**File:** `components/patterns/MonthlySummary.tsx`
+
+```typescript
+"use client";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Calendar, TrendingUp, Star, Brain } from "lucide-react";
+import { LifeDomain } from "@/app/types/metadata";
+
+interface MonthlySummaryProps {
+  summary: {
+    month: string;
+    year: number;
+    storyCount: number;
+    canonicalCount: number;
+    topThemes: string[];
+    dominantDomain: LifeDomain | null;
+    dominantTone: string | null;
+    avgSignificance: number;
+  } | null;
+  isLoading?: boolean;
+}
+
+export function MonthlySummary({ summary, isLoading }: MonthlySummaryProps) {
+  if (isLoading) {
+    return (
+      <Card className="animate-pulse">
+        <CardHeader>
+          <div className="h-6 bg-muted rounded w-40" />
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <div className="h-4 bg-muted rounded w-full" />
+            <div className="h-4 bg-muted rounded w-3/4" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!summary || summary.storyCount === 0) {
+    return (
+      <Card>
+        <CardContent className="py-6 text-center">
+          <Calendar className="w-10 h-10 mx-auto text-muted-foreground/50 mb-3" />
+          <p className="text-muted-foreground">No stories this month yet.</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Start journaling to see your monthly patterns.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const significanceLabel = summary.avgSignificance > 0.7 
+    ? "Significant month" 
+    : summary.avgSignificance > 0.4 
+      ? "Moderate activity"
+      : "Routine reflections";
+
+  return (
+    <Card className="bg-gradient-to-br from-primary/5 to-primary/10">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="w-5 h-5" />
+            {summary.month} {summary.year}
+          </CardTitle>
+          <Badge variant="secondary">
+            {summary.storyCount} {summary.storyCount === 1 ? 'story' : 'stories'}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Key Stats */}
+        <div className="grid grid-cols-3 gap-4 text-center">
+          <div>
+            <div className="text-2xl font-bold">{summary.storyCount}</div>
+            <div className="text-xs text-muted-foreground">Stories</div>
+          </div>
+          <div>
+            <div className="text-2xl font-bold flex items-center justify-center gap-1">
+              <Star className="w-4 h-4 text-amber-500" />
+              {summary.canonicalCount}
+            </div>
+            <div className="text-xs text-muted-foreground">Key Moments</div>
+          </div>
+          <div>
+            <div className="text-2xl font-bold">
+              {Math.round(summary.avgSignificance * 100)}%
+            </div>
+            <div className="text-xs text-muted-foreground">Significance</div>
+          </div>
+        </div>
+
+        {/* Top Themes */}
+        {summary.topThemes.length > 0 && (
+          <div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+              <Brain className="w-4 h-4" />
+              Top Themes
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {summary.topThemes.map(theme => (
+                <Badge key={theme} variant="outline">
+                  {theme}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Dominant Domain & Tone */}
+        <div className="flex gap-4 text-sm">
+          {summary.dominantDomain && (
+            <div>
+              <span className="text-muted-foreground">Focus: </span>
+              <span className="capitalize">{summary.dominantDomain}</span>
+            </div>
+          )}
+          {summary.dominantTone && (
+            <div>
+              <span className="text-muted-foreground">Mood: </span>
+              <span className="capitalize">{summary.dominantTone}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Significance Indicator */}
+        <div className="flex items-center gap-2 text-sm">
+          <TrendingUp className="w-4 h-4 text-primary" />
+          <span>{significanceLabel}</span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+```
+
+**Checkpoint:** ✅ Monthly summary renders with correct data
+
+---
+
+### Step 6: Updated Library Page
+
+**Priority:** 🔴 Critical | **Time:** 3-4 hours
+
+#### 6.1 Refactor Library with Tabs
+
+**File:** `app/library/page.tsx` (major update)
+
+```typescript
+"use client";
+
+import { useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { usePatterns } from "@/app/hooks/usePatterns";
+import { useAccount } from "wagmi";
+import { ThemesView } from "@/components/patterns/ThemesView";
+import { DomainsView } from "@/components/patterns/DomainsView";
+import { MonthlySummary } from "@/components/patterns/MonthlySummary";
+import { StoryCard } from "@/components/StoryCard";
+import { BookOpen, Hash, Compass, Star, Clock } from "lucide-react";
+
+export default function LibraryPage() {
+  const { address } = useAccount();
+  const [activeTab, setActiveTab] = useState("all");
+  
+  const {
+    stories,
+    themeGroups,
+    domainGroups,
+    canonicalStories,
+    monthlySummary,
+    isLoading,
+    error,
+  } = usePatterns(address || null);
+
+  if (!address) {
+    return (
+      <div className="container py-8 text-center">
+        <p className="text-muted-foreground">Connect your wallet to view your library.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container py-8 space-y-8">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Your Archive</h1>
+          <p className="text-muted-foreground">
+            {stories.length} stories · {canonicalStories.length} key moments
+          </p>
+        </div>
+      </div>
+
+      {/* Monthly Summary */}
+      <MonthlySummary summary={monthlySummary} isLoading={isLoading} />
+
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="all" className="flex items-center gap-2">
+            <BookOpen className="w-4 h-4" />
+            <span className="hidden sm:inline">All Stories</span>
+          </TabsTrigger>
+          <TabsTrigger value="canonical" className="flex items-center gap-2">
+            <Star className="w-4 h-4" />
+            <span className="hidden sm:inline">Key Moments</span>
+          </TabsTrigger>
+          <TabsTrigger value="themes" className="flex items-center gap-2">
+            <Hash className="w-4 h-4" />
+            <span className="hidden sm:inline">Themes</span>
+          </TabsTrigger>
+          <TabsTrigger value="domains" className="flex items-center gap-2">
+            <Compass className="w-4 h-4" />
+            <span className="hidden sm:inline">Life Areas</span>
+          </TabsTrigger>
+          <TabsTrigger value="recent" className="flex items-center gap-2">
+            <Clock className="w-4 h-4" />
+            <span className="hidden sm:inline">Recent</span>
+          </TabsTrigger>
+        </TabsList>
+
+        {/* All Stories */}
+        <TabsContent value="all" className="mt-6">
+          {isLoading ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {[1, 2, 3, 4, 5, 6].map(i => (
+                <div key={i} className="h-48 bg-muted rounded-lg animate-pulse" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {stories.map(story => (
+                <StoryCard key={story.id} story={story} />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Key Moments */}
+        <TabsContent value="canonical" className="mt-6">
+          {canonicalStories.length === 0 ? (
+            <div className="text-center py-12">
+              <Star className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
+              <p className="text-muted-foreground">No key moments marked yet.</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Mark important stories to highlight them here.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              {canonicalStories.map(story => (
+                <StoryCard key={story.id} story={story} featured />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Themes */}
+        <TabsContent value="themes" className="mt-6">
+          <ThemesView themeGroups={themeGroups} isLoading={isLoading} />
+        </TabsContent>
+
+        {/* Life Domains */}
+        <TabsContent value="domains" className="mt-6">
+          <DomainsView 
+            domainGroups={domainGroups} 
+            totalStories={stories.length}
+            isLoading={isLoading} 
+          />
+        </TabsContent>
+
+        {/* Recent */}
+        <TabsContent value="recent" className="mt-6">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {stories.slice(0, 12).map(story => (
+              <StoryCard key={story.id} story={story} />
+            ))}
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+```
+
+**Checkpoint:** ✅ Library page has all tabs working
+
+---
+
+### Step 7: Navigation Update
+
+**Priority:** 🟡 Medium | **Time:** 1 hour
+
+#### 7.1 Update Navigation Hierarchy
+
+**File:** `components/Navigation.tsx` — Reorder items:
+
+```typescript
+const navItems = [
+  { href: "/record", label: "Record", icon: Mic },
+  { href: "/library", label: "Archive", icon: BookOpen },  // Renamed from Library
+  { href: "/social", label: "Community", icon: Users },    // Renamed from Social
+  { href: "/profile", label: "Profile", icon: User },
+];
+```
+
+**Checkpoint:** ✅ Navigation reflects new hierarchy
+
+---
+
+## Phase 2 Completion Checklist
+
+- [ ] `usePatterns` hook returns correct grouped data
+- [ ] `ThemesView` component renders and expands
+- [ ] `DomainsView` component shows distribution
+- [ ] `CanonicalBadge` component toggles correctly
+- [ ] `MonthlySummary` component displays stats
+- [ ] Library page has all tabs working
+- [ ] Navigation updated (Archive > Community)
+- [ ] All tests passing
+- [ ] Performance acceptable (< 2s load time)
 - [ ] Manual QA completed
 
 ---
 
-## 🚀 Begin Implementation
+## Success Metrics for Phase 2
 
-**Start with Task 1.5.0: Setup Thinking Agent Utility**
+- Users can view stories grouped by theme
+- Users can view stories grouped by life domain
+- Users can mark/unmark stories as canonical
+- Monthly summary displays on library page
+- Tab navigation works smoothly
+- No performance regressions
 
-This must be completed first so you can use it for subsequent tasks.
+---
 
-```
-@task 1.5.0
-<begin>
-Check if @anthropic-ai/sdk is installed.
-If not, install it.
-Create scripts/think.ts with the thinking agent code.
-Test it works.
-Report completion.
-</begin>
-```
+*Phase 2 builds directly on Phase 1's metadata foundation.*
+*After Phase 2, users have a complete self-understanding interface.*

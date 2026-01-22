@@ -7,13 +7,14 @@ import { Button } from "@/components/ui/button";
 import {
   Home,
   Mic,
-  BookOpen,
+  Archive,
   Users,
   User,
   Moon,
   Sun,
   Coins,
   TrainTrack,
+  BookOpen,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
@@ -23,8 +24,8 @@ import { NotificationDropdown } from "./NotificationDropdown";
 const navigation = [
   { name: "Home", href: "/", icon: Home },
   { name: "Record", href: "/record", icon: Mic },
-  { name: "Library", href: "/library", icon: BookOpen },
-  { name: "Social", href: "/social", icon: Users },
+  { name: "Archive", href: "/library", icon: Archive },
+  { name: "Community", href: "/social", icon: Users },
   { name: "Profile", href: "/profile", icon: User },
   { name: "Tracker", href: "/tracker", icon: TrainTrack },
 ];
