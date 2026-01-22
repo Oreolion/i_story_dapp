@@ -91,6 +91,10 @@ const validMetadataResponse = JSON.stringify({
   brief_insight: "A story about finding clarity through change.",
 });
 
+// Valid story text that meets minimum length requirement (50+ characters)
+const validStoryText = "This is a meaningful story about my journey through life and all the experiences I've had.";
+const shortStoryText = "Hi.";
+
 // Import the route handler after mocks are set up
 import { POST } from "@/app/api/ai/analyze/route";
 
@@ -187,7 +191,7 @@ describe("POST /api/ai/analyze", () => {
 
       const req = createMockRequest({
         storyId: "test-uuid",
-        storyText: "Story with special chars: @#$%^&*(){}[]|\\<>?/~`'\"",
+        storyText: "This is a story with special chars: @#$%^&*(){}[]|\\<>?/~`'\" and more text to meet minimum length requirements.",
       });
       const response = await POST(req);
 
@@ -201,7 +205,7 @@ describe("POST /api/ai/analyze", () => {
 
       const req = createMockRequest({
         storyId: "test-uuid",
-        storyText: "Une histoire en français avec des caractères spéciaux: é, è, ê, ë, à, â, ô, ù, ç",
+        storyText: "Une histoire en français avec des caractères spéciaux: é, è, ê, ë, à, â, ô, ù, ç. C'est une belle journée.",
       });
       const response = await POST(req);
 
@@ -215,7 +219,7 @@ describe("POST /api/ai/analyze", () => {
 
       const req = createMockRequest({
         storyId: "test-uuid",
-        storyText: "Today was amazing! 🎉 I felt so happy 😊 and grateful 🙏",
+        storyText: "Today was an amazing day! 🎉 I felt so happy 😊 and grateful 🙏 for all the wonderful moments we shared together.",
       });
       const response = await POST(req);
 
@@ -232,7 +236,7 @@ describe("POST /api/ai/analyze", () => {
 
       const req = createMockRequest({
         storyId: "test-uuid",
-        storyText: "A test story for analysis.",
+        storyText: validStoryText,
       });
       const response = await POST(req);
 
@@ -248,7 +252,7 @@ describe("POST /api/ai/analyze", () => {
 
       const req = createMockRequest({
         storyId: "test-uuid",
-        storyText: "A test story for analysis.",
+        storyText: validStoryText,
       });
       const response = await POST(req);
 
@@ -267,7 +271,7 @@ describe("POST /api/ai/analyze", () => {
 
       const req = createMockRequest({
         storyId: "test-uuid",
-        storyText: "A test story for analysis.",
+        storyText: validStoryText,
       });
       const response = await POST(req);
 
@@ -291,7 +295,7 @@ describe("POST /api/ai/analyze", () => {
 
       const req = createMockRequest({
         storyId: "test-uuid",
-        storyText: "A test story for analysis.",
+        storyText: validStoryText,
       });
       const response = await POST(req);
 
@@ -314,7 +318,7 @@ describe("POST /api/ai/analyze", () => {
 
       const req = createMockRequest({
         storyId: "test-uuid",
-        storyText: "A test story for analysis.",
+        storyText: validStoryText,
       });
       const response = await POST(req);
 
@@ -337,7 +341,7 @@ describe("POST /api/ai/analyze", () => {
 
       const req = createMockRequest({
         storyId: "test-uuid",
-        storyText: "A test story for analysis.",
+        storyText: validStoryText,
       });
       const response = await POST(req);
 
@@ -361,7 +365,7 @@ describe("POST /api/ai/analyze", () => {
 
       const req = createMockRequest({
         storyId: "test-uuid",
-        storyText: "A test story for analysis.",
+        storyText: validStoryText,
       });
       const response = await POST(req);
 
@@ -385,7 +389,7 @@ describe("POST /api/ai/analyze", () => {
 
       const req = createMockRequest({
         storyId: "test-uuid",
-        storyText: "A test story for analysis.",
+        storyText: validStoryText,
       });
       const response = await POST(req);
 
@@ -408,7 +412,7 @@ describe("POST /api/ai/analyze", () => {
 
       const req = createMockRequest({
         storyId: "test-uuid",
-        storyText: "A test story for analysis.",
+        storyText: validStoryText,
       });
       const response = await POST(req);
 
@@ -435,7 +439,7 @@ describe("POST /api/ai/analyze", () => {
 
       const req = createMockRequest({
         storyId: "test-uuid",
-        storyText: "A test story for analysis.",
+        storyText: validStoryText,
       });
       const response = await POST(req);
 
@@ -459,7 +463,7 @@ describe("POST /api/ai/analyze", () => {
 
       const req = createMockRequest({
         storyId: "test-uuid",
-        storyText: "A test story for analysis.",
+        storyText: validStoryText,
       });
       const response = await POST(req);
 
@@ -486,7 +490,7 @@ describe("POST /api/ai/analyze", () => {
 
       const req = createMockRequest({
         storyId: "test-uuid",
-        storyText: "Updated story content for re-analysis.",
+        storyText: "Updated story content for re-analysis with more details about my journey and experiences.",
       });
       const response = await POST(req);
 
@@ -509,7 +513,7 @@ describe("POST /api/ai/analyze", () => {
       const beforeTime = new Date().toISOString();
       const req = createMockRequest({
         storyId: "test-uuid",
-        storyText: "A test story for analysis.",
+        storyText: validStoryText,
       });
       await POST(req);
       const afterTime = new Date().toISOString();
@@ -529,7 +533,7 @@ describe("POST /api/ai/analyze", () => {
 
       const req = createMockRequest({
         storyId: "test-uuid",
-        storyText: "A test story for analysis.",
+        storyText: validStoryText,
       });
       const response = await POST(req);
 
@@ -543,7 +547,7 @@ describe("POST /api/ai/analyze", () => {
 
       const req = createMockRequest({
         storyId: "test-uuid",
-        storyText: "A test story for analysis.",
+        storyText: validStoryText,
       });
       const response = await POST(req);
 
@@ -560,7 +564,7 @@ describe("POST /api/ai/analyze", () => {
 
       const req = createMockRequest({
         storyId: "test-uuid",
-        storyText: "A test story for analysis.",
+        storyText: validStoryText,
       });
       const response = await POST(req);
 
@@ -577,7 +581,7 @@ describe("POST /api/ai/analyze", () => {
 
       const req = createMockRequest({
         storyId: "test-uuid",
-        storyText: "A test story for analysis.",
+        storyText: validStoryText,
       });
       const response = await POST(req);
 
@@ -592,7 +596,7 @@ describe("POST /api/ai/analyze", () => {
 
       const req = createMockRequest({
         storyId: "test-uuid",
-        storyText: "A test story for analysis.",
+        storyText: validStoryText,
       });
       const response = await POST(req);
 
@@ -617,18 +621,16 @@ describe("POST /api/ai/analyze", () => {
   // --- EDGE CASES ---
 
   describe("Edge Cases", () => {
-    it("handles very short story text", async () => {
-      setupGeminiMock(validMetadataResponse);
-      setupSupabaseMock({ upsertData: { id: "metadata-id", story_id: "test-uuid" } });
-
+    it("returns 400 when storyText is too short", async () => {
       const req = createMockRequest({
         storyId: "test-uuid",
-        storyText: "Hi.",
+        storyText: shortStoryText,
       });
       const response = await POST(req);
 
-      // Current implementation doesn't validate minimum length, so it succeeds
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.error).toContain("at least");
     });
 
     it("handles null values in arrays from Gemini", async () => {
@@ -648,7 +650,7 @@ describe("POST /api/ai/analyze", () => {
 
       const req = createMockRequest({
         storyId: "test-uuid",
-        storyText: "A test story for analysis.",
+        storyText: validStoryText,
       });
       const response = await POST(req);
 
@@ -676,7 +678,7 @@ describe("POST /api/ai/analyze", () => {
 
       const req = createMockRequest({
         storyId: "test-uuid",
-        storyText: "A test story for analysis.",
+        storyText: validStoryText,
       });
       const response = await POST(req);
 
@@ -697,7 +699,7 @@ describe("POST /api/ai/analyze", () => {
 
       const req = createMockRequest({
         storyId: "test-uuid",
-        storyText: "A test story for analysis.",
+        storyText: validStoryText,
       });
       const response = await POST(req);
 
@@ -721,13 +723,148 @@ describe("POST /api/ai/analyze", () => {
 
       const req = createMockRequest({
         storyId: "test-uuid",
-        storyText: "A test story for analysis.",
+        storyText: validStoryText,
       });
       const response = await POST(req);
 
       expect(response.status).toBe(200);
       const callArgs = mockSupabaseUpsert.mock.calls[0][0];
       expect(callArgs.themes).toEqual(["growth", "reflection", "change"]);
+    });
+
+    it("truncates content over 10000 characters", async () => {
+      setupGeminiMock(validMetadataResponse);
+      setupSupabaseMock({ upsertData: { id: "metadata-id", story_id: "test-uuid" } });
+
+      const longText = "a".repeat(15000);
+      const req = createMockRequest({
+        storyId: "test-uuid",
+        storyText: longText,
+      });
+      const response = await POST(req);
+
+      expect(response.status).toBe(200);
+      // Check that Gemini was called with truncated text
+      const callArgs = mockGenerateContent.mock.calls[0][0];
+      expect(callArgs.length).toBeLessThan(15000);
+      expect(callArgs).toContain("[truncated]");
+    });
+  });
+
+  // --- NEW EDGE CASE HARDENING TESTS ---
+
+  describe("Edge Case Hardening", () => {
+    it("returns 409 when analysis is already in progress for same storyId", async () => {
+      // First request - will be slow due to retry
+      mockGenerateContent.mockImplementation(() =>
+        new Promise(resolve => setTimeout(() => resolve({
+          response: { text: () => validMetadataResponse }
+        }), 100))
+      );
+      setupSupabaseMock({ upsertData: { id: "metadata-id", story_id: "same-id" } });
+
+      const req1 = createMockRequest({
+        storyId: "same-id",
+        storyText: validStoryText,
+      });
+      const req2 = createMockRequest({
+        storyId: "same-id",
+        storyText: validStoryText,
+      });
+
+      // Start first request but don't await
+      const promise1 = POST(req1);
+
+      // Small delay to ensure first request starts
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      // Second request should be rejected
+      const response2 = await POST(req2);
+      expect(response2.status).toBe(409);
+      const data = await response2.json();
+      expect(data.error).toContain("already in progress");
+
+      // Clean up first request
+      await promise1;
+    });
+
+    it("handles retry on Gemini API failure", async () => {
+      let callCount = 0;
+      mockGenerateContent.mockImplementation(() => {
+        callCount++;
+        if (callCount < 3) {
+          return Promise.reject(new Error("Temporary Gemini error"));
+        }
+        return Promise.resolve({
+          response: { text: () => validMetadataResponse }
+        });
+      });
+      setupSupabaseMock({ upsertData: { id: "metadata-id", story_id: "test-uuid" } });
+
+      const req = createMockRequest({
+        storyId: "test-uuid-retry",
+        storyText: validStoryText,
+      });
+      const response = await POST(req);
+
+      expect(response.status).toBe(200);
+      expect(callCount).toBe(3); // Should have retried
+    });
+
+    it("fails after max retries", async () => {
+      mockGenerateContent.mockRejectedValue(new Error("Persistent Gemini error"));
+
+      const req = createMockRequest({
+        storyId: "test-uuid-fail",
+        storyText: validStoryText,
+      });
+      const response = await POST(req);
+
+      expect(response.status).toBe(500);
+      const data = await response.json();
+      expect(data.error).toBe("Persistent Gemini error");
+    });
+
+    it("handles JSON with trailing commas from Gemini", async () => {
+      const jsonWithTrailingComma = `{
+        "themes": ["growth", "reflection",],
+        "emotional_tone": "hopeful",
+        "life_domain": "identity",
+        "intensity_score": 0.7,
+        "significance_score": 0.8,
+        "people_mentioned": [],
+        "places_mentioned": [],
+        "time_references": [],
+        "brief_insight": "A story about growth.",
+      }`;
+      setupGeminiMock(jsonWithTrailingComma);
+      setupSupabaseMock({ upsertData: { id: "metadata-id", story_id: "test-uuid" } });
+
+      const req = createMockRequest({
+        storyId: "test-uuid-comma",
+        storyText: validStoryText,
+      });
+      const response = await POST(req);
+
+      expect(response.status).toBe(200);
+    });
+
+    it("extracts JSON from text with surrounding content", async () => {
+      const responseWithSurroundingText = `Here's the analysis:
+
+      {"themes": ["growth"], "emotional_tone": "hopeful", "life_domain": "identity", "intensity_score": 0.7, "significance_score": 0.8, "people_mentioned": [], "places_mentioned": [], "time_references": [], "brief_insight": "A story."}
+
+      Hope this helps!`;
+      setupGeminiMock(responseWithSurroundingText);
+      setupSupabaseMock({ upsertData: { id: "metadata-id", story_id: "test-uuid" } });
+
+      const req = createMockRequest({
+        storyId: "test-uuid-extract",
+        storyText: validStoryText,
+      });
+      const response = await POST(req);
+
+      expect(response.status).toBe(200);
     });
   });
 });

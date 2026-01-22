@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { StoryInsights } from "@/components/StoryInsights";
-import { StoryMetadata } from "@/app/types";
+import { StoryMetadata, AnalysisStatus } from "@/app/types";
 
 // --- MOCK SETUP ---
 
@@ -636,6 +636,248 @@ describe("StoryInsights", () => {
       await waitFor(() => {
         expect(screen.getByText("solitude")).toBeInTheDocument();
         expect(screen.queryByText("growth")).not.toBeInTheDocument();
+      });
+    });
+  });
+
+  // --- ANALYSIS STATUS STATES ---
+
+  describe("Analysis Status States", () => {
+    it("renders pending state with queue message", async () => {
+      const metadataPending = {
+        ...sampleMetadata,
+        analysis_status: "pending" as AnalysisStatus,
+      };
+      setupFetchMock({ metadataResponse: { metadata: metadataPending } });
+
+      render(<StoryInsights {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Analysis Queued")).toBeInTheDocument();
+        expect(screen.getByText(/waiting to be analyzed/)).toBeInTheDocument();
+      });
+    });
+
+    it("renders processing state with spinner and message", async () => {
+      const metadataProcessing = {
+        ...sampleMetadata,
+        analysis_status: "processing" as AnalysisStatus,
+      };
+      setupFetchMock({ metadataResponse: { metadata: metadataProcessing } });
+
+      render(<StoryInsights {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Analyzing Your Story")).toBeInTheDocument();
+        expect(screen.getByText(/extracting themes, emotions, and patterns/)).toBeInTheDocument();
+      });
+    });
+
+    it("renders failed state with error message", async () => {
+      const metadataFailed = {
+        ...sampleMetadata,
+        analysis_status: "failed" as AnalysisStatus,
+      };
+      setupFetchMock({ metadataResponse: { metadata: metadataFailed } });
+
+      render(<StoryInsights {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Analysis Failed")).toBeInTheDocument();
+        expect(screen.getByText(/Something went wrong/)).toBeInTheDocument();
+      });
+    });
+
+    it("shows retry button in failed state", async () => {
+      const metadataFailed = {
+        ...sampleMetadata,
+        analysis_status: "failed" as AnalysisStatus,
+      };
+      setupFetchMock({ metadataResponse: { metadata: metadataFailed } });
+
+      render(<StoryInsights {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Retry Analysis")).toBeInTheDocument();
+      });
+    });
+
+    it("retry button triggers re-analysis in failed state", async () => {
+      const metadataFailed = {
+        ...sampleMetadata,
+        analysis_status: "failed" as AnalysisStatus,
+      };
+      setupFetchMock({
+        metadataResponse: { metadata: metadataFailed },
+        analyzeResponse: { success: true, metadata: sampleMetadata },
+      });
+
+      render(<StoryInsights {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Retry Analysis")).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText("Retry Analysis"));
+
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledWith(
+          "/api/ai/analyze",
+          expect.objectContaining({
+            method: "POST",
+          })
+        );
+      });
+    });
+
+    it("shows retrying state when retry button is clicked", async () => {
+      const metadataFailed = {
+        ...sampleMetadata,
+        analysis_status: "failed" as AnalysisStatus,
+      };
+
+      // Set up mock where analyze never resolves
+      let resolveAnalyze: (value: unknown) => void;
+      mockFetch.mockImplementation((url: string, init?: RequestInit) => {
+        if (url.includes("/metadata")) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ metadata: metadataFailed }),
+          });
+        }
+        if (url.includes("/analyze")) {
+          return new Promise((resolve) => {
+            resolveAnalyze = resolve;
+          });
+        }
+        return Promise.reject(new Error("Unhandled"));
+      });
+
+      render(<StoryInsights {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Retry Analysis")).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText("Retry Analysis"));
+
+      await waitFor(() => {
+        expect(screen.getByText("Retrying...")).toBeInTheDocument();
+      });
+
+      // Clean up
+      resolveAnalyze!({
+        ok: true,
+        json: () => Promise.resolve({ success: true, metadata: sampleMetadata }),
+      });
+    });
+
+    it("handles completed status normally (shows full insights)", async () => {
+      const metadataCompleted = {
+        ...sampleMetadata,
+        analysis_status: "completed" as AnalysisStatus,
+      };
+      setupFetchMock({ metadataResponse: { metadata: metadataCompleted } });
+
+      render(<StoryInsights {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByText("AI Insights")).toBeInTheDocument();
+        expect(screen.getByText("hopeful")).toBeInTheDocument();
+      });
+    });
+  });
+
+  // --- KEY LIFE MOMENT BADGE ---
+
+  describe("Key Life Moment Badge", () => {
+    it("shows 'Key life moment' badge when significance_score > 0.7", async () => {
+      const metadataHighSignificance = {
+        ...sampleMetadata,
+        significance_score: 0.85,
+      };
+      setupFetchMock({ metadataResponse: { metadata: metadataHighSignificance } });
+
+      render(<StoryInsights {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Key life moment")).toBeInTheDocument();
+      });
+    });
+
+    it("shows 'Key life moment' badge when significance_score is exactly 0.71", async () => {
+      const metadataHighSignificance = {
+        ...sampleMetadata,
+        significance_score: 0.71,
+      };
+      setupFetchMock({ metadataResponse: { metadata: metadataHighSignificance } });
+
+      render(<StoryInsights {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Key life moment")).toBeInTheDocument();
+      });
+    });
+
+    it("does not show 'Key life moment' badge when significance_score is exactly 0.7", async () => {
+      const metadataExactThreshold = {
+        ...sampleMetadata,
+        significance_score: 0.7,
+      };
+      setupFetchMock({ metadataResponse: { metadata: metadataExactThreshold } });
+
+      render(<StoryInsights {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByText("AI Insights")).toBeInTheDocument();
+      });
+
+      expect(screen.queryByText("Key life moment")).not.toBeInTheDocument();
+    });
+
+    it("does not show 'Key life moment' badge when significance_score < 0.7", async () => {
+      const metadataLowSignificance = {
+        ...sampleMetadata,
+        significance_score: 0.5,
+      };
+      setupFetchMock({ metadataResponse: { metadata: metadataLowSignificance } });
+
+      render(<StoryInsights {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByText("AI Insights")).toBeInTheDocument();
+      });
+
+      expect(screen.queryByText("Key life moment")).not.toBeInTheDocument();
+    });
+
+    it("does not show 'Key life moment' badge when significance_score is 0", async () => {
+      const metadataZeroSignificance = {
+        ...sampleMetadata,
+        significance_score: 0,
+      };
+      setupFetchMock({ metadataResponse: { metadata: metadataZeroSignificance } });
+
+      render(<StoryInsights {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByText("AI Insights")).toBeInTheDocument();
+      });
+
+      expect(screen.queryByText("Key life moment")).not.toBeInTheDocument();
+    });
+
+    it("shows 'Key life moment' badge when significance_score is 1", async () => {
+      const metadataMaxSignificance = {
+        ...sampleMetadata,
+        significance_score: 1,
+      };
+      setupFetchMock({ metadataResponse: { metadata: metadataMaxSignificance } });
+
+      render(<StoryInsights {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Key life moment")).toBeInTheDocument();
       });
     });
   });

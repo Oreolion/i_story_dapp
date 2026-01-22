@@ -187,6 +187,9 @@ export const moodColors: { [key: string]: string } = {
 
 // === Phase 1: Cognitive Layer Types ===
 
+// Analysis status for tracking AI processing state
+export type AnalysisStatus = 'pending' | 'processing' | 'completed' | 'failed';
+
 // Emotional tone options for AI analysis
 export type EmotionalTone =
   | 'reflective'
@@ -230,6 +233,7 @@ export interface StoryMetadata {
   places_mentioned: string[];
   time_references: string[];
   brief_insight: string | null;
+  analysis_status?: AnalysisStatus;  // Optional for backwards compatibility
   created_at: string;
   updated_at: string;
 }

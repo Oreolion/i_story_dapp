@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "react-hot-toast";
-import { StoryMetadata, EmotionalTone, LifeDomain } from "@/app/types";
+import { StoryMetadata, EmotionalTone, LifeDomain, AnalysisStatus } from "@/app/types";
 import {
   Sparkles,
   Loader2,
@@ -19,6 +19,9 @@ import {
   RefreshCw,
   Lightbulb,
   TrendingUp,
+  AlertTriangle,
+  Star,
+  Hourglass,
 } from "lucide-react";
 
 interface StoryInsightsProps {
@@ -122,6 +125,87 @@ export function StoryInsights({ storyId, storyText }: StoryInsightsProps) {
     );
   }
 
+  // Pending state - analysis is queued
+  if (metadata?.analysis_status === 'pending') {
+    return (
+      <Card className="bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20 border-0 shadow-lg">
+        <CardContent className="py-8 text-center space-y-4">
+          <div className="w-12 h-12 mx-auto bg-gradient-to-r from-amber-400 to-yellow-500 rounded-full flex items-center justify-center">
+            <Hourglass className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Analysis Queued
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              Your story is waiting to be analyzed. This usually takes a few moments.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Processing state - analysis is in progress
+  if (metadata?.analysis_status === 'processing') {
+    return (
+      <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-0 shadow-lg">
+        <CardContent className="py-8 text-center space-y-4">
+          <div className="w-12 h-12 mx-auto bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center">
+            <Loader2 className="w-6 h-6 text-white animate-spin" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Analyzing Your Story
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              AI is extracting themes, emotions, and patterns from your story...
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Failed state - analysis failed, show retry button
+  if (metadata?.analysis_status === 'failed') {
+    return (
+      <Card className="bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-0 shadow-lg">
+        <CardContent className="py-8 text-center space-y-4">
+          <div className="w-12 h-12 mx-auto bg-gradient-to-r from-red-400 to-orange-500 rounded-full flex items-center justify-center">
+            <AlertTriangle className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Analysis Failed
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              Something went wrong while analyzing your story. Please try again.
+            </p>
+          </div>
+          <Button
+            onClick={generateInsights}
+            disabled={isAnalyzing}
+            variant="outline"
+            className="border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20"
+          >
+            {isAnalyzing ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Retrying...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Retry Analysis
+              </>
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
   // No metadata - show generate button
   if (!metadata) {
     return (
@@ -216,6 +300,15 @@ export function StoryInsights({ storyId, storyText }: StoryInsightsProps) {
                 {metadata.life_domain}
               </Badge>
             </div>
+            {/* Key life moment badge for high significance stories */}
+            {metadata.significance_score > 0.7 && (
+              <div className="flex items-center space-x-2">
+                <Star className="w-4 h-4 text-amber-500" />
+                <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                  Key life moment
+                </Badge>
+              </div>
+            )}
           </div>
 
           {/* Themes */}
