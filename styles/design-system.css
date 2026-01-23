@@ -10,6 +10,10 @@
    ============================================ */
 
 :root {
+  /* === Typography === */
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
   /* === Void Colors (Background Depths) === */
   --void-deep: 233 10% 4%;
   --void-medium: 233 10% 8%;
@@ -719,4 +723,141 @@
   transition-property: all;
   transition-duration: var(--duration-normal);
   transition-timing-function: var(--ease-out-expo);
+}
+
+/* ============================================
+   SECTION 21: Typography Classes
+   ============================================ */
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-body {
+  font-family: var(--font-body);
+}
+
+/* Display heading styles - for hero titles and major headings */
+.heading-display {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.heading-display-lg {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+/* Section headings - less prominent than hero */
+.heading-section {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+/* ============================================
+   SECTION 22: Refined Hover States (Shadows over Glows)
+   ============================================ */
+
+.hover-shadow-subtle {
+  transition: box-shadow var(--duration-normal) var(--ease-out-expo),
+              transform var(--duration-normal) var(--ease-out-expo);
+}
+
+.hover-shadow-subtle:hover {
+  box-shadow: 0 8px 30px hsl(0 0% 0% / 0.12);
+  transform: translateY(-2px);
+}
+
+.dark .hover-shadow-subtle:hover {
+  box-shadow: 0 8px 30px hsl(0 0% 0% / 0.4);
+}
+
+/* Card with emotional tone border */
+.card-tone {
+  background: hsl(var(--void-surface));
+  border: 1px solid hsl(var(--memory-500) / 0.1);
+  border-left-width: 3px;
+  transition: box-shadow var(--duration-normal) var(--ease-out-expo),
+              transform var(--duration-normal) var(--ease-out-expo);
+}
+
+.card-tone:hover {
+  box-shadow: var(--elevation-lg);
+  transform: translateY(-2px);
+}
+
+/* Tone border colors */
+.card-tone-reflective { border-left-color: hsl(var(--tone-reflective)); }
+.card-tone-joyful { border-left-color: hsl(var(--tone-joyful)); }
+.card-tone-anxious { border-left-color: hsl(var(--tone-anxious)); }
+.card-tone-hopeful { border-left-color: hsl(var(--tone-hopeful)); }
+.card-tone-melancholic { border-left-color: hsl(var(--tone-melancholic)); }
+.card-tone-grateful { border-left-color: hsl(var(--tone-grateful)); }
+.card-tone-frustrated { border-left-color: hsl(var(--tone-frustrated)); }
+.card-tone-peaceful { border-left-color: hsl(var(--tone-peaceful)); }
+.card-tone-excited { border-left-color: hsl(var(--tone-excited)); }
+.card-tone-uncertain { border-left-color: hsl(var(--tone-uncertain)); }
+.card-tone-neutral { border-left-color: hsl(var(--tone-neutral)); }
+
+/* ============================================
+   SECTION 23: Solid Button Variants (No Gradients)
+   ============================================ */
+
+.btn-solid-memory {
+  background: hsl(var(--memory-600));
+  color: white;
+  transition: background-color var(--duration-fast) var(--ease-out-expo);
+}
+
+.btn-solid-memory:hover {
+  background: hsl(var(--memory-500));
+}
+
+.btn-solid-insight {
+  background: hsl(var(--insight-600));
+  color: white;
+  transition: background-color var(--duration-fast) var(--ease-out-expo);
+}
+
+.btn-solid-insight:hover {
+  background: hsl(var(--insight-500));
+}
+
+.btn-solid-story {
+  background: hsl(var(--story-600));
+  color: white;
+  transition: background-color var(--duration-fast) var(--ease-out-expo);
+}
+
+.btn-solid-story:hover {
+  background: hsl(var(--story-500));
+}
+
+.btn-solid-growth {
+  background: hsl(var(--growth-600));
+  color: white;
+  transition: background-color var(--duration-fast) var(--ease-out-expo);
+}
+
+.btn-solid-growth:hover {
+  background: hsl(var(--growth-500));
+}
+
+/* ============================================
+   SECTION 24: Badge Refinements
+   ============================================ */
+
+.badge-subtle {
+  background: hsl(var(--void-light));
+  border: 1px solid hsl(var(--memory-500) / 0.15);
+  color: hsl(var(--memory-400));
+  font-size: 0.75rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
 }

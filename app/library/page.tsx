@@ -11,6 +11,7 @@ import { useStoryNFT } from "../hooks/useStoryNFT";
 import { usePatterns } from "../hooks/usePatterns";
 import { supabaseClient } from "../utils/supabase/supabaseClient";
 import { ipfsService } from "../utils/ipfsService";
+import { useBackgroundMode } from "@/contexts/BackgroundContext";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -90,6 +91,9 @@ export default function LibraryPage() {
   const authInfo = useAuth();
   const supabase = supabaseClient;
   const router = useRouter();
+
+  // Set background mode for this page
+  useBackgroundMode('library');
 
   // Blockchain Hook
   const { mintBook, isPending: isMinting } = useStoryNFT();

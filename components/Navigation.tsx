@@ -52,11 +52,11 @@ export function Navigation() {
           <Link href="/" className="flex items-center space-x-2 flex-shrink-0">
             <motion.div
               whileHover={{ scale: 1.05 }}
-              className="w-8 h-8 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg flex items-center justify-center"
+              className="w-8 h-8 bg-gradient-to-r from-[hsl(var(--memory-600))] to-[hsl(var(--insight-600))] rounded-lg flex items-center justify-center"
             >
               <BookOpen className="w-5 h-5 text-white" />
             </motion.div>
-            <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+            <span className="text-xl font-bold text-gradient-memory">
               IStory
             </span>
           </Link>
@@ -72,8 +72,8 @@ export function Navigation() {
                   href={item.href}
                   className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all ${
                     isActive
-                      ? "bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-300"
-                      : "text-gray-600 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400"
+                      ? "bg-[hsl(var(--memory-100))] dark:bg-[hsl(var(--memory-900)/0.3)] text-[hsl(var(--memory-600))] dark:text-[hsl(var(--memory-400))]"
+                      : "text-gray-600 dark:text-gray-300 hover:text-[hsl(var(--memory-500))] dark:hover:text-[hsl(var(--memory-400))]"
                   }`}
                 >
                   <Icon className="w-4 h-4" />
@@ -88,11 +88,11 @@ export function Navigation() {
             {/* Token Balance */}
             {isClient && user && (
               <div
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 rounded-full"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-[hsl(var(--growth-100))] dark:bg-[hsl(var(--growth-900)/0.3)] rounded-full"
                 suppressHydrationWarning
               >
-                <Coins className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                <span className="text-xs lg:text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+                <Coins className="w-4 h-4 text-[hsl(var(--growth-600))] dark:text-[hsl(var(--growth-400))]" />
+                <span className="text-xs lg:text-sm font-semibold text-[hsl(var(--growth-600))] dark:text-[hsl(var(--growth-400))]">
                   {user.storyTokens}
                 </span>
               </div>
@@ -129,8 +129,8 @@ export function Navigation() {
                 href={item.href}
                 className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-colors ${
                   isActive
-                    ? "bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-300"
-                    : "text-gray-600 dark:text-gray-300"
+                    ? "bg-[hsl(var(--memory-100))] dark:bg-[hsl(var(--memory-900)/0.3)] text-[hsl(var(--memory-600))] dark:text-[hsl(var(--memory-400))]"
+                    : "text-gray-600 dark:text-gray-300 hover:text-[hsl(var(--memory-500))]"
                 }`}
               >
                 <Icon className="w-5 h-5" />

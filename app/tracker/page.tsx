@@ -25,7 +25,8 @@ import { useAuth } from "../../components/AuthProvider";
 import { supabaseClient } from "../utils/supabase/supabaseClient";
 
 // FIX: Hooks are Siblings in App folder (Up 1 level: tasks -> app -> hooks)
-import { useStoryNFT } from "../hooks/useStoryNFT"; 
+import { useStoryNFT } from "../hooks/useStoryNFT";
+import { useBackgroundMode } from "@/contexts/BackgroundContext"; 
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -44,7 +45,10 @@ const MOODS = [
 export default function TasksPage() {
   const authInfo = useAuth();
   const supabase = supabaseClient;
-  
+
+  // Set background mode for this page
+  useBackgroundMode('tracker');
+
   // Data State
   const [habits, setHabits] = useState<any[]>([]);
   const [dailyLog, setDailyLog] = useState<any>(null);

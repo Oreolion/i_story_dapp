@@ -8,6 +8,7 @@ import { RainbowKitProvider, darkTheme } from "@rainbow-me/rainbowkit"; // Rainb
 import { config } from "@/lib/wagmi.config";
 import { useAccount, useBalance } from "wagmi";
 import { AuthProvider } from "./AuthProvider";
+import { BackgroundProvider } from "@/contexts/BackgroundContext";
 // import { useReadContract } from 'wagmi'; // Uncomment later
 // import { iStoryTokenABI } from '@/lib/abis/iStoryToken.json';
 const queryClient = new QueryClient();
@@ -72,12 +73,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider theme={darkTheme()}>
-          {" "}
-          {/* RainbowKit wraps app */}
-          <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-            <AuthProvider>
-              <AppInner>{children}</AppInner>
-            </AuthProvider>
+          <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+            <BackgroundProvider>
+              <AuthProvider>
+                <AppInner>{children}</AppInner>
+              </AuthProvider>
+            </BackgroundProvider>
           </ThemeProvider>
         </RainbowKitProvider>
       </QueryClientProvider>

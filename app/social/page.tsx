@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "../../components/Provider";
 import { useAuth } from "../../components/AuthProvider";
+import { useBackgroundMode } from "@/contexts/BackgroundContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -80,6 +81,9 @@ const featuredWriters: FeaturedWriterType[] = [
 export default function SocialPage() {
   const { isConnected } = useApp();
   const { address } = useAccount();
+
+  // Set background mode for this page
+  useBackgroundMode('social');
 
   // State
   const [stories, setStories] = useState<StoryDataType[]>([]);

@@ -243,7 +243,7 @@ export function Footer() {
               variants={itemVariants}
               className="text-sm text-gray-600 dark:text-gray-400"
             >
-              © 2025 IStory. All rights reserved. Built with{" "}
+              © 2026 IStory. All rights reserved. Built with{" "}
               <Heart className="w-4 h-4 inline text-red-500 animate-pulse" /> by
               the{" "}
               <span className="font-semibold text-purple-600 dark:text-purple-400">
@@ -260,9 +260,7 @@ export function Footer() {
                 <Zap className="w-3 h-3" />
                 <span>Web3</span>
               </span>
-              <span className="inline-flex items-center space-x-1 px-3 py-1 rounded-full bg-indigo-100/50 dark:bg-indigo-900/30">
-                <span>Next.js</span>
-              </span>
+              
               <span className="inline-flex items-center space-x-1 px-3 py-1 rounded-full bg-emerald-100/50 dark:bg-emerald-900/30">
                 <span>Blockchain</span>
               </span>

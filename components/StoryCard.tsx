@@ -10,9 +10,8 @@ import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import iStoryTokenABI from "@/lib/abis/iStoryToken.json";
 import { parseEther } from "viem";
 import Image from "next/image";
-// Updated imports to include Calendar, Globe, Lock
-import {  Heart, MessageCircle, Share2, Calendar, Globe, Lock } from "lucide-react";
-import { StoryDataType } from "@/app/types";
+import { Heart, MessageCircle, Share2, Calendar, Globe, Lock, Star, Headphones } from "lucide-react";
+import { StoryDataType, EmotionalTone } from "@/app/types";
 
 interface StoryCardProps {
   story: StoryDataType;
@@ -20,10 +19,29 @@ interface StoryCardProps {
   onFollow?: (username: string) => void;
   onShare?: (id: number) => void;
   onUnlock?: (id: number) => void;
+  variant?: 'default' | 'compact' | 'featured';
 }
 
-const ISTORY_TOKEN_ADDRESS = "0xYouriStoryTokenAddress"; // Update after deploy
-const DEFAULT_AVATAR = "https://placehold.co/48x48/6366f1/ffffff?text=U"; // Using a simple placeholder URL
+const ISTORY_TOKEN_ADDRESS = "0xYouriStoryTokenAddress";
+const DEFAULT_AVATAR = "https://placehold.co/48x48/6366f1/ffffff?text=U";
+
+// Map emotional tone to CSS class for left border color
+const getToneClass = (tone?: EmotionalTone | string): string => {
+  const toneMap: Record<string, string> = {
+    reflective: 'card-tone-reflective',
+    joyful: 'card-tone-joyful',
+    anxious: 'card-tone-anxious',
+    hopeful: 'card-tone-hopeful',
+    melancholic: 'card-tone-melancholic',
+    grateful: 'card-tone-grateful',
+    frustrated: 'card-tone-frustrated',
+    peaceful: 'card-tone-peaceful',
+    excited: 'card-tone-excited',
+    uncertain: 'card-tone-uncertain',
+    neutral: 'card-tone-neutral',
+  };
+  return tone ? toneMap[tone] || '' : '';
+};
 
 export function StoryCard({
   story,
@@ -31,6 +49,7 @@ export function StoryCard({
   onFollow,
   onShare,
   onUnlock,
+  variant = 'default',
 }: StoryCardProps) {
   const [tipAmount, setTipAmount] = useState(5);
   const [isPaying, setIsPaying] = useState(false);
@@ -77,34 +96,78 @@ export function StoryCard({
     });
   };
 
-  // Helper to format the memory date nicely
   const formatDate = (dateString: string) => {
     try {
       return new Date(dateString).toLocaleDateString(undefined, {
-        year: 'numeric', 
-        month: 'short', 
+        year: 'numeric',
+        month: 'short',
         day: 'numeric'
       });
-    } catch (e) {
+    } catch {
       return dateString;
     }
   };
 
   const isLocked = story.paywallAmount > 0 && !story.isPaid;
+  const metadata = (story as any).metadata;
+  const emotionalTone = metadata?.emotional_tone;
+  const isCanonical = metadata?.is_canonical;
+  const hasAudio = (story as any).has_audio || story.hasAudio;
 
+  // Build card classes based on story properties
+  const cardClasses = [
+    'rounded-xl overflow-hidden transition-all duration-200',
+    emotionalTone ? `card-tone ${getToneClass(emotionalTone)}` : 'card-elevated',
+    isCanonical ? 'card-canonical ring-1 ring-[hsl(var(--story-500)/0.3)]' : '',
+    'hover-shadow-subtle',
+  ].filter(Boolean).join(' ');
+
+  // Compact variant for library/grid views
+  if (variant === 'compact') {
+    return (
+      <Card className={cardClasses}>
+        <CardContent className="p-4 space-y-3">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="font-semibold text-foreground line-clamp-2">
+              {story.title}
+            </h3>
+            {isCanonical && (
+              <Star className="w-4 h-4 text-[hsl(var(--story-500))] flex-shrink-0" fill="currentColor" />
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground line-clamp-2">
+            {isLocked ? (story.teaser || "Premium content") : story.content}
+          </p>
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <Calendar className="w-3 h-3" />
+              {(story as any).story_date ? formatDate((story as any).story_date) : story.timestamp}
+            </div>
+            <div className="flex items-center gap-3">
+              {hasAudio && <Headphones className="w-3 h-3 text-[hsl(var(--memory-500))]" />}
+              <span className="flex items-center gap-1">
+                <Heart className="w-3 h-3" /> {story.likes}
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Default full card
   return (
-    <Card className="card-elevated hover-glow-memory rounded-xl">
-      <CardHeader>
-        {/* author_wallet Header */}
+    <Card className={cardClasses}>
+      <CardHeader className="pb-3">
+        {/* Author Header */}
         <div className="flex items-start justify-between">
           <div className="flex items-start space-x-3">
-            <Avatar className="w-12 h-12">
-              {/* Ensure image src exists, falling back to DEFAULT_AVATAR */}
+            <Avatar className="w-11 h-11">
               <Image
                 src={story.author_wallet?.avatar || DEFAULT_AVATAR}
                 alt={story.author_wallet?.name || "avatar"}
-                height={48}
-                width={48}
+                height={44}
+                width={44}
                 unoptimized
               />
               <AvatarFallback>
@@ -115,137 +178,162 @@ export function StoryCard({
               </AvatarFallback>
             </Avatar>
             <div className="space-y-1">
-              <div className="flex items-center space-x-2">
-                <span className="font-semibold text-gray-900 dark:text-white">
+              <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
+                <span className="font-semibold text-foreground">
                   {story.author_wallet?.name}
                 </span>
-                <span className="text-sm text-gray-500">
+                <span className="text-sm text-muted-foreground">
                   @{story.author_wallet?.username}
                 </span>
-                <div className="flex space-x-1">
-                  {story.author_wallet?.badges?.map((badge) => (
-                    <Badge key={badge}>{badge}</Badge>
-                  ))}
-                </div>
+                {story.author_wallet?.badges?.map((badge) => (
+                  <Badge key={badge} variant="secondary" className="badge-subtle text-xs">
+                    {badge}
+                  </Badge>
+                ))}
               </div>
 
-              {/* UPDATED METADATA ROW: Date & Visibility */}
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500">
-                {/* 1. Memory Date */}
+              {/* Metadata row */}
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
                 <div className="flex items-center" title="Date of Memory">
                   <Calendar className="w-3.5 h-3.5 mr-1" />
-                  {/* Prefer story_date (backdated), fallback to timestamp */}
-                  {/* Note: Ensure story.story_date is available in your Type definition */}
                   {(story as any).story_date ? formatDate((story as any).story_date) : story.timestamp}
                 </div>
 
-                {/* 2. Visibility Status */}
-                <div className="flex items-center" title={(story as any).is_public ? "Visible to everyone" : "Only visible to you"}>
-                   {(story as any).is_public ? (
-                      <>
-                        <Globe className="w-3.5 h-3.5 mr-1 text-[hsl(var(--growth-500))]" />
-                        <span className="text-xs text-[hsl(var(--growth-600))] font-medium">Public</span>
-                      </>
-                   ) : (
-                      <>
-                        <Lock className="w-3.5 h-3.5 mr-1 text-[hsl(var(--story-500))]" />
-                        <span className="text-xs text-[hsl(var(--story-600))] font-medium">Private</span>
-                      </>
-                   )}
+                <div className="flex items-center" title={(story as any).is_public ? "Public" : "Private"}>
+                  {(story as any).is_public ? (
+                    <>
+                      <Globe className="w-3.5 h-3.5 mr-1 text-[hsl(var(--growth-500))]" />
+                      <span className="text-xs text-[hsl(var(--growth-600))]">Public</span>
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="w-3.5 h-3.5 mr-1 text-[hsl(var(--story-500))]" />
+                      <span className="text-xs text-[hsl(var(--story-600))]">Private</span>
+                    </>
+                  )}
                 </div>
 
-                {/* 3. Followers */}
-                <div className="hidden sm:block text-gray-400">•</div>
-                <div>{story.author_wallet?.followers} followers</div>
-              </div>
+                {hasAudio && (
+                  <div className="flex items-center" title="Has audio">
+                    <Headphones className="w-3.5 h-3.5 mr-1 text-[hsl(var(--memory-500))]" />
+                    <span className="text-xs text-[hsl(var(--memory-500))]">Audio</span>
+                  </div>
+                )}
 
+                <span className="text-muted-foreground">{story.author_wallet?.followers} followers</span>
+              </div>
             </div>
           </div>
           <Button
             size="sm"
-            variant={story.author_wallet?.isFollowing ? "secondary" : "default"}
+            variant={story.author_wallet?.isFollowing ? "secondary" : "outline"}
             onClick={() => onFollow?.(story.author_wallet?.username)}
+            className="text-sm"
           >
             {story.author_wallet?.isFollowing ? "Following" : "Follow"}
           </Button>
         </div>
       </CardHeader>
+
       <CardContent className="space-y-4">
-        <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-          {story.title}
-        </h3>
+        {/* Title with canonical indicator */}
+        <div className="flex items-start gap-2">
+          <h3 className="text-xl font-semibold text-foreground flex-1">
+            {story.title}
+          </h3>
+          {isCanonical && (
+            <div className="flex items-center gap-1 text-[hsl(var(--story-500))]" title="Key Moment">
+              <Star className="w-4 h-4" fill="currentColor" />
+            </div>
+          )}
+        </div>
+
+        {/* Content or Paywall */}
         {isLocked ? (
-          <div className="p-4 bg-[hsl(var(--story-500)/0.1)] dark:bg-[hsl(var(--story-500)/0.15)] rounded-lg border border-[hsl(var(--story-500)/0.2)]">
-            <p className="text-gray-600 dark:text-gray-300 mb-2">
-              {story.teaser || "🔒 Premium content locked behind paywall"}
+          <div className="p-4 bg-[hsl(var(--story-500)/0.08)] rounded-lg border border-[hsl(var(--story-500)/0.15)]">
+            <p className="text-muted-foreground mb-3">
+              {story.teaser || "Premium content locked behind paywall"}
             </p>
             <Button
               onClick={handlePaywall}
               disabled={isPaying}
-              className="bg-gradient-to-r from-[hsl(var(--memory-600))] to-[hsl(var(--insight-600))] hover:from-[hsl(var(--memory-700))] hover:to-[hsl(var(--insight-700))]"
+              size="sm"
+              className="btn-solid-story"
             >
-              {isPaying
-                ? "Paying..."
-                : `Pay ${story.paywallAmount} $ISTORY to Unlock`}
+              {isPaying ? "Processing..." : `Unlock for ${story.paywallAmount} $STORY`}
             </Button>
           </div>
         ) : (
-          <p className="text-gray-600 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
+          <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
             {story.content}
           </p>
         )}
-        <div className="flex flex-wrap gap-2">
-          {story.tags?.map((tag) => (
-            <Badge key={tag} variant="outline">
-              #{tag}
-            </Badge>
-          ))}
-        </div>
-        <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
-          <div className="flex items-center space-x-6">
+
+        {/* Tags */}
+        {story.tags && story.tags.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {story.tags.map((tag) => (
+              <Badge key={tag} variant="outline" className="text-xs">
+                #{tag}
+              </Badge>
+            ))}
+          </div>
+        )}
+
+        {/* Emotional tone & insights preview (if metadata exists) */}
+        {metadata?.brief_insight && (
+          <div className="p-3 bg-[hsl(var(--insight-500)/0.05)] rounded-lg border border-[hsl(var(--insight-500)/0.1)]">
+            <p className="text-sm text-[hsl(var(--insight-600))] dark:text-[hsl(var(--insight-400))] italic">
+              {metadata.brief_insight}
+            </p>
+          </div>
+        )}
+
+        {/* Actions Footer */}
+        <div className="flex items-center justify-between pt-4 border-t border-[hsl(var(--memory-500)/0.1)]">
+          <div className="flex items-center gap-1">
             <Button
               size="sm"
               variant="ghost"
               onClick={() => onLike?.(story.id)}
-              className={story.isLiked ? "text-red-500" : ""}
+              className={`hover:bg-transparent ${story.isLiked ? "text-red-500" : "text-muted-foreground hover:text-foreground"}`}
             >
-              <Heart
-                className={`w-4 h-4 mr-1 ${
-                  story.isLiked ? "fill-current" : ""
-                }`}
-              />
+              <Heart className={`w-4 h-4 mr-1 ${story.isLiked ? "fill-current" : ""}`} />
               {story.likes}
             </Button>
-            <Button size="sm" variant="ghost">
+            <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-foreground hover:bg-transparent">
               <MessageCircle className="w-4 h-4 mr-1" />
-              {/* {story.comments} */}
             </Button>
             <Button
               size="sm"
               variant="ghost"
               onClick={() => onShare?.(story.id)}
+              className="text-muted-foreground hover:text-foreground hover:bg-transparent"
             >
               <Share2 className="w-4 h-4 mr-1" />
               {story.shares}
             </Button>
           </div>
-          <div className="flex space-x-2">
+
+          {/* Tipping */}
+          <div className="flex items-center gap-2">
             <Button
               size="sm"
               variant="ghost"
               onClick={handleTip}
               disabled={isTipping}
+              className="text-[hsl(var(--story-500))] hover:text-[hsl(var(--story-400))] hover:bg-[hsl(var(--story-500)/0.1)]"
             >
-              {isTipping ? "Tipping..." : `Tip ${tipAmount} $ISTORY`}
+              {isTipping ? "Tipping..." : `Tip ${tipAmount}`}
             </Button>
             <input
-              title="tiprange"
+              title="Tip amount"
               type="range"
               min="1"
               max="50"
               value={tipAmount}
               onChange={(e) => setTipAmount(Number(e.target.value))}
-              className="w-20 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer self-center"
+              className="w-16 h-1.5 bg-[hsl(var(--void-light))] rounded-lg appearance-none cursor-pointer"
             />
           </div>
         </div>

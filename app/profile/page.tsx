@@ -7,10 +7,11 @@ import { toast } from "react-hot-toast";
 
 import { useApp } from "../../components/Provider";
 import { useAuth } from "../../components/AuthProvider";
-import { emailService } from "../utils/emailService"; 
+import { emailService } from "../utils/emailService";
 import { useStoryNFT } from "../hooks/useStoryNFT";
 import { supabaseClient } from "../utils/supabase/supabaseClient";
 import { ipfsService } from "../utils/ipfsService";
+import { useBackgroundMode } from "@/contexts/BackgroundContext";
 
 import {
   Card,
@@ -89,7 +90,10 @@ export default function ProfilePage() {
   const { address } = useAccount();
   const authInfo = useAuth();
   const supabase = supabaseClient;
-  
+
+  // Set background mode for this page
+  useBackgroundMode('profile');
+
   const { mintBook, isPending: isMinting } = useStoryNFT();
 
   // Data State

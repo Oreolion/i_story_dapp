@@ -9,6 +9,7 @@ import { useApp } from "../../components/Provider";
 import { useAuth } from "../../components/AuthProvider";
 import { supabaseClient } from "../../app/utils/supabase/supabaseClient";
 import { ipfsService } from "../../app/utils/ipfsService";
+import { useBackgroundMode } from "@/contexts/BackgroundContext";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -45,6 +46,9 @@ import {
 export default function RecordPage() {
   const { isConnected } = useApp();
   const authInfo = useAuth();
+
+  // Set background mode for this page
+  useBackgroundMode('record');
 
   // State Management
   const [isRecording, setIsRecording] = useState(false);

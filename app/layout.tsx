@@ -6,6 +6,7 @@ import { ProvidersDynamic } from "../components/ProvidersDynamic";
 import { Navigation } from "../components/Navigation";
 import { Footer } from "../components/Footer";
 import { Toaster } from "react-hot-toast";
+import { GlobalBackgroundDynamic } from "../components/three/GlobalBackgroundDynamic";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -33,9 +34,12 @@ export default async function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <ProvidersDynamic>
-          <div className="min-h-screen flex flex-col bg-gradient-to-br from-purple-50 via-white to-indigo-50 dark:from-gray-900 dark:via-purple-900 dark:to-indigo-900">
+          {/* 3D Background - renders behind all content */}
+          <GlobalBackgroundDynamic />
+
+          <div className="relative min-h-screen flex flex-col">
             <Navigation />
-            <main className="container mx-auto px-4 py-8 flex-1">
+            <main className="container mx-auto px-4 py-8 flex-1 relative z-10">
               {children}
             </main>
             <Footer />
