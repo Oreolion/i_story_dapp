@@ -354,8 +354,8 @@ export default function LibraryPage() {
   if (!isConnected) {
     return (
       <div className="text-center space-y-8 py-16">
-        <div className="w-24 h-24 mx-auto bg-gradient-to-r from-purple-100 to-indigo-100 dark:from-purple-900 dark:to-indigo-900 rounded-full flex items-center justify-center">
-          <Archive className="w-12 h-12 text-purple-600" />
+        <div className="w-24 h-24 mx-auto bg-[hsl(var(--memory-500)/0.15)] rounded-full flex items-center justify-center">
+          <Archive className="w-12 h-12 text-[hsl(var(--memory-500))]" />
         </div>
         <div className="space-y-4">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
@@ -375,12 +375,12 @@ export default function LibraryPage() {
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
-          className="w-16 h-16 mx-auto bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center"
+          className="w-16 h-16 mx-auto bg-gradient-to-r from-[hsl(var(--memory-600))] to-[hsl(var(--insight-600))] rounded-full flex items-center justify-center shadow-lg"
         >
           <Archive className="w-8 h-8 text-white" />
         </motion.div>
         <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
-          Your Archive
+          Your <span className="text-gradient-memory">Archive</span>
         </h1>
         <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
           All your journal entries, patterns, and compiled books
@@ -415,6 +415,12 @@ export default function LibraryPage() {
           },
         ].map((stat, index) => {
           const Icon = stat.icon;
+          const iconColors = [
+            'text-[hsl(var(--memory-500))]',
+            'text-[hsl(var(--story-500))]',
+            'text-[hsl(var(--insight-500))]',
+            'text-[hsl(var(--growth-500))]',
+          ];
           return (
             <motion.div
               key={stat.label}
@@ -422,9 +428,9 @@ export default function LibraryPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
             >
-              <Card className="text-center bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border-0 shadow-lg">
+              <Card className="card-elevated text-center rounded-xl">
                 <CardContent className="pt-6">
-                  <Icon className="w-6 h-6 mx-auto mb-2 text-purple-600" />
+                  <Icon className={`w-6 h-6 mx-auto mb-2 ${iconColors[index]}`} />
                   <div className="text-xl font-bold text-gray-900 dark:text-white">
                     {stat.value}
                   </div>
@@ -439,7 +445,7 @@ export default function LibraryPage() {
       </div>
 
       {/* Search Bar */}
-      <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-0 shadow-lg">
+      <Card className="card-elevated rounded-xl">
         <CardContent className="pt-6">
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -482,7 +488,7 @@ export default function LibraryPage() {
         <TabsContent value="all">
           {isLoading ? (
             <div className="flex items-center justify-center min-h-[40vh]">
-              <Loader2 className="w-12 h-12 animate-spin text-purple-600" />
+              <Loader2 className="w-12 h-12 animate-spin text-[hsl(var(--memory-500))]" />
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -509,12 +515,12 @@ export default function LibraryPage() {
         <TabsContent value="key">
           {patternsLoading ? (
             <div className="flex items-center justify-center min-h-[40vh]">
-              <Loader2 className="w-12 h-12 animate-spin text-purple-600" />
+              <Loader2 className="w-12 h-12 animate-spin text-[hsl(var(--memory-500))]" />
             </div>
           ) : canonicalStories.length === 0 ? (
-            <Card className="bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20 border-0 shadow-lg">
+            <Card className="card-canonical rounded-xl bg-[hsl(var(--story-500)/0.05)]">
               <CardContent className="py-12 text-center space-y-4">
-                <div className="w-16 h-16 mx-auto bg-gradient-to-r from-amber-400 to-yellow-500 rounded-full flex items-center justify-center">
+                <div className="w-16 h-16 mx-auto bg-gradient-story rounded-full flex items-center justify-center">
                   <Star className="w-8 h-8 text-white" />
                 </div>
                 <div>
@@ -561,7 +567,7 @@ export default function LibraryPage() {
         <TabsContent value="recent">
           {isLoading ? (
             <div className="flex items-center justify-center min-h-[40vh]">
-              <Loader2 className="w-12 h-12 animate-spin text-purple-600" />
+              <Loader2 className="w-12 h-12 animate-spin text-[hsl(var(--memory-500))]" />
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -580,10 +586,10 @@ export default function LibraryPage() {
             </div>
           )}
           {!isLoading && recentEntries.length === 0 && (
-            <Card className="bg-gradient-to-br from-gray-50 to-slate-50 dark:from-gray-800/50 dark:to-slate-800/50 border-0 shadow-lg">
+            <Card className="card-elevated rounded-xl">
               <CardContent className="py-12 text-center space-y-4">
-                <div className="w-16 h-16 mx-auto bg-gradient-to-r from-gray-400 to-slate-500 rounded-full flex items-center justify-center">
-                  <Calendar className="w-8 h-8 text-white" />
+                <div className="w-16 h-16 mx-auto bg-[hsl(var(--void-light))] rounded-full flex items-center justify-center">
+                  <Calendar className="w-8 h-8 text-gray-400" />
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -595,7 +601,7 @@ export default function LibraryPage() {
                 </div>
                 <Button
                   onClick={() => router.push("/record")}
-                  className="bg-gradient-to-r from-purple-600 to-indigo-600"
+                  className="bg-gradient-to-r from-[hsl(var(--memory-600))] to-[hsl(var(--insight-600))] hover:from-[hsl(var(--memory-500))] hover:to-[hsl(var(--insight-500))]"
                 >
                   Record a Story
                 </Button>
@@ -606,7 +612,7 @@ export default function LibraryPage() {
       </Tabs>
 
       {/* Quick Actions */}
-      <Card className="bg-gradient-to-r from-purple-500/10 to-indigo-500/10 border-purple-200 dark:border-purple-800">
+      <Card className="card-elevated bg-[hsl(var(--memory-500)/0.05)] border-[hsl(var(--memory-500)/0.2)]">
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
             <div>
@@ -624,13 +630,13 @@ export default function LibraryPage() {
                   <Button
                     variant="outline"
                     onClick={handleCancelCompile}
-                    className="border-red-200 text-red-600 hover:bg-red-50"
+                    className="border-red-200 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
                   >
                     <X className="w-4 h-4 mr-2" /> Cancel
                   </Button>
                   <Button
                     onClick={handleOpenBookDialog}
-                    className="bg-gradient-to-r from-purple-600 to-indigo-600"
+                    className="bg-gradient-to-r from-[hsl(var(--memory-600))] to-[hsl(var(--insight-600))] hover:from-[hsl(var(--memory-500))] hover:to-[hsl(var(--insight-500))]"
                     disabled={selectedStoryIds.size < 2}
                   >
                     <Sparkles className="w-4 h-4 mr-2" />
@@ -642,13 +648,13 @@ export default function LibraryPage() {
                   <Button
                     onClick={handleStartCompile}
                     variant="outline"
-                    className="border-purple-200 text-purple-700 hover:bg-purple-50"
+                    className="border-[hsl(var(--memory-500)/0.3)] text-[hsl(var(--memory-600))] dark:text-[hsl(var(--memory-400))] hover:bg-[hsl(var(--memory-500)/0.1)]"
                   >
                     <Sparkles className="w-4 h-4 mr-2" />
                     Compile Book
                   </Button>
                   <Button
-                    className="bg-gradient-to-r from-emerald-600 to-teal-600"
+                    className="bg-gradient-to-r from-[hsl(var(--growth-600))] to-[hsl(var(--growth-500))] hover:from-[hsl(var(--growth-500))] hover:to-[hsl(var(--growth-400))]"
                     onClick={() => router.push("/record")}
                   >
                     <Plus className="w-4 h-4 mr-2" /> New Entry
@@ -700,7 +706,7 @@ export default function LibraryPage() {
             <Button
               onClick={handleCreateBook}
               disabled={isSavingBook || isMinting}
-              className="bg-gradient-to-r from-purple-600 to-indigo-600"
+              className="bg-gradient-to-r from-[hsl(var(--memory-600))] to-[hsl(var(--insight-600))] hover:from-[hsl(var(--memory-500))] hover:to-[hsl(var(--insight-500))]"
             >
               {isSavingBook || isMinting ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -739,16 +745,16 @@ function StoryCard({
       layout
     >
       <Card
-        className={`h-full border-0 shadow-lg transition-all duration-300 relative overflow-hidden group
+        className={`h-full card-elevated transition-all duration-300 relative overflow-hidden group
           ${
             isCompiling && entry.type === "entry"
-              ? "cursor-pointer hover:ring-2 hover:ring-purple-500"
-              : "cursor-pointer hover:shadow-xl hover:scale-[1.01]"
+              ? "cursor-pointer hover:ring-2 hover:ring-[hsl(var(--memory-500))]"
+              : "cursor-pointer hover-glow-memory"
           }
           ${
             isSelected
-              ? "ring-2 ring-purple-600 bg-purple-50 dark:bg-purple-900/20"
-              : "bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm"
+              ? "ring-2 ring-[hsl(var(--memory-600))] bg-[hsl(var(--memory-500)/0.1)]"
+              : ""
           }
         `}
         onClick={onClick}
@@ -760,8 +766,8 @@ function StoryCard({
               className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors
               ${
                 isSelected
-                  ? "bg-purple-600 border-purple-600"
-                  : "border-gray-300 bg-white/80"
+                  ? "bg-[hsl(var(--memory-600))] border-[hsl(var(--memory-600))]"
+                  : "border-gray-300 bg-white/80 dark:bg-gray-800/80"
               }
             `}
             >
@@ -775,23 +781,23 @@ function StoryCard({
             <div className="space-y-2">
               <div className="flex items-center space-x-2">
                 {entry.type === "book" ? (
-                  <BookOpen className="w-5 h-5 text-indigo-600" />
+                  <BookOpen className="w-5 h-5 text-[hsl(var(--insight-500))]" />
                 ) : (
-                  <FileText className="w-5 h-5 text-purple-600" />
+                  <FileText className="w-5 h-5 text-[hsl(var(--memory-500))]" />
                 )}
                 {entry.type === "entry" && entry.has_audio && (
-                  <Volume2 className="w-4 h-4 text-emerald-600" />
+                  <Volume2 className="w-4 h-4 text-[hsl(var(--growth-500))]" />
                 )}
                 {entry.type === "book" && (
                   <Badge
                     variant="outline"
-                    className="bg-indigo-50 text-indigo-700 border-indigo-200"
+                    className="bg-[hsl(var(--insight-500)/0.1)] text-[hsl(var(--insight-600))] dark:text-[hsl(var(--insight-400))] border-[hsl(var(--insight-500)/0.3)]"
                   >
                     Collection
                   </Badge>
                 )}
               </div>
-              <CardTitle className="text-xl line-clamp-1 group-hover:text-purple-600 transition-colors">
+              <CardTitle className="text-xl line-clamp-1 group-hover:text-[hsl(var(--memory-500))] transition-colors">
                 {entry.title}
               </CardTitle>
             </div>
@@ -838,7 +844,7 @@ function StoryCard({
               </span>
             </div>
             {entry.type === "book" && (
-              <div className="flex items-center space-x-1 text-indigo-600">
+              <div className="flex items-center space-x-1 text-[hsl(var(--insight-500))]">
                 <FileText className="w-4 h-4" />
                 <span>{entry.story_ids.length} Stories</span>
               </div>
@@ -877,7 +883,7 @@ function StoryCard({
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-8 text-indigo-600"
+                    className="h-8 text-[hsl(var(--insight-500))]"
                   >
                     <Download className="w-4 h-4" />
                   </Button>
@@ -910,19 +916,19 @@ function CanonicalStoryCard({
       layout
     >
       <Card
-        className="h-full border-0 shadow-lg transition-all duration-300 cursor-pointer hover:shadow-xl hover:scale-[1.01] bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20"
+        className="h-full card-canonical transition-all duration-300 cursor-pointer hover-glow-canonical bg-[hsl(var(--story-500)/0.05)]"
         onClick={onClick}
       >
         <CardHeader>
           <div className="flex items-start justify-between">
             <div className="space-y-2">
               <div className="flex items-center space-x-2">
-                <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
-                <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                <Star className="w-5 h-5 text-[hsl(var(--story-500))] fill-[hsl(var(--story-500))]" />
+                <Badge className="bg-[hsl(var(--story-500)/0.15)] text-[hsl(var(--story-600))] dark:text-[hsl(var(--story-400))] border border-[hsl(var(--story-500)/0.3)]">
                   Key Moment
                 </Badge>
               </div>
-              <CardTitle className="text-xl line-clamp-1 group-hover:text-purple-600 transition-colors">
+              <CardTitle className="text-xl line-clamp-1 group-hover:text-[hsl(var(--story-500))] transition-colors">
                 {story.title}
               </CardTitle>
             </div>
@@ -958,7 +964,7 @@ function CanonicalStoryCard({
                 <Badge
                   key={theme}
                   variant="secondary"
-                  className="bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-300"
+                  className="bg-[hsl(var(--insight-500)/0.1)] text-[hsl(var(--insight-600))] dark:text-[hsl(var(--insight-400))]"
                 >
                   {theme}
                 </Badge>
@@ -967,7 +973,7 @@ function CanonicalStoryCard({
           )}
 
           {story.story_metadata?.brief_insight && (
-            <div className="p-3 bg-white/60 dark:bg-gray-800/60 rounded-lg">
+            <div className="p-3 bg-[hsl(var(--void-surface))] rounded-lg">
               <p className="text-sm text-gray-600 dark:text-gray-400 italic">
                 "{story.story_metadata.brief_insight}"
               </p>
@@ -984,7 +990,7 @@ function EmptyState({ searchQuery }: { searchQuery: string }) {
   const router = useRouter();
   return (
     <div className="text-center py-16 space-y-4">
-      <div className="w-24 h-24 mx-auto bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 rounded-full flex items-center justify-center">
+      <div className="w-24 h-24 mx-auto bg-[hsl(var(--void-light))] rounded-full flex items-center justify-center">
         <Search className="w-12 h-12 text-gray-400" />
       </div>
       <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
@@ -998,7 +1004,7 @@ function EmptyState({ searchQuery }: { searchQuery: string }) {
       {!searchQuery && (
         <Button
           onClick={() => router.push("/record")}
-          className="bg-gradient-to-r from-purple-600 to-indigo-600"
+          className="bg-gradient-to-r from-[hsl(var(--memory-600))] to-[hsl(var(--insight-600))] hover:from-[hsl(var(--memory-500))] hover:to-[hsl(var(--insight-500))]"
         >
           Record Your First Story
         </Button>

@@ -21,6 +21,7 @@ import {
   BookOpen,
   HelpCircle,
 } from "lucide-react";
+import { getEmotionClass } from "@/lib/design-tokens";
 
 interface MonthlySummaryProps {
   summary: MonthlySummaryType | null;
@@ -42,34 +43,19 @@ const domainIcons: Record<LifeDomain, React.ElementType> = {
   general: HelpCircle,
 };
 
-// Theme colors
+// Theme colors using design system
 const themeColors: string[] = [
-  "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
-  "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
-  "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
+  "bg-[hsl(var(--insight-500)/0.15)] text-[hsl(var(--insight-600))] dark:text-[hsl(var(--insight-400))] border border-[hsl(var(--insight-500)/0.3)]",
+  "bg-[hsl(var(--growth-500)/0.15)] text-[hsl(var(--growth-600))] dark:text-[hsl(var(--growth-400))] border border-[hsl(var(--growth-500)/0.3)]",
+  "bg-[hsl(var(--story-500)/0.15)] text-[hsl(var(--story-600))] dark:text-[hsl(var(--story-400))] border border-[hsl(var(--story-500)/0.3)]",
 ];
 
-// Emotional tone colors
-const toneColors: Record<EmotionalTone, string> = {
-  reflective: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300",
-  joyful: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300",
-  anxious: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
-  hopeful: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
-  melancholic: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
-  grateful: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300",
-  frustrated: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
-  peaceful: "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300",
-  excited: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
-  uncertain: "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300",
-  neutral: "bg-slate-100 text-slate-700 dark:bg-slate-900/30 dark:text-slate-300",
-};
-
-// Get significance label based on score
+// Get significance label based on score using design system colors
 function getSignificanceLabel(score: number): { label: string; color: string } {
   if (score >= 0.7) {
-    return { label: "Significant", color: "text-emerald-600 dark:text-emerald-400" };
+    return { label: "Significant", color: "text-[hsl(var(--growth-500))]" };
   } else if (score >= 0.4) {
-    return { label: "Moderate", color: "text-amber-600 dark:text-amber-400" };
+    return { label: "Moderate", color: "text-[hsl(var(--story-500))]" };
   } else {
     return { label: "Routine", color: "text-gray-500 dark:text-gray-400" };
   }
@@ -84,11 +70,11 @@ export function MonthlySummary({ summary, isLoading }: MonthlySummaryProps) {
 
   if (!summary || summary.storyCount === 0) {
     return (
-      <Card className="bg-gradient-to-r from-gray-50 to-slate-50 dark:from-gray-800/50 dark:to-slate-800/50 border-0 shadow-lg">
+      <Card className="card-elevated rounded-xl">
         <CardContent className="py-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
+              <div className="p-2 bg-[hsl(var(--void-light))] rounded-lg">
                 <Calendar className="w-5 h-5 text-gray-500" />
               </div>
               <div>
@@ -115,12 +101,12 @@ export function MonthlySummary({ summary, isLoading }: MonthlySummaryProps) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <Card className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 border-0 shadow-lg overflow-hidden">
+      <Card className="card-insight rounded-xl bg-[hsl(var(--insight-500)/0.05)] overflow-hidden">
         <CardContent className="py-6">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             {/* Month Header */}
             <div className="flex items-center space-x-3">
-              <div className="p-3 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-xl">
+              <div className="p-3 bg-gradient-to-r from-[hsl(var(--insight-600))] to-[hsl(var(--memory-600))] rounded-xl">
                 <Calendar className="w-6 h-6 text-white" />
               </div>
               <div>
@@ -128,7 +114,7 @@ export function MonthlySummary({ summary, isLoading }: MonthlySummaryProps) {
                   <h3 className="text-xl font-bold text-gray-900 dark:text-white">
                     {summary.month} {summary.year}
                   </h3>
-                  <Badge variant="secondary" className="bg-white/60 dark:bg-gray-800/60">
+                  <Badge variant="secondary" className="bg-[hsl(var(--void-surface))]">
                     {summary.storyCount} {summary.storyCount === 1 ? "story" : "stories"}
                   </Badge>
                 </div>
@@ -142,8 +128,8 @@ export function MonthlySummary({ summary, isLoading }: MonthlySummaryProps) {
             <div className="flex flex-wrap gap-6">
               {/* Stories */}
               <div className="flex items-center space-x-2">
-                <div className="p-2 bg-white/60 dark:bg-gray-800/60 rounded-lg">
-                  <FileText className="w-4 h-4 text-purple-600" />
+                <div className="p-2 bg-[hsl(var(--void-surface))] rounded-lg">
+                  <FileText className="w-4 h-4 text-[hsl(var(--insight-500))]" />
                 </div>
                 <div>
                   <div className="text-lg font-bold text-gray-900 dark:text-white">
@@ -155,8 +141,8 @@ export function MonthlySummary({ summary, isLoading }: MonthlySummaryProps) {
 
               {/* Key Moments */}
               <div className="flex items-center space-x-2">
-                <div className="p-2 bg-white/60 dark:bg-gray-800/60 rounded-lg">
-                  <Star className="w-4 h-4 text-amber-500" />
+                <div className="p-2 bg-[hsl(var(--void-surface))] rounded-lg">
+                  <Star className="w-4 h-4 text-[hsl(var(--story-500))]" />
                 </div>
                 <div>
                   <div className="text-lg font-bold text-gray-900 dark:text-white">
@@ -168,8 +154,8 @@ export function MonthlySummary({ summary, isLoading }: MonthlySummaryProps) {
 
               {/* Significance */}
               <div className="flex items-center space-x-2">
-                <div className="p-2 bg-white/60 dark:bg-gray-800/60 rounded-lg">
-                  <TrendingUp className="w-4 h-4 text-emerald-600" />
+                <div className="p-2 bg-[hsl(var(--void-surface))] rounded-lg">
+                  <TrendingUp className="w-4 h-4 text-[hsl(var(--growth-500))]" />
                 </div>
                 <div>
                   <div className={`text-lg font-bold ${significanceInfo.color}`}>
@@ -184,7 +170,7 @@ export function MonthlySummary({ summary, isLoading }: MonthlySummaryProps) {
           </div>
 
           {/* Bottom Section: Themes & Domain */}
-          <div className="mt-6 pt-4 border-t border-purple-200 dark:border-purple-800/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="mt-6 pt-4 border-t border-[hsl(var(--insight-500)/0.2)] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             {/* Top Themes */}
             {summary.topThemes.length > 0 && (
               <div className="flex items-center space-x-2">
@@ -213,7 +199,7 @@ export function MonthlySummary({ summary, isLoading }: MonthlySummaryProps) {
                 </div>
               )}
               {summary.dominantTone && (
-                <Badge className={toneColors[summary.dominantTone]}>
+                <Badge className={`${getEmotionClass(summary.dominantTone)} border capitalize`}>
                   {summary.dominantTone}
                 </Badge>
               )}

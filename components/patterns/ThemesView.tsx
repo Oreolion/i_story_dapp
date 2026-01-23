@@ -22,23 +22,23 @@ interface ThemesViewProps {
   isLoading: boolean;
 }
 
-// Theme color mapping
+// Theme color mapping using design system semantic colors
 const themeColors: Record<string, string> = {
-  growth: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
-  reflection: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300",
-  change: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
-  loss: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
-  love: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300",
-  gratitude: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300",
-  challenge: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
-  success: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
-  family: "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300",
-  friendship: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300",
-  healing: "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300",
-  identity: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300",
-  creativity: "bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/30 dark:text-fuchsia-300",
-  adventure: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
-  default: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+  growth: "bg-[hsl(var(--growth-500)/0.15)] text-[hsl(var(--growth-600))] dark:text-[hsl(var(--growth-400))] border border-[hsl(var(--growth-500)/0.3)]",
+  reflection: "bg-[hsl(var(--insight-500)/0.15)] text-[hsl(var(--insight-600))] dark:text-[hsl(var(--insight-400))] border border-[hsl(var(--insight-500)/0.3)]",
+  change: "bg-[hsl(var(--story-500)/0.15)] text-[hsl(var(--story-600))] dark:text-[hsl(var(--story-400))] border border-[hsl(var(--story-500)/0.3)]",
+  loss: "bg-[hsl(var(--tone-melancholic)/0.15)] text-[hsl(var(--tone-melancholic))] border border-[hsl(var(--tone-melancholic)/0.3)]",
+  love: "bg-[hsl(var(--domain-relationships)/0.15)] text-[hsl(var(--domain-relationships))] border border-[hsl(var(--domain-relationships)/0.3)]",
+  gratitude: "bg-[hsl(var(--tone-grateful)/0.15)] text-[hsl(var(--tone-grateful))] border border-[hsl(var(--tone-grateful)/0.3)]",
+  challenge: "bg-[hsl(var(--tone-frustrated)/0.15)] text-[hsl(var(--tone-frustrated))] border border-[hsl(var(--tone-frustrated)/0.3)]",
+  success: "bg-[hsl(var(--growth-500)/0.15)] text-[hsl(var(--growth-600))] dark:text-[hsl(var(--growth-400))] border border-[hsl(var(--growth-500)/0.3)]",
+  family: "bg-[hsl(var(--domain-family)/0.15)] text-[hsl(var(--domain-family))] border border-[hsl(var(--domain-family)/0.3)]",
+  friendship: "bg-[hsl(var(--memory-500)/0.15)] text-[hsl(var(--memory-600))] dark:text-[hsl(var(--memory-400))] border border-[hsl(var(--memory-500)/0.3)]",
+  healing: "bg-[hsl(var(--tone-peaceful)/0.15)] text-[hsl(var(--tone-peaceful))] border border-[hsl(var(--tone-peaceful)/0.3)]",
+  identity: "bg-[hsl(var(--domain-identity)/0.15)] text-[hsl(var(--domain-identity))] border border-[hsl(var(--domain-identity)/0.3)]",
+  creativity: "bg-[hsl(var(--domain-creativity)/0.15)] text-[hsl(var(--domain-creativity))] border border-[hsl(var(--domain-creativity)/0.3)]",
+  adventure: "bg-[hsl(var(--domain-adventure)/0.15)] text-[hsl(var(--domain-adventure))] border border-[hsl(var(--domain-adventure)/0.3)]",
+  default: "bg-[hsl(var(--void-light))] text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700",
 };
 
 function getThemeColor(theme: string): string {
@@ -75,9 +75,9 @@ export function ThemesView({ themeGroups, isLoading }: ThemesViewProps) {
 
   if (themeGroups.length === 0) {
     return (
-      <Card className="bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 border-0 shadow-lg">
+      <Card className="card-insight rounded-xl bg-[hsl(var(--insight-500)/0.05)]">
         <CardContent className="py-12 text-center space-y-4">
-          <div className="w-16 h-16 mx-auto bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full flex items-center justify-center">
+          <div className="w-16 h-16 mx-auto bg-gradient-to-r from-[hsl(var(--insight-600))] to-[hsl(var(--memory-600))] rounded-full flex items-center justify-center">
             <Sparkles className="w-8 h-8 text-white" />
           </div>
           <div>
@@ -90,7 +90,7 @@ export function ThemesView({ themeGroups, isLoading }: ThemesViewProps) {
           </div>
           <Button
             onClick={() => router.push("/record")}
-            className="bg-gradient-to-r from-purple-600 to-indigo-600"
+            className="bg-gradient-to-r from-[hsl(var(--insight-600))] to-[hsl(var(--memory-600))] hover:from-[hsl(var(--insight-700))] hover:to-[hsl(var(--memory-700))]"
           >
             Record Your First Story
           </Button>
@@ -126,9 +126,9 @@ export function ThemesView({ themeGroups, isLoading }: ThemesViewProps) {
             animate={{ opacity: 1, y: 0 }}
           >
             <Card
-              className={`border-0 shadow-lg transition-all duration-300 cursor-pointer hover:shadow-xl ${
+              className={`card-elevated rounded-xl cursor-pointer hover-glow-insight ${
                 expandedTheme === group.theme
-                  ? "ring-2 ring-purple-500 dark:ring-purple-400"
+                  ? "ring-2 ring-[hsl(var(--insight-500))] dark:ring-[hsl(var(--insight-400))]"
                   : ""
               }`}
               onClick={() => toggleExpand(group.theme)}
@@ -217,7 +217,7 @@ function StoryPreviewCard({
 }) {
   return (
     <div
-      className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer group"
+      className="p-3 bg-[hsl(var(--void-light))] rounded-lg hover:bg-[hsl(var(--memory-500)/0.1)] transition-colors cursor-pointer group"
       onClick={(e) => {
         e.stopPropagation();
         onClick();
@@ -241,7 +241,7 @@ function StoryPreviewCard({
             )}
           </div>
         </div>
-        <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-purple-600 transition-colors flex-shrink-0 ml-2" />
+        <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-[hsl(var(--insight-500))] transition-colors flex-shrink-0 ml-2" />
       </div>
     </div>
   );

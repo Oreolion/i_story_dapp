@@ -76,12 +76,12 @@ const truncateAddress = (addr: string | undefined | null) => {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 };
 
-// Helper for Heatmap color
+// Helper for Heatmap color - uses growth color scale
 const getHeatmapColor = (count: number) => {
   if (count === 0) return "bg-gray-100 dark:bg-gray-800";
-  if (count === 1) return "bg-emerald-200 dark:bg-emerald-900/60";
-  if (count <= 3) return "bg-emerald-400 dark:bg-emerald-700";
-  return "bg-emerald-600 dark:bg-emerald-500";
+  if (count === 1) return "bg-[hsl(var(--growth-200))] dark:bg-[hsl(var(--growth-900)/0.6)]";
+  if (count <= 3) return "bg-[hsl(var(--growth-400))] dark:bg-[hsl(var(--growth-700))]";
+  return "bg-[hsl(var(--growth-600))] dark:bg-[hsl(var(--growth-500))]";
 };
 
 export default function ProfilePage() {
@@ -381,7 +381,7 @@ export default function ProfilePage() {
   if (!isConnected) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
-        <User className="w-12 h-12 text-purple-600" />
+        <User className="w-12 h-12 text-[hsl(var(--memory-500))]" />
         <h2 className="text-2xl font-semibold">Please Connect Your Wallet</h2>
         <p className="text-gray-600 dark:text-gray-400 max-w-md">
           Connect your wallet to view or edit your profile.
@@ -393,7 +393,7 @@ export default function ProfilePage() {
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
-        <Loader2 className="w-12 h-12 animate-spin text-purple-600" />
+        <Loader2 className="w-12 h-12 animate-spin text-[hsl(var(--memory-500))]" />
         <h2 className="text-2xl font-semibold">Loading Profile Data...</h2>
       </div>
     );
@@ -406,12 +406,12 @@ export default function ProfilePage() {
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
-          className="w-16 h-16 mx-auto bg-linear-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center"
+          className="w-16 h-16 mx-auto bg-gradient-to-r from-[hsl(var(--memory-600))] to-[hsl(var(--insight-600))] rounded-full flex items-center justify-center shadow-lg"
         >
           <User className="w-8 h-8 text-white" />
         </motion.div>
         <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
-          Profile & Settings
+          Profile & <span className="text-gradient-memory">Settings</span>
         </h1>
         <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
           Manage your account, track your progress, and view your achievements

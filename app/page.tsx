@@ -18,7 +18,9 @@ import {
   Globe,
   Sparkles,
   ExternalLink,
-  Brain
+  Brain,
+  Quote,
+  ArrowRight
 } from 'lucide-react';
 
 // Add this constant for your contract address
@@ -315,11 +317,164 @@ export default function HomePage() {
         </div>
       </motion.section>
 
+      {/* How It Works Section */}
+      <motion.section
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1.2, duration: 0.8 }}
+        className="space-y-12"
+      >
+        <div className="text-center space-y-4">
+          <h2 className="text-3xl md:text-4xl font-bold text-foreground">
+            How It <span className="text-gradient-insight">Works</span>
+          </h2>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            From voice to blockchain in four simple steps
+          </p>
+        </div>
+
+        <div className="relative">
+          {/* Connection line (hidden on mobile) */}
+          <div className="hidden md:block absolute top-1/2 left-0 right-0 h-0.5 bg-gradient-to-r from-[hsl(var(--memory-500)/0.3)] via-[hsl(var(--insight-500)/0.3)] to-[hsl(var(--growth-500)/0.3)] -translate-y-1/2 z-0" />
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 relative z-10">
+            {[
+              {
+                step: 1,
+                icon: Mic,
+                title: 'Record',
+                description: 'Speak your story naturally using voice recording',
+                colorClass: 'bg-gradient-memory',
+                glowClass: 'hover-glow-memory',
+              },
+              {
+                step: 2,
+                icon: Brain,
+                title: 'Analyze',
+                description: 'AI extracts themes, emotions & insights',
+                colorClass: 'bg-gradient-insight',
+                glowClass: 'hover-glow-insight',
+              },
+              {
+                step: 3,
+                icon: Shield,
+                title: 'Own',
+                description: 'Store on blockchain, mint as NFT',
+                colorClass: 'bg-gradient-story',
+                glowClass: 'hover-glow-story',
+              },
+              {
+                step: 4,
+                icon: TrendingUp,
+                title: 'Grow',
+                description: 'Discover patterns over time',
+                colorClass: 'bg-gradient-growth',
+                glowClass: 'hover-glow-story',
+              },
+            ].map((item, index) => {
+              const Icon = item.icon;
+              return (
+                <motion.div
+                  key={item.step}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 1.3 + index * 0.1 }}
+                  className="relative"
+                >
+                  <Card className={`card-elevated text-center ${item.glowClass} transition-all duration-300`}>
+                    <CardContent className="pt-8 pb-6 space-y-4">
+                      {/* Step number badge */}
+                      <div className={`absolute -top-4 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full ${item.colorClass} flex items-center justify-center text-white font-bold text-sm shadow-lg`}>
+                        {item.step}
+                      </div>
+
+                      <div className={`w-14 h-14 mx-auto rounded-xl ${item.colorClass} flex items-center justify-center shadow-lg`}>
+                        <Icon className="w-7 h-7 text-white" />
+                      </div>
+
+                      <h3 className="text-lg font-semibold text-foreground">{item.title}</h3>
+                      <p className="text-sm text-muted-foreground">{item.description}</p>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
+      </motion.section>
+
+      {/* Testimonials Section */}
+      <motion.section
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1.4, duration: 0.8 }}
+        className="space-y-12"
+      >
+        <div className="text-center space-y-4">
+          <h2 className="text-3xl md:text-4xl font-bold text-foreground">
+            Stories from Our <span className="text-gradient-story">Community</span>
+          </h2>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            See how iStory is transforming the way people preserve their memories
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {[
+            {
+              quote: "The AI insights revealed patterns in my journaling I never noticed. It's like having a therapist who's always listening.",
+              name: "Sarah Chen",
+              role: "Daily Journaler",
+              avatar: "SC",
+            },
+            {
+              quote: "Finally, my stories are mine forever. No platform can delete them, no company can shut down. True digital ownership.",
+              name: "Marcus Johnson",
+              role: "Web3 Creator",
+              avatar: "MJ",
+            },
+            {
+              quote: "I've minted my travel journals as NFT books. My grandchildren will inherit these memories on the blockchain.",
+              name: "Elena Rodriguez",
+              role: "Travel Writer",
+              avatar: "ER",
+            },
+          ].map((testimonial, index) => (
+            <motion.div
+              key={testimonial.name}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 1.5 + index * 0.1 }}
+            >
+              <Card className="card-elevated h-full hover-glow-insight transition-all duration-300">
+                <CardContent className="pt-6 space-y-4">
+                  <Quote className="w-8 h-8 text-[hsl(var(--insight-500)/0.5)]" />
+
+                  <p className="text-muted-foreground italic leading-relaxed">
+                    &ldquo;{testimonial.quote}&rdquo;
+                  </p>
+
+                  <div className="flex items-center space-x-3 pt-4 border-t border-[hsl(var(--memory-500)/0.1)]">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[hsl(var(--memory-500))] to-[hsl(var(--insight-500))] flex items-center justify-center text-white font-semibold text-sm">
+                      {testimonial.avatar}
+                    </div>
+                    <div>
+                      <div className="font-medium text-foreground">{testimonial.name}</div>
+                      <div className="text-sm text-muted-foreground">{testimonial.role}</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+      </motion.section>
+
       {/* CTA Section - Memory Space Gradient */}
       <motion.section
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 1.4, duration: 0.8 }}
+        transition={{ delay: 1.6, duration: 0.8 }}
         className="text-center space-y-8 py-16 bg-gradient-to-r from-[hsl(var(--memory-500)/0.1)] via-[hsl(var(--insight-500)/0.1)] to-[hsl(var(--story-500)/0.1)] rounded-3xl border border-[hsl(var(--memory-500)/0.2)] relative overflow-hidden"
       >
         {/* Subtle animated background */}

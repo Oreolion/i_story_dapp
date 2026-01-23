@@ -23,41 +23,12 @@ import {
   Star,
   Hourglass,
 } from "lucide-react";
+import { getEmotionClass, getDomainClass, domainLabels } from "@/lib/design-tokens";
 
 interface StoryInsightsProps {
   storyId: string;
   storyText: string;
 }
-
-// Color mappings for emotional tones
-const emotionColors: Record<EmotionalTone, string> = {
-  reflective: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300",
-  joyful: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300",
-  anxious: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
-  hopeful: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
-  melancholic: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
-  grateful: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300",
-  frustrated: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
-  peaceful: "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300",
-  excited: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
-  uncertain: "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300",
-  neutral: "bg-slate-100 text-slate-700 dark:bg-slate-900/30 dark:text-slate-300",
-};
-
-// Color mappings for life domains
-const domainColors: Record<LifeDomain, string> = {
-  work: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
-  relationships: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300",
-  health: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
-  identity: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300",
-  growth: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
-  creativity: "bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/30 dark:text-fuchsia-300",
-  spirituality: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
-  family: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
-  adventure: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300",
-  learning: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300",
-  general: "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300",
-};
 
 export function StoryInsights({ storyId, storyText }: StoryInsightsProps) {
   const [metadata, setMetadata] = useState<StoryMetadata | null>(null);
@@ -114,7 +85,7 @@ export function StoryInsights({ storyId, storyText }: StoryInsightsProps) {
   // Loading state
   if (isLoading) {
     return (
-      <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-0 shadow-lg">
+      <Card className="card-elevated rounded-xl">
         <CardContent className="py-8">
           <div className="flex items-center justify-center space-x-2 text-gray-500">
             <Loader2 className="w-5 h-5 animate-spin" />
@@ -128,9 +99,9 @@ export function StoryInsights({ storyId, storyText }: StoryInsightsProps) {
   // Pending state - analysis is queued
   if (metadata?.analysis_status === 'pending') {
     return (
-      <Card className="bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20 border-0 shadow-lg">
+      <Card className="card-elevated rounded-xl bg-[hsl(var(--story-500)/0.05)] border-[hsl(var(--story-500)/0.2)]">
         <CardContent className="py-8 text-center space-y-4">
-          <div className="w-12 h-12 mx-auto bg-gradient-to-r from-amber-400 to-yellow-500 rounded-full flex items-center justify-center">
+          <div className="w-12 h-12 mx-auto bg-gradient-story rounded-full flex items-center justify-center">
             <Hourglass className="w-6 h-6 text-white" />
           </div>
           <div>
@@ -149,9 +120,9 @@ export function StoryInsights({ storyId, storyText }: StoryInsightsProps) {
   // Processing state - analysis is in progress
   if (metadata?.analysis_status === 'processing') {
     return (
-      <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-0 shadow-lg">
+      <Card className="card-elevated rounded-xl bg-[hsl(var(--memory-500)/0.05)] border-[hsl(var(--memory-500)/0.2)]">
         <CardContent className="py-8 text-center space-y-4">
-          <div className="w-12 h-12 mx-auto bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center">
+          <div className="w-12 h-12 mx-auto bg-gradient-memory rounded-full flex items-center justify-center">
             <Loader2 className="w-6 h-6 text-white animate-spin" />
           </div>
           <div>
@@ -170,9 +141,9 @@ export function StoryInsights({ storyId, storyText }: StoryInsightsProps) {
   // Failed state - analysis failed, show retry button
   if (metadata?.analysis_status === 'failed') {
     return (
-      <Card className="bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-0 shadow-lg">
+      <Card className="card-elevated rounded-xl bg-[hsl(var(--tone-anxious)/0.05)] border-[hsl(var(--tone-anxious)/0.2)]">
         <CardContent className="py-8 text-center space-y-4">
-          <div className="w-12 h-12 mx-auto bg-gradient-to-r from-red-400 to-orange-500 rounded-full flex items-center justify-center">
+          <div className="w-12 h-12 mx-auto bg-gradient-to-r from-[hsl(var(--tone-anxious))] to-[hsl(var(--tone-frustrated))] rounded-full flex items-center justify-center">
             <AlertTriangle className="w-6 h-6 text-white" />
           </div>
           <div>
@@ -187,7 +158,7 @@ export function StoryInsights({ storyId, storyText }: StoryInsightsProps) {
             onClick={generateInsights}
             disabled={isAnalyzing}
             variant="outline"
-            className="border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20"
+            className="border-[hsl(var(--tone-anxious)/0.3)] text-[hsl(var(--tone-anxious))] hover:bg-[hsl(var(--tone-anxious)/0.1)]"
           >
             {isAnalyzing ? (
               <>
@@ -209,9 +180,9 @@ export function StoryInsights({ storyId, storyText }: StoryInsightsProps) {
   // No metadata - show generate button
   if (!metadata) {
     return (
-      <Card className="bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 border-0 shadow-lg">
+      <Card className="card-insight rounded-xl bg-[hsl(var(--insight-500)/0.05)]">
         <CardContent className="py-12 text-center space-y-4">
-          <div className="w-16 h-16 mx-auto bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full flex items-center justify-center">
+          <div className="w-16 h-16 mx-auto bg-gradient-to-r from-[hsl(var(--insight-600))] to-[hsl(var(--memory-600))] rounded-full flex items-center justify-center">
             <Brain className="w-8 h-8 text-white" />
           </div>
           <div>
@@ -225,7 +196,7 @@ export function StoryInsights({ storyId, storyText }: StoryInsightsProps) {
           <Button
             onClick={generateInsights}
             disabled={isAnalyzing}
-            className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
+            className="bg-gradient-to-r from-[hsl(var(--insight-600))] to-[hsl(var(--memory-600))] hover:from-[hsl(var(--insight-700))] hover:to-[hsl(var(--memory-700))]"
           >
             {isAnalyzing ? (
               <>
@@ -251,19 +222,19 @@ export function StoryInsights({ storyId, storyText }: StoryInsightsProps) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-0 shadow-lg overflow-hidden">
+      <Card className="card-insight rounded-xl overflow-hidden">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center space-x-2 text-lg">
-              <Brain className="w-5 h-5 text-purple-600" />
-              <span>AI Insights</span>
+              <Brain className="w-5 h-5 text-[hsl(var(--insight-500))]" />
+              <span className="text-gradient-insight">AI Insights</span>
             </CardTitle>
             <Button
               variant="ghost"
               size="sm"
               onClick={generateInsights}
               disabled={isAnalyzing}
-              className="text-gray-500 hover:text-purple-600"
+              className="text-gray-500 hover:text-[hsl(var(--insight-500))]"
             >
               {isAnalyzing ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -276,9 +247,9 @@ export function StoryInsights({ storyId, storyText }: StoryInsightsProps) {
         <CardContent className="space-y-6">
           {/* Brief Insight */}
           {metadata.brief_insight && (
-            <div className="p-4 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-lg">
+            <div className="p-4 bg-[hsl(var(--insight-500)/0.1)] dark:bg-[hsl(var(--insight-500)/0.15)] rounded-lg border border-[hsl(var(--insight-500)/0.2)]">
               <div className="flex items-start space-x-3">
-                <Lightbulb className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                <Lightbulb className="w-5 h-5 text-[hsl(var(--story-500))] flex-shrink-0 mt-0.5" />
                 <p className="text-sm text-gray-700 dark:text-gray-300 italic">
                   &ldquo;{metadata.brief_insight}&rdquo;
                 </p>
@@ -290,21 +261,21 @@ export function StoryInsights({ storyId, storyText }: StoryInsightsProps) {
           <div className="flex flex-wrap gap-3">
             <div className="flex items-center space-x-2">
               <Heart className="w-4 h-4 text-gray-400" />
-              <Badge className={emotionColors[metadata.emotional_tone]}>
+              <Badge className={`${getEmotionClass(metadata.emotional_tone)} border capitalize`}>
                 {metadata.emotional_tone}
               </Badge>
             </div>
-            <div className="flex items-center space-x-2">
+            <div className={`flex items-center space-x-2 ${getDomainClass(metadata.life_domain)}`}>
               <TrendingUp className="w-4 h-4 text-gray-400" />
-              <Badge className={domainColors[metadata.life_domain]}>
-                {metadata.life_domain}
+              <Badge className="domain-badge capitalize">
+                {domainLabels[metadata.life_domain] || metadata.life_domain}
               </Badge>
             </div>
             {/* Key life moment badge for high significance stories */}
             {metadata.significance_score > 0.7 && (
               <div className="flex items-center space-x-2">
-                <Star className="w-4 h-4 text-amber-500" />
-                <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                <Star className="w-4 h-4 text-[hsl(var(--story-500))]" />
+                <Badge className="bg-[hsl(var(--story-500)/0.15)] text-[hsl(var(--story-500))] border border-[hsl(var(--story-500)/0.3)]">
                   Key life moment
                 </Badge>
               </div>
@@ -315,7 +286,7 @@ export function StoryInsights({ storyId, storyText }: StoryInsightsProps) {
           {metadata.themes.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center space-x-2 text-sm font-medium text-gray-500 dark:text-gray-400">
-                <Sparkles className="w-4 h-4" />
+                <Sparkles className="w-4 h-4 text-[hsl(var(--insight-500))]" />
                 <span>Themes</span>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -323,7 +294,7 @@ export function StoryInsights({ storyId, storyText }: StoryInsightsProps) {
                   <Badge
                     key={theme}
                     variant="secondary"
-                    className="bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-300"
+                    className="bg-[hsl(var(--insight-500)/0.1)] text-[hsl(var(--insight-600))] dark:text-[hsl(var(--insight-400))] border border-[hsl(var(--insight-500)/0.2)]"
                   >
                     {theme}
                   </Badge>

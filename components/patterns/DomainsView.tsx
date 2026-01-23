@@ -20,6 +20,7 @@ import {
   BookOpen,
   HelpCircle,
 } from "lucide-react";
+import { getEmotionClass, domainLabels } from "@/lib/design-tokens";
 
 interface DomainsViewProps {
   domainGroups: DomainGroup[];
@@ -27,89 +28,74 @@ interface DomainsViewProps {
   totalStories: number;
 }
 
-// Domain configuration with icons and colors
+// Domain configuration with icons and design system colors
 const domainConfig: Record<LifeDomain, { icon: React.ElementType; bgColor: string; textColor: string; label: string }> = {
   work: {
     icon: Briefcase,
-    bgColor: "bg-blue-100 dark:bg-blue-900/30",
-    textColor: "text-blue-700 dark:text-blue-300",
+    bgColor: "bg-[hsl(var(--domain-work)/0.15)]",
+    textColor: "text-[hsl(var(--domain-work))]",
     label: "Work",
   },
   relationships: {
     icon: Heart,
-    bgColor: "bg-rose-100 dark:bg-rose-900/30",
-    textColor: "text-rose-700 dark:text-rose-300",
+    bgColor: "bg-[hsl(var(--domain-relationships)/0.15)]",
+    textColor: "text-[hsl(var(--domain-relationships))]",
     label: "Relationships",
   },
   health: {
     icon: Activity,
-    bgColor: "bg-green-100 dark:bg-green-900/30",
-    textColor: "text-green-700 dark:text-green-300",
+    bgColor: "bg-[hsl(var(--domain-health)/0.15)]",
+    textColor: "text-[hsl(var(--domain-health))]",
     label: "Health",
   },
   identity: {
     icon: User,
-    bgColor: "bg-violet-100 dark:bg-violet-900/30",
-    textColor: "text-violet-700 dark:text-violet-300",
+    bgColor: "bg-[hsl(var(--domain-identity)/0.15)]",
+    textColor: "text-[hsl(var(--domain-identity))]",
     label: "Identity",
   },
   growth: {
     icon: TrendingUp,
-    bgColor: "bg-emerald-100 dark:bg-emerald-900/30",
-    textColor: "text-emerald-700 dark:text-emerald-300",
+    bgColor: "bg-[hsl(var(--domain-growth)/0.15)]",
+    textColor: "text-[hsl(var(--domain-growth))]",
     label: "Growth",
   },
   creativity: {
     icon: Palette,
-    bgColor: "bg-fuchsia-100 dark:bg-fuchsia-900/30",
-    textColor: "text-fuchsia-700 dark:text-fuchsia-300",
+    bgColor: "bg-[hsl(var(--domain-creativity)/0.15)]",
+    textColor: "text-[hsl(var(--domain-creativity))]",
     label: "Creativity",
   },
   spirituality: {
     icon: Sparkles,
-    bgColor: "bg-purple-100 dark:bg-purple-900/30",
-    textColor: "text-purple-700 dark:text-purple-300",
+    bgColor: "bg-[hsl(var(--domain-spirituality)/0.15)]",
+    textColor: "text-[hsl(var(--domain-spirituality))]",
     label: "Spirituality",
   },
   family: {
     icon: Users,
-    bgColor: "bg-orange-100 dark:bg-orange-900/30",
-    textColor: "text-orange-700 dark:text-orange-300",
+    bgColor: "bg-[hsl(var(--domain-family)/0.15)]",
+    textColor: "text-[hsl(var(--domain-family))]",
     label: "Family",
   },
   adventure: {
     icon: Compass,
-    bgColor: "bg-cyan-100 dark:bg-cyan-900/30",
-    textColor: "text-cyan-700 dark:text-cyan-300",
+    bgColor: "bg-[hsl(var(--domain-adventure)/0.15)]",
+    textColor: "text-[hsl(var(--domain-adventure))]",
     label: "Adventure",
   },
   learning: {
     icon: BookOpen,
-    bgColor: "bg-indigo-100 dark:bg-indigo-900/30",
-    textColor: "text-indigo-700 dark:text-indigo-300",
+    bgColor: "bg-[hsl(var(--domain-learning)/0.15)]",
+    textColor: "text-[hsl(var(--domain-learning))]",
     label: "Learning",
   },
   general: {
     icon: HelpCircle,
-    bgColor: "bg-gray-100 dark:bg-gray-800",
-    textColor: "text-gray-700 dark:text-gray-300",
+    bgColor: "bg-[hsl(var(--domain-general)/0.15)]",
+    textColor: "text-[hsl(var(--domain-general))]",
     label: "General",
   },
-};
-
-// Emotional tone colors
-const toneColors: Record<EmotionalTone, string> = {
-  reflective: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300",
-  joyful: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300",
-  anxious: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
-  hopeful: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
-  melancholic: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
-  grateful: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300",
-  frustrated: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
-  peaceful: "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300",
-  excited: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
-  uncertain: "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300",
-  neutral: "bg-slate-100 text-slate-700 dark:bg-slate-900/30 dark:text-slate-300",
 };
 
 export function DomainsView({ domainGroups, isLoading, totalStories }: DomainsViewProps) {
@@ -132,9 +118,9 @@ export function DomainsView({ domainGroups, isLoading, totalStories }: DomainsVi
 
   if (domainGroups.length === 0 || totalStories === 0) {
     return (
-      <Card className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border-0 shadow-lg">
+      <Card className="card-elevated rounded-xl bg-[hsl(var(--memory-500)/0.05)] border-[hsl(var(--memory-500)/0.2)]">
         <CardContent className="py-12 text-center space-y-4">
-          <div className="w-16 h-16 mx-auto bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full flex items-center justify-center">
+          <div className="w-16 h-16 mx-auto bg-gradient-to-r from-[hsl(var(--memory-600))] to-[hsl(var(--growth-600))] rounded-full flex items-center justify-center">
             <Compass className="w-8 h-8 text-white" />
           </div>
           <div>
@@ -159,11 +145,11 @@ export function DomainsView({ domainGroups, isLoading, totalStories }: DomainsVi
   return (
     <div className="space-y-6">
       {/* Domain Distribution Overview */}
-      <Card className="border-0 shadow-lg bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm">
+      <Card className="card-elevated rounded-xl">
         <CardHeader className="pb-2">
           <CardTitle className="text-lg flex items-center space-x-2">
-            <Compass className="w-5 h-5 text-cyan-600" />
-            <span>Life Areas Distribution</span>
+            <Compass className="w-5 h-5 text-[hsl(var(--memory-500))]" />
+            <span className="text-gradient-memory">Life Areas Distribution</span>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -208,7 +194,7 @@ export function DomainsView({ domainGroups, isLoading, totalStories }: DomainsVi
               transition={{ delay: index * 0.05 }}
             >
               <Card
-                className={`border-0 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer overflow-hidden ${config.bgColor}`}
+                className={`card-elevated rounded-xl cursor-pointer overflow-hidden hover-glow-memory ${config.bgColor}`}
                 onClick={() => {
                   // Navigate to first story in this domain
                   if (group.stories.length > 0) {
@@ -235,7 +221,7 @@ export function DomainsView({ domainGroups, isLoading, totalStories }: DomainsVi
                       {Math.round(percentage)}% of stories
                     </span>
                     {group.dominantTone && (
-                      <Badge className={toneColors[group.dominantTone]}>
+                      <Badge className={`${getEmotionClass(group.dominantTone)} border capitalize`}>
                         {group.dominantTone}
                       </Badge>
                     )}
@@ -247,7 +233,7 @@ export function DomainsView({ domainGroups, isLoading, totalStories }: DomainsVi
                       <span>
                         {group.count} {group.count === 1 ? "story" : "stories"}
                       </span>
-                      <span className="text-purple-600 dark:text-purple-400">
+                      <span className="text-[hsl(var(--insight-500))]">
                         View all
                       </span>
                     </div>

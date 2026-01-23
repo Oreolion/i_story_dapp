@@ -93,7 +93,7 @@ export function StoryCard({
   const isLocked = story.paywallAmount > 0 && !story.isPaid;
 
   return (
-    <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+    <Card className="card-elevated hover-glow-memory rounded-xl">
       <CardHeader>
         {/* author_wallet Header */}
         <div className="flex items-start justify-between">
@@ -143,13 +143,13 @@ export function StoryCard({
                 <div className="flex items-center" title={(story as any).is_public ? "Visible to everyone" : "Only visible to you"}>
                    {(story as any).is_public ? (
                       <>
-                        <Globe className="w-3.5 h-3.5 mr-1 text-emerald-500" />
-                        <span className="text-xs text-emerald-600 font-medium">Public</span>
+                        <Globe className="w-3.5 h-3.5 mr-1 text-[hsl(var(--growth-500))]" />
+                        <span className="text-xs text-[hsl(var(--growth-600))] font-medium">Public</span>
                       </>
                    ) : (
                       <>
-                        <Lock className="w-3.5 h-3.5 mr-1 text-amber-500" />
-                        <span className="text-xs text-amber-600 font-medium">Private</span>
+                        <Lock className="w-3.5 h-3.5 mr-1 text-[hsl(var(--story-500))]" />
+                        <span className="text-xs text-[hsl(var(--story-600))] font-medium">Private</span>
                       </>
                    )}
                 </div>
@@ -175,14 +175,14 @@ export function StoryCard({
           {story.title}
         </h3>
         {isLocked ? (
-          <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+          <div className="p-4 bg-[hsl(var(--story-500)/0.1)] dark:bg-[hsl(var(--story-500)/0.15)] rounded-lg border border-[hsl(var(--story-500)/0.2)]">
             <p className="text-gray-600 dark:text-gray-300 mb-2">
               {story.teaser || "🔒 Premium content locked behind paywall"}
             </p>
             <Button
               onClick={handlePaywall}
               disabled={isPaying}
-              className="bg-linear-to-r from-purple-600 to-indigo-600"
+              className="bg-gradient-to-r from-[hsl(var(--memory-600))] to-[hsl(var(--insight-600))] hover:from-[hsl(var(--memory-700))] hover:to-[hsl(var(--insight-700))]"
             >
               {isPaying
                 ? "Paying..."

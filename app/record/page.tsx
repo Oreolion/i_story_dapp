@@ -329,8 +329,8 @@ export default function RecordPage() {
   if (!isConnected) {
     return (
       <div className="text-center space-y-8 py-16">
-        <div className="w-24 h-24 mx-auto bg-gradient-to-r from-purple-100 to-indigo-100 dark:from-purple-900 dark:to-indigo-900 rounded-full flex items-center justify-center">
-          <Mic className="w-12 h-12 text-purple-600" />
+        <div className="w-24 h-24 mx-auto bg-[hsl(var(--memory-500)/0.15)] rounded-full flex items-center justify-center">
+          <Mic className="w-12 h-12 text-[hsl(var(--memory-500))]" />
         </div>
         <div className="space-y-4">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
@@ -350,12 +350,12 @@ export default function RecordPage() {
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
-          className="w-16 h-16 mx-auto bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center"
+          className="w-16 h-16 mx-auto bg-gradient-to-r from-[hsl(var(--memory-600))] to-[hsl(var(--insight-600))] rounded-full flex items-center justify-center shadow-lg"
         >
           <Mic className="w-8 h-8 text-white" />
         </motion.div>
         <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
-          Record Your Story
+          Record Your <span className="text-gradient-memory">Story</span>
         </h1>
         <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
           Capture thoughts and experiences with AI transcription
@@ -363,7 +363,7 @@ export default function RecordPage() {
       </div>
 
       {/* Recording Controls */}
-      <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-0 shadow-xl">
+      <Card className="card-elevated rounded-xl">
         <CardHeader className="text-center">
           <CardTitle className="flex items-center justify-center space-x-2">
             <Volume2 className="w-5 h-5" />
@@ -397,7 +397,7 @@ export default function RecordPage() {
                 size="lg"
                 onClick={isRecording ? stopRecording : startRecording}
                 disabled={isProcessing}
-                className={`w-32 h-32 rounded-full text-white shadow-xl ${isRecording ? "bg-red-500 hover:bg-red-600" : "bg-gradient-to-r from-purple-600 to-indigo-600"}`}
+                className={`w-32 h-32 rounded-full text-white shadow-xl transition-all ${isRecording ? "bg-[hsl(var(--tone-anxious))] hover:bg-[hsl(var(--tone-anxious))]" : "bg-gradient-to-r from-[hsl(var(--memory-600))] to-[hsl(var(--insight-600))] hover:shadow-[var(--glow-memory)]"}`}
               >
                 {isRecording ? (
                   <Square className="w-8 h-8" />
@@ -421,7 +421,7 @@ export default function RecordPage() {
       </Card>
 
       {/* Entry Details (Title & Date) */}
-      <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-0 shadow-xl">
+      <Card className="card-elevated rounded-xl">
         <CardHeader>
           <CardTitle className="text-lg">Entry Details</CardTitle>
         </CardHeader>
@@ -471,17 +471,17 @@ export default function RecordPage() {
               <Label className="text-sm font-medium text-gray-500">
                 Visibility
               </Label>
-              <div 
-                className={`flex items-center justify-between px-3 py-2 rounded-md border cursor-pointer transition-colors ${isPublic ? 'bg-emerald-50 border-emerald-200' : 'bg-gray-50 border-gray-200'}`}
+              <div
+                className={`flex items-center justify-between px-3 py-2 rounded-md border cursor-pointer transition-colors ${isPublic ? 'bg-[hsl(var(--growth-500)/0.1)] border-[hsl(var(--growth-500)/0.3)]' : 'bg-[hsl(var(--void-light))] border-gray-200 dark:border-gray-700'}`}
                 onClick={() => !isProcessing && setIsPublic(!isPublic)}
               >
                 <div className="flex items-center gap-2">
                   {isPublic ? (
-                    <Unlock className="w-4 h-4 text-emerald-600" />
+                    <Unlock className="w-4 h-4 text-[hsl(var(--growth-500))]" />
                   ) : (
                     <Lock className="w-4 h-4 text-gray-500" />
                   )}
-                  <span className={`text-sm font-medium ${isPublic ? 'text-emerald-700' : 'text-gray-600'}`}>
+                  <span className={`text-sm font-medium ${isPublic ? 'text-[hsl(var(--growth-600))]' : 'text-gray-600 dark:text-gray-400'}`}>
                     {isPublic ? 'Public' : 'Private'}
                   </span>
                 </div>
@@ -501,7 +501,7 @@ export default function RecordPage() {
               {audioBlob && (
                 <Badge
                   variant="secondary"
-                  className="bg-emerald-100 dark:bg-emerald-900 text-emerald-600"
+                  className="bg-[hsl(var(--growth-500)/0.15)] text-[hsl(var(--growth-600))] dark:text-[hsl(var(--growth-400))]"
                 >
                   Audio Captured
                 </Badge>
@@ -509,7 +509,7 @@ export default function RecordPage() {
               {isProcessing && (
                 <Badge
                   variant="secondary"
-                  className="bg-blue-100 dark:bg-blue-900 text-blue-600"
+                  className="bg-[hsl(var(--memory-500)/0.15)] text-[hsl(var(--memory-600))] dark:text-[hsl(var(--memory-400))]"
                 >
                   <Loader2 className="w-3 h-3 mr-1 animate-spin" />
                   Processing...
@@ -517,7 +517,7 @@ export default function RecordPage() {
               )}
               <Badge
                 variant="outline"
-                className="border-indigo-200 text-indigo-600 hidden sm:flex items-center gap-1"
+                className="border-[hsl(var(--insight-500)/0.3)] text-[hsl(var(--insight-600))] dark:text-[hsl(var(--insight-400))] hidden sm:flex items-center gap-1"
               >
                 <Globe className="w-3 h-3" /> IPFS Ready
               </Badge>
@@ -563,7 +563,7 @@ export default function RecordPage() {
               disabled={
                 !transcribedText.trim() || !entryTitle.trim() || isProcessing
               }
-              className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600"
+              className="flex-1 bg-gradient-growth hover:opacity-90"
             >
               {isProcessing ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -578,33 +578,33 @@ export default function RecordPage() {
 
 
       {/* Recording Tips */}
-      <Card className="bg-gradient-to-r from-purple-500/10 to-indigo-500/10 border-purple-200 dark:border-purple-800">
+      <Card className="bg-[hsl(var(--insight-500)/0.05)] border-[hsl(var(--insight-500)/0.2)] rounded-xl">
         <CardHeader>
-          <CardTitle className="text-lg">Recording Tips</CardTitle>
+          <CardTitle className="text-lg text-gradient-insight">Recording Tips</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600 dark:text-gray-400">
             <div className="flex items-start space-x-3">
-              <div className="w-6 h-6 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                <span className="text-xs font-bold text-purple-600">1</span>
+              <div className="w-6 h-6 bg-[hsl(var(--insight-500)/0.15)] rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-xs font-bold text-[hsl(var(--insight-500))]">1</span>
               </div>
               <p>Speak clearly and moderately</p>
             </div>
             <div className="flex items-start space-x-3">
-              <div className="w-6 h-6 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                <span className="text-xs font-bold text-purple-600">2</span>
+              <div className="w-6 h-6 bg-[hsl(var(--insight-500)/0.15)] rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-xs font-bold text-[hsl(var(--insight-500))]">2</span>
               </div>
               <p>Find a quiet environment</p>
             </div>
             <div className="flex items-start space-x-3">
-              <div className="w-6 h-6 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                <span className="text-xs font-bold text-purple-600">3</span>
+              <div className="w-6 h-6 bg-[hsl(var(--insight-500)/0.15)] rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-xs font-bold text-[hsl(var(--insight-500))]">3</span>
               </div>
               <p>You can edit the text before saving</p>
             </div>
             <div className="flex items-start space-x-3">
-              <div className="w-6 h-6 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                <span className="text-xs font-bold text-purple-600">4</span>
+              <div className="w-6 h-6 bg-[hsl(var(--insight-500)/0.15)] rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-xs font-bold text-[hsl(var(--insight-500))]">4</span>
               </div>
               <p>Stories saved securely on blockchain</p>
             </div>

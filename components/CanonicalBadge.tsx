@@ -102,7 +102,7 @@ export function CanonicalBadge({
           <TooltipTrigger asChild>
             <Badge
               className={cn(
-                "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800",
+                "bg-[hsl(var(--story-500)/0.15)] text-[hsl(var(--story-600))] dark:text-[hsl(var(--story-400))] border-[hsl(var(--story-500)/0.3)] animate-glow-pulse",
                 classes.badge,
                 className
               )}
@@ -132,8 +132,8 @@ export function CanonicalBadge({
             className={cn(
               "transition-all duration-200",
               localIsCanonical
-                ? "bg-amber-500 hover:bg-amber-600 text-white border-amber-500"
-                : "border-amber-300 text-amber-600 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-900/20",
+                ? "bg-[hsl(var(--story-500))] hover:bg-[hsl(var(--story-600))] text-white border-[hsl(var(--story-500))] hover-glow-canonical"
+                : "border-[hsl(var(--story-500)/0.4)] text-[hsl(var(--story-600))] hover:bg-[hsl(var(--story-500)/0.1)] dark:border-[hsl(var(--story-500)/0.3)] dark:text-[hsl(var(--story-400))]",
               classes.button,
               className
             )}

@@ -298,7 +298,7 @@ export default function SocialPage() {
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
-        <Loader2 className="w-12 h-12 animate-spin text-purple-600" />
+        <Loader2 className="w-12 h-12 animate-spin text-[hsl(var(--memory-500))]" />
         <h2 className="text-2xl font-semibold">Curating stories...</h2>
       </div>
     );
@@ -311,12 +311,12 @@ export default function SocialPage() {
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
-          className="w-16 h-16 mx-auto bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center"
+          className="w-16 h-16 mx-auto bg-gradient-to-r from-[hsl(var(--memory-600))] to-[hsl(var(--insight-600))] rounded-full flex items-center justify-center shadow-lg"
         >
           <Users className="w-8 h-8 text-white" />
         </motion.div>
         <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
-          Community Stories
+          Community <span className="text-gradient-memory">Stories</span>
         </h1>
         <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
           Discover inspiring stories from writers around the world
@@ -324,11 +324,11 @@ export default function SocialPage() {
       </div>
 
       {/* Stats Bar */}
-      <Card className="bg-gradient-to-r from-purple-500/10 to-indigo-500/10 border-purple-200 dark:border-purple-800">
+      <Card className="card-elevated bg-[hsl(var(--memory-500)/0.05)] border-[hsl(var(--memory-500)/0.2)]">
         <CardContent className="pt-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div className="text-center space-y-2">
-              <BookOpen className="w-6 h-6 mx-auto text-purple-600" />
+              <BookOpen className="w-6 h-6 mx-auto text-[hsl(var(--memory-500))]" />
               <div className="text-xl font-bold text-gray-900 dark:text-white">
                 {stories.length + 124}
               </div>
@@ -337,7 +337,7 @@ export default function SocialPage() {
               </div>
             </div>
             <div className="text-center space-y-2">
-              <Users className="w-6 h-6 mx-auto text-indigo-600" />
+              <Users className="w-6 h-6 mx-auto text-[hsl(var(--insight-500))]" />
               <div className="text-xl font-bold text-gray-900 dark:text-white">
                 2.8K
               </div>
@@ -346,7 +346,7 @@ export default function SocialPage() {
               </div>
             </div>
             <div className="text-center space-y-2">
-              <TrendingUp className="w-6 h-6 mx-auto text-emerald-600" />
+              <TrendingUp className="w-6 h-6 mx-auto text-[hsl(var(--growth-500))]" />
               <div className="text-xl font-bold text-gray-900 dark:text-white">
                 #mindful
               </div>
@@ -355,7 +355,7 @@ export default function SocialPage() {
               </div>
             </div>
             <div className="text-center space-y-2">
-              <Star className="w-6 h-6 mx-auto text-yellow-600" />
+              <Star className="w-6 h-6 mx-auto text-[hsl(var(--story-500))]" />
               <div className="text-xl font-bold text-gray-900 dark:text-white">
                 {isConnected && iStoryToken?.balance !== undefined
                   ? `${Number(iStoryToken.balance / BigInt(1e18)).toFixed(0)}`
@@ -438,10 +438,10 @@ export default function SocialPage() {
         {/* Right: Sidebar */}
         <div className="space-y-6">
           {/* Featured Writers */}
-          <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-0 shadow-lg sticky top-24">
+          <Card className="card-elevated sticky top-24">
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
-                <Star className="w-5 h-5 text-yellow-500" />
+                <Star className="w-5 h-5 text-[hsl(var(--story-500))]" />
                 <span>Featured Writers</span>
               </CardTitle>
             </CardHeader>
@@ -452,7 +452,7 @@ export default function SocialPage() {
                   className="flex items-center justify-between group"
                 >
                   <div className="flex items-center space-x-3">
-                    <Avatar className="w-10 h-10 border-2 border-transparent group-hover:border-purple-400 transition-all">
+                    <Avatar className="w-10 h-10 border-2 border-transparent group-hover:border-[hsl(var(--memory-400))] transition-all">
                       <AvatarImage src={writer.avatar} />
                       <AvatarFallback>{writer.name[0]}</AvatarFallback>
                     </Avatar>
@@ -472,10 +472,10 @@ export default function SocialPage() {
           </Card>
 
           {/* Trending Topics */}
-          <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-0 shadow-lg">
+          <Card className="card-elevated">
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
-                <Zap className="w-5 h-5 text-emerald-500" />
+                <Zap className="w-5 h-5 text-[hsl(var(--growth-500))]" />
                 <span>Trending Topics</span>
               </CardTitle>
             </CardHeader>
@@ -494,7 +494,7 @@ export default function SocialPage() {
                   <Badge
                     key={tag}
                     variant="secondary"
-                    className="cursor-pointer hover:bg-purple-100 dark:hover:bg-purple-900 transition-colors"
+                    className="cursor-pointer hover:bg-[hsl(var(--memory-500)/0.15)] transition-colors"
                     onClick={() => setSearchQuery(tag)}
                   >
                     {tag}
@@ -505,16 +505,16 @@ export default function SocialPage() {
           </Card>
 
           {/* Community Impact */}
-          <Card className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border-emerald-200 dark:border-emerald-800">
+          <Card className="card-elevated bg-[hsl(var(--growth-500)/0.05)] border-[hsl(var(--growth-500)/0.2)]">
             <CardHeader>
-              <CardTitle className="text-lg">Community Impact</CardTitle>
+              <CardTitle className="text-lg text-gradient-growth">Community Impact</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600 dark:text-gray-400">
                   Total Paid
                 </span>
-                <span className="font-bold text-emerald-600">
+                <span className="font-bold text-[hsl(var(--growth-500))]">
                   45.2K $ISTORY
                 </span>
               </div>
@@ -522,7 +522,7 @@ export default function SocialPage() {
                 <span className="text-sm text-gray-600 dark:text-gray-400">
                   Shared
                 </span>
-                <span className="font-bold text-teal-600">12.5K Stories</span>
+                <span className="font-bold text-[hsl(var(--growth-600))]">12.5K Stories</span>
               </div>
             </CardContent>
           </Card>
