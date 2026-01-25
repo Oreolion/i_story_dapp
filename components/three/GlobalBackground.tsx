@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState, useRef, useCallback, memo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { BackgroundParticles } from './BackgroundParticles';
 import { BackgroundOrbs } from './BackgroundOrbs';
@@ -19,7 +19,7 @@ function FallbackBackground() {
         background: `
           radial-gradient(ellipse at 20% 30%, hsl(217 91% 50% / 0.08) 0%, transparent 50%),
           radial-gradient(ellipse at 80% 70%, hsl(258 90% 55% / 0.08) 0%, transparent 50%),
-          hsl(var(--void-deep))
+          hsl(233 10% 4%)
         `,
       }}
     />
@@ -28,23 +28,30 @@ function FallbackBackground() {
 
 /**
  * Scene content - particles and orbs
+ * Memoized to prevent unnecessary re-renders
  */
-function Scene() {
+const Scene = memo(function Scene() {
   const { config } = useBackground();
   const [mousePosition, setMousePosition] = useState({ x: 0.5, y: 0.5 });
 
-  // Track mouse position for parallax effect
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      setMousePosition({
-        x: e.clientX / window.innerWidth,
-        y: e.clientY / window.innerHeight,
-      });
-    };
+  // Throttled mouse tracking
+  const lastMouseUpdate = useRef(0);
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    const now = Date.now();
+    // Throttle to ~30fps
+    if (now - lastMouseUpdate.current < 33) return;
+    lastMouseUpdate.current = now;
 
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
+    setMousePosition({
+      x: e.clientX / window.innerWidth,
+      y: e.clientY / window.innerHeight,
+    });
   }, []);
+
+  useEffect(() => {
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, [handleMouseMove]);
 
   return (
     <>
@@ -54,7 +61,7 @@ function Scene() {
       {/* Background orbs (large, soft glows) */}
       <BackgroundOrbs
         count={config.orbCount}
-        size={config.orbSize / 100}
+        size={config.orbSize}
         primaryColor={config.primaryColor}
         secondaryColor={config.secondaryColor}
         mousePosition={mousePosition}
@@ -69,7 +76,7 @@ function Scene() {
       />
     </>
   );
-}
+});
 
 /**
  * Main GlobalBackground component
@@ -79,9 +86,19 @@ export function GlobalBackground() {
   const prefersReducedMotion = useReducedMotion();
   const { shouldUse3D, supportsWebGL } = useDeviceCapability();
   const { isEnabled } = useBackground();
+  const [mounted, setMounted] = useState(false);
+
+  // Only render on client
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Don't render 3D if user prefers reduced motion or device can't handle it
-  const shouldRender3D = isEnabled && !prefersReducedMotion && shouldUse3D && supportsWebGL;
+  const shouldRender3D = mounted && isEnabled && !prefersReducedMotion && shouldUse3D && supportsWebGL;
+
+  if (!mounted) {
+    return <FallbackBackground />;
+  }
 
   if (!shouldRender3D) {
     return <FallbackBackground />;
@@ -93,11 +110,11 @@ export function GlobalBackground() {
       <div
         className="absolute inset-0"
         style={{
-          background: 'hsl(var(--void-deep))',
+          background: 'hsl(233 10% 4%)',
         }}
       />
 
-      <Suspense fallback={<FallbackBackground />}>
+      <Suspense fallback={null}>
         <Canvas
           camera={{ position: [0, 0, 10], fov: 75 }}
           gl={{
@@ -105,7 +122,7 @@ export function GlobalBackground() {
             alpha: true,
             powerPreference: 'low-power',
           }}
-          dpr={[1, 1.5]} // Limit pixel ratio for performance
+          dpr={[1, 1.5]}
           style={{
             position: 'absolute',
             top: 0,
