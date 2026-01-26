@@ -20,17 +20,17 @@ export function BackgroundParticles({
   color,
   mousePosition = { x: 0.5, y: 0.5 },
 }: BackgroundParticlesProps) {
-  const meshRef = useRef<THREE.Points>(null);
-  const geometryRef = useRef<THREE.BufferGeometry>(null);
+  const pointsRef = useRef<THREE.Points>(null);
 
   // Clamp count to max
   const particleCount = Math.min(count, MAX_PARTICLES);
 
-  // Create stable particle data - only once
-  const particleData = useMemo(() => {
+  // Create geometry ONCE imperatively - this avoids the buffer resize error
+  // by never recreating the BufferAttribute objects
+  const { geometry, velocities } = useMemo(() => {
     const positions = new Float32Array(MAX_PARTICLES * 3);
-    const velocities = new Float32Array(MAX_PARTICLES * 3);
     const sizes = new Float32Array(MAX_PARTICLES);
+    const vels = new Float32Array(MAX_PARTICLES * 3);
 
     for (let i = 0; i < MAX_PARTICLES; i++) {
       // Position - spread across the viewport
@@ -39,44 +39,38 @@ export function BackgroundParticles({
       positions[i * 3 + 2] = (Math.random() - 0.5) * 10;
 
       // Random velocities for organic movement
-      velocities[i * 3] = (Math.random() - 0.5) * 0.01;
-      velocities[i * 3 + 1] = (Math.random() - 0.5) * 0.01;
-      velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.005;
+      vels[i * 3] = (Math.random() - 0.5) * 0.01;
+      vels[i * 3 + 1] = (Math.random() - 0.5) * 0.01;
+      vels[i * 3 + 2] = (Math.random() - 0.5) * 0.005;
 
       // Random sizes for depth
       sizes[i] = Math.random() * 2 + 0.5;
     }
 
-    return { positions, velocities, sizes };
-  }, []); // Empty deps - only create once
+    // Create geometry imperatively
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+    geo.setDrawRange(0, MAX_PARTICLES);
 
-  // Store current values in refs for animation
-  const speedRef = useRef(speed);
-  const mouseRef = useRef(mousePosition);
-  const countRef = useRef(particleCount);
+    return { geometry: geo, velocities: vels };
+  }, []); // Empty deps - create once, never recreate
 
-  // Update refs when props change
+  // Store current values in refs for animation loop
+  const propsRef = useRef({ speed, mousePosition, particleCount });
+
+  // Update refs when props change (avoids re-renders in animation loop)
   useEffect(() => {
-    speedRef.current = speed;
-  }, [speed]);
-
-  useEffect(() => {
-    mouseRef.current = mousePosition;
-  }, [mousePosition]);
-
-  useEffect(() => {
-    countRef.current = particleCount;
-  }, [particleCount]);
+    propsRef.current = { speed, mousePosition, particleCount };
+  }, [speed, mousePosition, particleCount]);
 
   // Animation loop
   useFrame((state, delta) => {
-    if (!geometryRef.current) return;
+    if (!pointsRef.current) return;
 
-    const positions = geometryRef.current.attributes.position.array as Float32Array;
+    const positions = geometry.attributes.position.array as Float32Array;
     const time = state.clock.elapsedTime;
-    const currentSpeed = speedRef.current;
-    const currentMouse = mouseRef.current;
-    const currentCount = countRef.current;
+    const { speed: currentSpeed, mousePosition: currentMouse, particleCount: currentCount } = propsRef.current;
 
     // Subtle mouse influence
     const mouseInfluenceX = (currentMouse.x - 0.5) * 0.5;
@@ -86,9 +80,9 @@ export function BackgroundParticles({
       const i3 = i * 3;
 
       // Slow drift movement
-      positions[i3] += particleData.velocities[i3] * currentSpeed * delta * 60;
-      positions[i3 + 1] += particleData.velocities[i3 + 1] * currentSpeed * delta * 60;
-      positions[i3 + 2] += particleData.velocities[i3 + 2] * currentSpeed * delta * 60;
+      positions[i3] += velocities[i3] * currentSpeed * delta * 60;
+      positions[i3 + 1] += velocities[i3 + 1] * currentSpeed * delta * 60;
+      positions[i3 + 2] += velocities[i3 + 2] * currentSpeed * delta * 60;
 
       // Add subtle wave motion
       positions[i3] += Math.sin(time * 0.2 + i * 0.1) * 0.001;
@@ -107,28 +101,21 @@ export function BackgroundParticles({
       if (positions[i3 + 2] < -5) positions[i3 + 2] = 5;
     }
 
-    geometryRef.current.attributes.position.needsUpdate = true;
+    geometry.attributes.position.needsUpdate = true;
 
     // Update draw range to show only active particles
-    geometryRef.current.setDrawRange(0, currentCount);
+    geometry.setDrawRange(0, currentCount);
   });
 
+  // Cleanup geometry on unmount
+  useEffect(() => {
+    return () => {
+      geometry.dispose();
+    };
+  }, [geometry]);
+
   return (
-    <points ref={meshRef}>
-      <bufferGeometry ref={geometryRef}>
-        <bufferAttribute
-          attach="attributes-position"
-          count={MAX_PARTICLES}
-          array={particleData.positions}
-          itemSize={3}
-        />
-        <bufferAttribute
-          attach="attributes-size"
-          count={MAX_PARTICLES}
-          array={particleData.sizes}
-          itemSize={1}
-        />
-      </bufferGeometry>
+    <points ref={pointsRef} geometry={geometry}>
       <pointsMaterial
         size={0.05}
         color={color}

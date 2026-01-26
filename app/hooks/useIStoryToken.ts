@@ -53,10 +53,14 @@ export function useIStoryToken() {
     refetchAllowance(); // Update state
   }
 
+  // Cast data from useReadContract (returns {} | undefined) to bigint
+  const balanceValue = balance as bigint | undefined;
+  const allowanceValue = allowance as bigint | undefined;
+
   return {
-    balance: balance ? BigInt(balance) : BigInt(0),
-    formattedBalance: balance ? formatEther(balance) : "0",
-    allowance: allowance ? BigInt(allowance) : BigInt(0),
+    balance: balanceValue ?? BigInt(0),
+    formattedBalance: balanceValue ? formatEther(balanceValue) : "0",
+    allowance: allowanceValue ?? BigInt(0),
     approve: approveProtocol,
     isPending,
     refetchBalance,

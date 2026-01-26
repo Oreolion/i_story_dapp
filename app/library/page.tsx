@@ -343,16 +343,6 @@ export default function LibraryPage() {
     return matchesSearch;
   });
 
-  // Filter for recent tab (last 30 days)
-  const recentEntries = filteredEntries.filter((entry) => {
-    const date = new Date(
-      entry.type === "entry" ? entry.story_date : entry.created_at
-    );
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    return date >= thirtyDaysAgo;
-  });
-
   // --- 4. Render ---
 
   if (!isConnected) {
@@ -465,10 +455,18 @@ export default function LibraryPage() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-5 mb-6">
+        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 mb-6">
           <TabsTrigger value="all" className="text-xs sm:text-sm">
             <FileText className="w-4 h-4 mr-1 hidden sm:inline" />
             All
+          </TabsTrigger>
+          <TabsTrigger value="stories" className="text-xs sm:text-sm">
+            <FileText className="w-4 h-4 mr-1 hidden sm:inline" />
+            Stories
+          </TabsTrigger>
+          <TabsTrigger value="books" className="text-xs sm:text-sm">
+            <BookOpen className="w-4 h-4 mr-1 hidden sm:inline" />
+            Books
           </TabsTrigger>
           <TabsTrigger value="key" className="text-xs sm:text-sm">
             <Star className="w-4 h-4 mr-1 hidden sm:inline" />
@@ -482,13 +480,9 @@ export default function LibraryPage() {
             <Compass className="w-4 h-4 mr-1 hidden sm:inline" />
             Life Areas
           </TabsTrigger>
-          <TabsTrigger value="recent" className="text-xs sm:text-sm">
-            <Calendar className="w-4 h-4 mr-1 hidden sm:inline" />
-            Recent
-          </TabsTrigger>
         </TabsList>
 
-        {/* All Stories Tab */}
+        {/* All Tab - Shows both stories and books */}
         <TabsContent value="all">
           {isLoading ? (
             <div className="flex items-center justify-center min-h-[40vh]">
@@ -512,6 +506,106 @@ export default function LibraryPage() {
           )}
           {!isLoading && filteredEntries.length === 0 && (
             <EmptyState searchQuery={searchQuery} />
+          )}
+        </TabsContent>
+
+        {/* Stories Tab - Only stories */}
+        <TabsContent value="stories">
+          {isLoading ? (
+            <div className="flex items-center justify-center min-h-[40vh]">
+              <Loader2 className="w-12 h-12 animate-spin text-[hsl(var(--memory-500))]" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <AnimatePresence mode="popLayout">
+                {filteredEntries
+                  .filter((e) => e.type === "entry")
+                  .map((entry, index) => (
+                    <StoryCard
+                      key={entry.id}
+                      entry={entry}
+                      index={index}
+                      isCompiling={isCompiling}
+                      isSelected={selectedStoryIds.has(entry.id)}
+                      onClick={() => handleCardClick(entry)}
+                    />
+                  ))}
+              </AnimatePresence>
+            </div>
+          )}
+          {!isLoading && filteredEntries.filter((e) => e.type === "entry").length === 0 && (
+            <Card className="card-elevated rounded-xl">
+              <CardContent className="py-12 text-center space-y-4">
+                <div className="w-16 h-16 mx-auto bg-[hsl(var(--memory-500)/0.15)] rounded-full flex items-center justify-center">
+                  <FileText className="w-8 h-8 text-[hsl(var(--memory-500))]" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    No Stories Yet
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    Start journaling to see your stories here.
+                  </p>
+                </div>
+                <Button
+                  onClick={() => router.push("/record")}
+                  className="bg-gradient-to-r from-[hsl(var(--memory-600))] to-[hsl(var(--insight-600))] hover:from-[hsl(var(--memory-500))] hover:to-[hsl(var(--insight-500))]"
+                >
+                  Record Your First Story
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Books Tab - Only books */}
+        <TabsContent value="books">
+          {isLoading ? (
+            <div className="flex items-center justify-center min-h-[40vh]">
+              <Loader2 className="w-12 h-12 animate-spin text-[hsl(var(--memory-500))]" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <AnimatePresence mode="popLayout">
+                {filteredEntries
+                  .filter((e) => e.type === "book")
+                  .map((entry, index) => (
+                    <StoryCard
+                      key={entry.id}
+                      entry={entry}
+                      index={index}
+                      isCompiling={false}
+                      isSelected={false}
+                      onClick={() => handleCardClick(entry)}
+                    />
+                  ))}
+              </AnimatePresence>
+            </div>
+          )}
+          {!isLoading && filteredEntries.filter((e) => e.type === "book").length === 0 && (
+            <Card className="card-elevated rounded-xl">
+              <CardContent className="py-12 text-center space-y-4">
+                <div className="w-16 h-16 mx-auto bg-[hsl(var(--insight-500)/0.15)] rounded-full flex items-center justify-center">
+                  <BookOpen className="w-8 h-8 text-[hsl(var(--insight-500))]" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    No Books Yet
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    Compile your stories into beautiful digital books.
+                  </p>
+                </div>
+                <Button
+                  onClick={handleStartCompile}
+                  variant="outline"
+                  className="border-[hsl(var(--insight-500)/0.3)] text-[hsl(var(--insight-600))] dark:text-[hsl(var(--insight-400))] hover:bg-[hsl(var(--insight-500)/0.1)]"
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Compile Your First Book
+                </Button>
+              </CardContent>
+            </Card>
           )}
         </TabsContent>
 
@@ -567,52 +661,6 @@ export default function LibraryPage() {
           />
         </TabsContent>
 
-        {/* Recent Tab */}
-        <TabsContent value="recent">
-          {isLoading ? (
-            <div className="flex items-center justify-center min-h-[40vh]">
-              <Loader2 className="w-12 h-12 animate-spin text-[hsl(var(--memory-500))]" />
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <AnimatePresence mode="popLayout">
-                {recentEntries.map((entry, index) => (
-                  <StoryCard
-                    key={entry.id}
-                    entry={entry}
-                    index={index}
-                    isCompiling={isCompiling}
-                    isSelected={selectedStoryIds.has(entry.id)}
-                    onClick={() => handleCardClick(entry)}
-                  />
-                ))}
-              </AnimatePresence>
-            </div>
-          )}
-          {!isLoading && recentEntries.length === 0 && (
-            <Card className="card-elevated rounded-xl">
-              <CardContent className="py-12 text-center space-y-4">
-                <div className="w-16 h-16 mx-auto bg-[hsl(var(--void-light))] rounded-full flex items-center justify-center">
-                  <Calendar className="w-8 h-8 text-gray-400" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    No Recent Stories
-                  </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                    No stories recorded in the last 30 days. Start journaling to see your recent entries here.
-                  </p>
-                </div>
-                <Button
-                  onClick={() => router.push("/record")}
-                  className="bg-gradient-to-r from-[hsl(var(--memory-600))] to-[hsl(var(--insight-600))] hover:from-[hsl(var(--memory-500))] hover:to-[hsl(var(--insight-500))]"
-                >
-                  Record a Story
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
       </Tabs>
 
       {/* Quick Actions */}

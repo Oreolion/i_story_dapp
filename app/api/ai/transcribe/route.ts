@@ -35,10 +35,11 @@ export async function POST(req: NextRequest) {
       diarize: false, // Set to true if you want to distinguish speakers
     });
 
-    // ElevenLabs returns the text directly in the response object properties
-    // Depending on SDK version, it might be just the object or have a text property.
-    // Based on docs: transcription is the object containing 'text'.
-    return NextResponse.json({ text: transcription.text });
+    // ElevenLabs returns the transcription result
+    // Cast to access the text property which may not be in all response types
+    const responseText = (transcription as { text?: string }).text ||
+                         (typeof transcription === 'string' ? transcription : '');
+    return NextResponse.json({ text: responseText });
 
   } catch (error: any) {
     console.error("ElevenLabs Transcription error:", error);

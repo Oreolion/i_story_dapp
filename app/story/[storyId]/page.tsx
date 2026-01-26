@@ -283,7 +283,7 @@ export default function StoryPage({
     await payPaywall(
       story.author.wallet_address as string,
       story.paywallAmount,
-      BigInt(Number(story.numeric_id))
+      story.numeric_id
     );
   };
 
@@ -356,14 +356,19 @@ export default function StoryPage({
 
       if (error) throw error;
 
+      // Handle author data - could be array or single object from Supabase
+      const authorData = Array.isArray(data.author)
+        ? data.author[0]
+        : data.author;
+
       const newCommentObj: CommentDataTypes = {
         id: data.id,
         content: data.content,
         created_at: data.created_at,
         author: {
-          name: data.author?.name || "Me",
-          avatar: data.author?.avatar,
-          wallet_address: data.author?.wallet_address,
+          name: authorData?.name || "Me",
+          avatar: authorData?.avatar,
+          wallet_address: authorData?.wallet_address,
         },
       };
 
@@ -381,9 +386,10 @@ export default function StoryPage({
   const handleMintStory = async () => {
     if (!isConnected) return toast.error("Connect wallet");
     if (!story?.numeric_id) return;
+    if (!supabase) return toast.error("Database not available");
 
     const { data } = await supabase
-      ?.from("stories")
+      .from("stories")
       .select("ipfs_hash")
       .eq("id", story.id)
       .single();
@@ -579,7 +585,7 @@ export default function StoryPage({
                       @{story.author.username || "user"}
                     </span>
                     <span className="w-1 h-1 rounded-full bg-gray-300 mr-2" />
-                    <span>{story.author.followers_count} followers</span>
+                    <span>{story.author.followers} followers</span>
                   </div>
                 </div>
               </div>

@@ -199,30 +199,19 @@ export function useNotifications(): UseNotificationsReturn {
 
         if (data.success) {
           setNotifications([data.data, ...notifications]);
-          toast({
-            title: "Success",
-            description: "Notification created",
-          });
+          toast.success("Notification created");
         } else {
           setError(data.error);
-          toast({
-            title: "Error",
-            description: data.error,
-            variant: "destructive",
-          });
+          toast.error(data.error || "Failed to create notification");
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : "Unknown error";
         setError(message);
         console.error("Error creating notification:", err);
-        toast({
-          title: "Error",
-          description: message,
-          variant: "destructive",
-        });
+        toast.error(message);
       }
     },
-    [getAuthToken, notifications, toast]
+    [getAuthToken, notifications]
   );
 
   /**
@@ -300,10 +289,7 @@ export function useNotifications(): UseNotificationsReturn {
       if (data.success) {
         setNotifications(notifications.map((n) => ({ ...n, read: true })));
         setUnreadCount(0);
-        toast({
-          title: "Success",
-          description: "All notifications marked as read",
-        });
+        toast.success("All notifications marked as read");
       } else {
         setError(data.error);
       }
@@ -312,7 +298,7 @@ export function useNotifications(): UseNotificationsReturn {
       setError(message);
       console.error("Error marking all as read:", err);
     }
-  }, [getAuthToken, notifications, toast]);
+  }, [getAuthToken, notifications]);
 
   /**
    * Delete a notification
@@ -345,10 +331,7 @@ export function useNotifications(): UseNotificationsReturn {
           setNotifications(
             notifications.filter((n) => n.id !== notificationId)
           );
-          toast({
-            title: "Success",
-            description: "Notification deleted",
-          });
+          toast.success("Notification deleted");
         } else {
           setError(data.error);
         }
@@ -358,7 +341,7 @@ export function useNotifications(): UseNotificationsReturn {
         console.error("Error deleting notification:", err);
       }
     },
-    [getAuthToken, notifications, toast]
+    [getAuthToken, notifications]
   );
 
   /**
@@ -392,10 +375,7 @@ export function useNotifications(): UseNotificationsReturn {
       if (data.success) {
         setNotifications([]);
         setUnreadCount(0);
-        toast({
-          title: "Success",
-          description: "All notifications deleted",
-        });
+        toast.success("All notifications deleted");
       } else {
         setError(data.error);
       }
@@ -404,7 +384,7 @@ export function useNotifications(): UseNotificationsReturn {
       setError(message);
       console.error("Error deleting all notifications:", err);
     }
-  }, [getAuthToken, toast]);
+  }, [getAuthToken]);
 
   /**
    * Subscribe to real-time notifications (polling)

@@ -51,19 +51,42 @@ export interface FeaturedWriterType {
 }
 
 // Note: mockStories now correctly uses the unwrapped StoryType[]
+const mockAuthor1: AuthorProfile = {
+  name: "Sarah Chen",
+  username: "@sarahchen",
+  avatar: "https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
+  wallet_address: "0x1234567890abcdef1234567890abcdef12345678",
+  badges: ["Top Writer", "Community Star"],
+  followers: 1250,
+  isFollowing: false,
+};
+
+const mockAuthor2: AuthorProfile = {
+  name: "Marcus Rodriguez",
+  username: "@marcusr",
+  avatar: "https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
+  wallet_address: "0x456789abcdef1234567890abcdef1234567890ab",
+  badges: ["Storyteller", "Early Adopter"],
+  followers: 890,
+  isFollowing: true,
+};
+
+const mockAuthor3: AuthorProfile = {
+  name: "Elena Vasquez",
+  username: "@elenav",
+  avatar: "https://images.pexels.com/photos/1036623/pexels-photo-1036623.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
+  wallet_address: "0x7890abcdef1234567890abcdef1234567890abcd",
+  badges: ["Travel Stories"],
+  followers: 654,
+  isFollowing: false,
+};
+
 export const mockStories: StoryDataType[] = [
   {
     id: 1,
     numeric_id: "001",
-    author_wallet: {
-      name: "Sarah Chen",
-      username: "0x1234567890abcdef1234567890abcdef12345678",
-      avatar:
-        "https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
-      badges: ["Top Writer", "Community Star"],
-      followers: 1250,
-      isFollowing: false,
-    },
+    author: mockAuthor1,
+    author_wallet: mockAuthor1,
     title: "The Art of Morning Rituals",
     content:
       "There's something magical about the quiet hours before the world wakes up. My morning ritual has become sacred to me - it starts with gratitude, moves through gentle movement, and ends with setting intentions for the day ahead. This practice has transformed not just my mornings, but my entire approach to life...",
@@ -77,19 +100,15 @@ export const mockStories: StoryDataType[] = [
     tags: ["wellness", "morning", "mindfulness"],
     paywallAmount: 0,
     isPaid: true,
+    is_public: true,
+    story_date: new Date().toISOString(),
+    created_at: new Date().toISOString(),
   },
   {
     id: 2,
     numeric_id: "002",
-    author_wallet: {
-      name: "Marcus Rodriguez",
-      username: "0x456789abcdef1234567890abcdef1234567890ab",
-      avatar:
-        "https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
-      badges: ["Storyteller", "Early Adopter"],
-      followers: 890,
-      isFollowing: true,
-    },
+    author: mockAuthor2,
+    author_wallet: mockAuthor2,
     title: "Building Dreams in Code",
     content:
       "Ten years ago, I wrote my first line of code on a borrowed laptop in a coffee shop. Today, I'm launching my third startup. The journey hasn't been linear - there were failures, sleepless nights, and moments of doubt. But every setback taught me something valuable about resilience, creativity, and the power of never giving up on your dreams...",
@@ -105,19 +124,15 @@ export const mockStories: StoryDataType[] = [
     isPaid: false,
     teaser:
       "Unlock the full story of my startup journey—exclusive insights on resilience and code that changed my life.",
+    is_public: true,
+    story_date: new Date().toISOString(),
+    created_at: new Date().toISOString(),
   },
   {
     id: 3,
     numeric_id: "003",
-    author_wallet: {
-      name: "Elena Vasquez",
-      username: "0x7890abcdef1234567890abcdef1234567890abcd",
-      avatar:
-        "https://images.pexels.com/photos/1036623/pexels-photo-1036623.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
-      badges: ["Travel Stories"],
-      followers: 654,
-      isFollowing: false,
-    },
+    author: mockAuthor3,
+    author_wallet: mockAuthor3,
     title: "Letters from Patagonia",
     content:
       "The wind here carries stories from across continents. I'm sitting by a glacial lake, writing by candlelight in my tent, and I've never felt more connected to the natural world. Three weeks into this solo trek through Patagonia, and every day brings new lessons about solitude, strength, and the incredible beauty that exists when we step away from our digital lives...",
@@ -130,6 +145,9 @@ export const mockStories: StoryDataType[] = [
     mood: "adventurous",
     tags: ["travel", "nature", "solitude"],
     paywallAmount: 0,
+    is_public: true,
+    story_date: new Date().toISOString(),
+    created_at: new Date().toISOString(),
   },
 ];
 

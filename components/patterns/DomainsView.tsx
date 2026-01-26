@@ -29,7 +29,8 @@ interface DomainsViewProps {
 }
 
 // Domain configuration with icons and design system colors
-const domainConfig: Record<LifeDomain, { icon: React.ElementType; bgColor: string; textColor: string; label: string }> = {
+type IconComponent = React.ComponentType<{ className?: string }>;
+const domainConfig: Record<LifeDomain, { icon: IconComponent; bgColor: string; textColor: string; label: string }> = {
   work: {
     icon: Briefcase,
     bgColor: "bg-[hsl(var(--domain-work)/0.15)]",

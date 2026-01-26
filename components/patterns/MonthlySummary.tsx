@@ -29,7 +29,8 @@ interface MonthlySummaryProps {
 }
 
 // Domain icons mapping
-const domainIcons: Record<LifeDomain, React.ElementType> = {
+type IconComponent = React.ComponentType<{ className?: string }>;
+const domainIcons: Record<LifeDomain, IconComponent> = {
   work: Briefcase,
   relationships: Heart,
   health: Activity,

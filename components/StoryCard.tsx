@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -57,15 +57,19 @@ export function StoryCard({
   const { writeContract, data: tipHash } = useWriteContract();
   const { writeContract: payContract, data: payHash } = useWriteContract();
 
-  useWaitForTransactionReceipt({
+  const { isSuccess: isTxSuccess } = useWaitForTransactionReceipt({
     hash: tipHash || payHash,
-    onSuccess: () => {
+  });
+
+  // Handle transaction success
+  useEffect(() => {
+    if (isTxSuccess) {
       toast.success("Transaction confirmed!");
       setIsTipping(false);
       setIsPaying(false);
       if (payHash) onUnlock?.(story.id);
-    },
-  });
+    }
+  }, [isTxSuccess, payHash, onUnlock, story.id]);
 
   const handleTip = () => {
     setIsTipping(true);
@@ -227,7 +231,7 @@ export function StoryCard({
           <Button
             size="sm"
             variant={story.author_wallet?.isFollowing ? "secondary" : "outline"}
-            onClick={() => onFollow?.(story.author_wallet?.username)}
+            onClick={() => onFollow?.(story.author_wallet?.username || '')}
             className="text-sm"
           >
             {story.author_wallet?.isFollowing ? "Following" : "Follow"}

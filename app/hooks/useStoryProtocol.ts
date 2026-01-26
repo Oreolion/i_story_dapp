@@ -11,12 +11,15 @@ export function useStoryProtocol() {
   const { writeContract, data: hash, isPending, error } = useWriteContract();
 
   // Check allowance first
-  const { data: allowance } = useReadContract({
+  const { data: allowanceData } = useReadContract({
     address: STORY_TOKEN_ADDRESS,
     abi: STORY_TOKEN_ABI,
     functionName: "allowance",
     args: address ? [address, STORY_PROTOCOL_ADDRESS] : undefined,
   });
+
+  // Cast allowance data to bigint (useReadContract returns {} | undefined)
+  const allowance = allowanceData as bigint | undefined;
 
   // 1. Tip Creator
   const tipCreator = async (creatorAddress: string, amount: number, storyId: string) => {

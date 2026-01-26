@@ -23,8 +23,10 @@ import {
 import { toast } from "react-hot-toast";
 
 // FIX: Relative paths based on app/social/ location
-import { StoryCard, StoryDataType } from "../../components/StoryCard";
+import { StoryCard } from "../../components/StoryCard";
+import { StoryDataType } from "../types/index";
 import { useIStoryToken } from "../hooks/useIStoryToken";
+import { useStoryProtocol } from "../hooks/useStoryProtocol";
 import { supabaseClient } from "../../app/utils/supabase/supabaseClient";
 import { useAccount } from "wagmi";
 import Link from "next/link";
@@ -96,6 +98,7 @@ export default function SocialPage() {
 
   // Hooks
   const iStoryToken = useIStoryToken();
+  const { payPaywall } = useStoryProtocol();
   const supabase = supabaseClient;
 
   // --- Fetch Data ---
@@ -129,47 +132,58 @@ export default function SocialPage() {
         const validStories = (data?.filter((s) => s.author) as any[]) || [];
 
         // 3. Map DB data to UI format + Inject Dummy Data for missing fields
-        const storiesWithDefaults: StoryDataType[] = validStories.map((s) => ({
-          id: s.id,
-          numeric_id: s.numeric_id ?? String(s.id),
+        const authorProfile = (s: any): AuthorProfile => ({
+          id: s.author.id,
+          name: s.author.name || "Anonymous Writer",
+          username:
+            s.author.username ||
+            `@user${s.author.wallet_address?.slice(0, 4)}`,
+          avatar: s.author.avatar,
+          wallet_address: s.author.wallet_address,
+          followers:
+            s.author.followers_count ?? Math.floor(Math.random() * 500),
+          badges: s.author.badges ?? ["Storyteller"],
+          isFollowing: false,
+        });
 
-          // Author Mapping
-          author_wallet: {
-            id: s.author.id,
-            name: s.author.name || "Anonymous Writer",
-            username:
-              s.author.username ||
-              `@user${s.author.wallet_address?.slice(0, 4)}`,
-            avatar: s.author.avatar,
-            wallet_address: s.author.wallet_address,
-            followers:
-              s.author.followers_count ?? Math.floor(Math.random() * 500), // Fallback dummy data
-            badges: s.author.badges ?? ["Storyteller"], // Fallback dummy data
-            isFollowing: false, // Client-side state
-          } as AuthorProfile,
+        const storiesWithDefaults: StoryDataType[] = validStories.map((s) => {
+          const author = authorProfile(s);
+          return {
+            id: s.id,
+            numeric_id: s.numeric_id ?? String(s.id),
 
-          // Story Content Mapping
-          title: s.title ?? "Untitled Story",
-          content: s.content ?? "",
-          teaser: s.teaser,
-          timestamp: s.created_at,
+            // Author Mapping - both author and author_wallet required
+            author: author,
+            author_wallet: author,
 
-          // Stats Mapping
-          likes: s.likes ?? 0,
-          comments: s.comments_count ?? 0,
-          shares: s.shares ?? Math.floor(Math.random() * 50), // Dummy data for shares if 0
+            // Story Content Mapping
+            title: s.title ?? "Untitled Story",
+            content: s.content ?? "",
+            teaser: s.teaser,
+            timestamp: s.created_at,
 
-          // Media & Meta
-          hasAudio: s.has_audio ?? false,
-          audioUrl: s.audio_url,
-          mood: s.mood || "neutral",
-          tags: s.tags && s.tags.length > 0 ? s.tags : ["life", "journal"], // Fallback tags
-          paywallAmount: s.paywall_amount ?? 0,
+            // Stats Mapping
+            likes: s.likes ?? 0,
+            comments: s.comments_count ?? 0,
+            shares: s.shares ?? Math.floor(Math.random() * 50),
 
-          // Interactive State
-          isLiked: false,
-          isPaid: false,
-        }));
+            // Media & Meta
+            hasAudio: s.has_audio ?? false,
+            audio_url: s.audio_url,
+            mood: s.mood || "neutral",
+            tags: s.tags && s.tags.length > 0 ? s.tags : ["life", "journal"],
+            paywallAmount: s.paywall_amount ?? 0,
+
+            // Required fields
+            is_public: true,
+            story_date: s.story_date || s.created_at,
+            created_at: s.created_at,
+
+            // Interactive State
+            isLiked: false,
+            isPaid: false,
+          };
+        });
 
         setStories(storiesWithDefaults);
       } catch (err: any) {
@@ -198,18 +212,17 @@ export default function SocialPage() {
     try {
       toast.loading("Processing payment...", { id: "unlock-toast" });
 
-      const numericIdBigInt = BigInt(story.numeric_id);
-      const authorAddress = story.author_wallet.wallet_address as `0x${string}`;
+      const authorAddress = story.author_wallet.wallet_address as string;
 
-      await iStoryToken.write.payPaywall(
+      await payPaywall(
         authorAddress,
         story.paywallAmount,
-        numericIdBigInt
+        story.numeric_id
       );
 
-      setUnlockedStories((prev) => new Set(prev).add(story.id));
+      setUnlockedStories((prev) => new Set(prev).add(String(story.id)));
       setStories((prev) =>
-        prev.map((s) => (s.id === story.id ? { ...s, isPaid: true } : s))
+        prev.map((s) => (String(s.id) === String(story.id) ? { ...s, isPaid: true } : s))
       );
 
       toast.success(`Unlocked! Paid ${story.paywallAmount} $ISTORY`, {
@@ -249,9 +262,8 @@ export default function SocialPage() {
     );
 
     try {
-      const numericIdBigInt = BigInt(story.numeric_id);
-      const likerAddress = address as `0x${string}`;
-      await likeSystem.write.likeStory(numericIdBigInt, likerAddress);
+      // Like functionality - currently using optimistic UI only
+      // TODO: Implement blockchain-based like system when contract is ready
 
       // Optional: Fetch actual count from contract here to ensure sync
     } catch (error) {
@@ -413,14 +425,14 @@ export default function SocialPage() {
                           story={{
                             ...story,
                             isPaid:
-                              story.isPaid || unlockedStories.has(story.id),
+                              story.isPaid || unlockedStories.has(String(story.id)),
                           }}
                           onFollow={() =>
                             handleFollow(
                               story.author_wallet?.username || "writer"
                             )
                           }
-                          onShare={() => handleShare(story.id)}
+                          onShare={() => handleShare(String(story.id))}
                           onLike={() => handleLike(story.numeric_id)}
                           onUnlock={() => handleUnlock(story.numeric_id)}
                         />

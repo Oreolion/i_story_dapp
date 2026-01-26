@@ -145,7 +145,8 @@ export default function TasksPage() {
     setNewHabitTitle("");
     toast.success("Habit added");
   } catch (error) {
-    toast.error(error.message || "Failed to add habit");
+    const message = error instanceof Error ? error.message : "Failed to add habit";
+    toast.error(message);
   } finally {
     setIsAdding(false);
   }
