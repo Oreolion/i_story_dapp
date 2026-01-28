@@ -322,3 +322,34 @@ export interface ThemeConfig {
   bgColor: string;
   textColor: string;
 }
+
+// === Phase 3: Weekly Reflections Types ===
+
+// Weekly AI-generated reflection
+export interface WeeklyReflection {
+  id: string;
+  user_id: string;
+  user_wallet: string;
+  reflection_text: string;
+  stories_analyzed: string[];
+  themes_identified: string[];
+  dominant_tone: EmotionalTone | null;
+  dominant_domain: LifeDomain | null;
+  week_start: string;
+  week_end: string;
+  canonical_weight: number;
+  created_at: string;
+}
+
+// Reflection generation response
+export interface ReflectionResponse {
+  success: boolean;
+  reflection: WeeklyReflection;
+  message?: string;
+}
+
+// Reflection generation request
+export interface ReflectionRequest {
+  userId: string;
+  userWallet: string;
+}

@@ -290,7 +290,7 @@ export function Footer() {
     
 
       {/* Subtle gradient bottom accent */}
-      <div className="h-1 bg-gradient-to-r from-purple-600 via-indigo-600 to-emerald-600 opacity-50" />
+      <div className="h-1 bg-linear-to-r from-purple-600 via-indigo-600 to-emerald-600 opacity-50" />
     </footer>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,7 @@ import {
   AlertTriangle,
   Star,
   Hourglass,
+  WifiOff,
 } from "lucide-react";
 import { getEmotionClass, getDomainClass, domainLabels } from "@/lib/design-tokens";
 
@@ -34,35 +35,82 @@ export function StoryInsights({ storyId, storyText }: StoryInsightsProps) {
   const [metadata, setMetadata] = useState<StoryMetadata | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
-  // Fetch metadata on mount
-  useEffect(() => {
-    fetchMetadata();
-  }, [storyId]);
+  // AbortController ref for cleanup on unmount
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  const fetchMetadata = async () => {
+  const fetchMetadata = useCallback(async () => {
+    // Abort any existing request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new AbortController for this request
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
     try {
       setIsLoading(true);
-      const res = await fetch(`/api/stories/${storyId}/metadata`);
-      if (!res.ok) throw new Error("Failed to fetch metadata");
+      setFetchError(null);
+
+      const res = await fetch(`/api/stories/${storyId}/metadata`, { signal });
+
+      if (!res.ok) {
+        if (res.status === 404) {
+          // No metadata yet, not an error
+          setMetadata(null);
+          return;
+        }
+        throw new Error("Failed to fetch metadata");
+      }
 
       const data = await res.json();
       setMetadata(data.metadata);
     } catch (error) {
+      // Ignore abort errors (component unmounted)
+      if (error instanceof Error && error.name === "AbortError") {
+        return;
+      }
+
       console.error("Error fetching metadata:", error);
+
+      // Determine error type
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        setFetchError("Network error. Please check your connection.");
+      } else {
+        setFetchError("Unable to load insights. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [storyId]);
+
+  // Fetch metadata on mount and cleanup on unmount
+  useEffect(() => {
+    fetchMetadata();
+
+    return () => {
+      // Cleanup: abort any pending requests
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [fetchMetadata]);
 
   const generateInsights = async () => {
+    // Create AbortController for this request
+    const controller = new AbortController();
+
     try {
       setIsAnalyzing(true);
+      setFetchError(null);
 
       const res = await fetch("/api/ai/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ storyId, storyText }),
+        signal: controller.signal,
       });
 
       if (!res.ok) {
@@ -74,12 +122,28 @@ export function StoryInsights({ storyId, storyText }: StoryInsightsProps) {
       setMetadata(data.metadata);
       toast.success("Insights generated!");
     } catch (error: unknown) {
+      // Ignore abort errors
+      if (error instanceof Error && error.name === "AbortError") {
+        return;
+      }
+
       console.error("Analysis error:", error);
-      const message = error instanceof Error ? error.message : "Failed to generate insights";
-      toast.error(message);
+
+      // Determine error type
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        toast.error("Network error. Please check your connection.");
+      } else {
+        const message = error instanceof Error ? error.message : "Failed to generate insights";
+        toast.error(message);
+      }
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const handleRetry = () => {
+    setFetchError(null);
+    fetchMetadata();
   };
 
   // Loading state
@@ -91,6 +155,35 @@ export function StoryInsights({ storyId, storyText }: StoryInsightsProps) {
             <Loader2 className="w-5 h-5 animate-spin" />
             <span>Loading insights...</span>
           </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Network/fetch error state
+  if (fetchError) {
+    return (
+      <Card className="card-elevated rounded-xl bg-[hsl(var(--tone-anxious)/0.05)] border-[hsl(var(--tone-anxious)/0.2)]">
+        <CardContent className="py-8 text-center space-y-4">
+          <div className="w-12 h-12 mx-auto bg-gradient-to-r from-[hsl(var(--tone-anxious))] to-[hsl(var(--tone-frustrated))] rounded-full flex items-center justify-center">
+            <WifiOff className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Connection Error
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              {fetchError}
+            </p>
+          </div>
+          <Button
+            onClick={handleRetry}
+            variant="outline"
+            className="border-[hsl(var(--tone-anxious)/0.3)] text-[hsl(var(--tone-anxious))] hover:bg-[hsl(var(--tone-anxious)/0.1)]"
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Try Again
+          </Button>
         </CardContent>
       </Card>
     );

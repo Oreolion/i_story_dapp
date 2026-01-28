@@ -45,8 +45,10 @@ import {
   Loader2,
   Edit3,
   Sparkles,
-
 } from "lucide-react";
+
+import { WeeklyReflectionSection } from "@/components/WeeklyReflection";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // --- Types ---
 interface UserProfileData {
@@ -601,6 +603,11 @@ export default function ProfilePage() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Weekly Reflection Section */}
+              <ErrorBoundary fallbackMessage="Unable to load weekly reflection">
+                <WeeklyReflectionSection />
+              </ErrorBoundary>
             </TabsContent>
 
             {/* 2. Achievements Tab */}
