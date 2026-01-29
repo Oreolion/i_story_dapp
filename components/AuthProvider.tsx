@@ -118,23 +118,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .maybeSingle();
 
           if (emailMatch) {
-            // Link Google to existing wallet account
+            // Link Google to existing wallet account via server endpoint
+            // (client-side update fails with 406 because RLS blocks
+            //  updating another user's row — the Google OAuth session
+            //  has a different auth.uid() than the wallet user's id)
             const googleId =
               user.identities?.[0]?.id ?? user.id;
-            const { data: updated, error } = await supabase
-              .from("users")
-              .update({
-                google_id: googleId,
-                auth_provider: "both",
-                avatar: emailMatch.avatar || user.user_metadata?.avatar_url || null,
-              })
-              .eq("id", emailMatch.id)
-              .select()
-              .single();
-
-            if (!error && updated) {
-              setUnifiedProfile(updated, user);
-              return;
+            try {
+              const res = await fetch("/api/auth/link-google", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  existingUserId: emailMatch.id,
+                  googleId,
+                  googleEmail: user.email,
+                  googleAvatar: user.user_metadata?.avatar_url,
+                  googleName: user.user_metadata?.full_name ?? user.user_metadata?.name,
+                }),
+              });
+              if (res.ok) {
+                const { user: updated } = await res.json();
+                if (updated) {
+                  setUnifiedProfile(updated, user);
+                  return;
+                }
+              } else {
+                const errData = await res.json().catch(() => ({}));
+                console.error("[AUTH] link-google failed:", errData);
+              }
+            } catch (linkErr) {
+              console.error("[AUTH] link-google request error:", linkErr);
             }
           }
         }

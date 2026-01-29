@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useApp } from '../components/Provider';
+import { useConnectModal } from '@rainbow-me/rainbowkit';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
@@ -67,7 +68,8 @@ const stats = [
 ];
 
 export default function HomePage() {
-  const { user, isConnected, connectWallet } = useApp();
+  const { user, isConnected } = useApp();
+  const { openConnectModal } = useConnectModal();
   const router = useRouter();
 
   return (
@@ -128,7 +130,7 @@ export default function HomePage() {
           ) : (
             <Button
               size="lg"
-              onClick={connectWallet}
+              onClick={() => openConnectModal?.()}
               className="bg-gradient-to-r from-[hsl(var(--memory-600))] to-[hsl(var(--insight-600))] hover:from-[hsl(var(--memory-500))] hover:to-[hsl(var(--insight-500))] text-white text-lg px-8 h-12"
             >
               Connect Wallet to Start
