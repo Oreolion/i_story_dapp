@@ -353,3 +353,11 @@ export interface ReflectionRequest {
   userId: string;
   userWallet: string;
 }
+
+// === Dual Authentication Types ===
+
+export interface OnboardingData {
+  name: string;
+  username: string;
+  email: string;
+}

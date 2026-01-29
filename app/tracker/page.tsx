@@ -43,7 +43,7 @@ const MOODS = [
 ];
 
 export default function TasksPage() {
-  const authInfo = useAuth();
+  const { profile: authInfo } = useAuth();
   const supabase = supabaseClient;
 
   // Set background mode for this page

@@ -17,7 +17,7 @@ import {
   BookOpen,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { AuthButton } from "./AuthButton";
 import { useState, useEffect } from "react";
 import { NotificationDropdown } from "./NotificationDropdown";
 
@@ -112,8 +112,8 @@ export function Navigation() {
               <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
             </Button>
 
-            {/* Wallet Connect */}
-            <ConnectButton showBalance={false} />
+            {/* Auth Button */}
+            <AuthButton />
           </div>
         </div>
       </div>

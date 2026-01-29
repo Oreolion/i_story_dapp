@@ -65,8 +65,18 @@ vi.mock("../app/utils/ipfsService", () => ({
 // Mock Auth (Simulate User Logged In)
 vi.mock("../components/AuthProvider", () => ({
   useAuth: () => ({
-    id: "test-user-123",
-    wallet_address: "0x123...abc",
+    profile: {
+      id: "test-user-123",
+      wallet_address: "0x123...abc",
+      is_onboarded: true,
+      auth_provider: "wallet",
+    },
+    isLoading: false,
+    needsOnboarding: false,
+    signInWithGoogle: vi.fn(),
+    signOut: vi.fn(),
+    completeOnboarding: vi.fn(),
+    refreshProfile: vi.fn(),
   }),
 }));
 
@@ -75,6 +85,22 @@ vi.mock("../components/Provider", () => ({
   useApp: () => ({
     isConnected: true,
   }),
+}));
+
+// Mock BackgroundContext (3D background provider)
+vi.mock("../contexts/BackgroundContext", () => ({
+  useBackground: () => ({
+    config: { mode: "record" },
+    mode: "record",
+    setMode: vi.fn(),
+    setAudioLevel: vi.fn(),
+    setMousePosition: vi.fn(),
+    setScrollProgress: vi.fn(),
+    setEmotionalTone: vi.fn(),
+    isEnabled: true,
+    setIsEnabled: vi.fn(),
+  }),
+  useBackgroundMode: vi.fn(),
 }));
 
 // --- 2. TEST SUITE ---
@@ -88,7 +114,8 @@ describe("RecordPage", () => {
     render(<RecordPage />);
 
     // Check Title
-    expect(screen.getByText("Record Your Story")).toBeInTheDocument();
+    expect(screen.getByText(/Record Your/)).toBeInTheDocument();
+    expect(screen.getByText("Story")).toBeInTheDocument();
 
     // Check "Audio Recording" section
     expect(screen.getByText("Audio Recording")).toBeInTheDocument();
@@ -129,6 +156,6 @@ describe("RecordPage", () => {
 
   it("shows save button", () => {
     render(<RecordPage />);
-    expect(screen.getByText("Save & IPFS")).toBeInTheDocument();
+    expect(screen.getByText("Save Privately")).toBeInTheDocument();
   });
 });

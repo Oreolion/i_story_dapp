@@ -2,6 +2,7 @@
 
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useRef,
@@ -10,19 +11,42 @@ import React, {
 import { useAccount, useBalance, useSignMessage } from "wagmi";
 import type { User, Session } from "@supabase/supabase-js";
 import { supabaseClient } from "@/app/utils/supabase/supabaseClient";
+import type { OnboardingData } from "@/app/types";
 
 export interface UnifiedUserProfile {
   id: string;
   name: string | null;
+  username: string | null;
   email: string | null;
   avatar: string | null;
   wallet_address: string | null;
   balance: string;
   isConnected: boolean;
   supabaseUser: User | null;
+  auth_provider: "wallet" | "google" | "both";
+  is_onboarded: boolean;
+  google_id: string | null;
 }
 
-const AuthContext = createContext<UnifiedUserProfile | null>(null);
+export interface AuthContextType {
+  profile: UnifiedUserProfile | null;
+  isLoading: boolean;
+  needsOnboarding: boolean;
+  signInWithGoogle: () => Promise<void>;
+  signOut: () => Promise<void>;
+  completeOnboarding: (data: OnboardingData) => Promise<void>;
+  refreshProfile: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType>({
+  profile: null,
+  isLoading: true,
+  needsOnboarding: false,
+  signInWithGoogle: async () => {},
+  signOut: async () => {},
+  completeOnboarding: async () => {},
+  refreshProfile: async () => {},
+});
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const supabase = supabaseClient;
@@ -31,28 +55,146 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { signMessageAsync } = useSignMessage();
 
   const [profile, setProfile] = useState<UnifiedUserProfile | null>(null);
-  const [isSessionLoading, setIsSessionLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const signInAttemptRef = useRef(false);
 
+  const buildProfile = (
+    userRow: any,
+    sessionUser: User | null
+  ): UnifiedUserProfile => ({
+    id: userRow.id,
+    name: userRow.name ?? null,
+    username: userRow.username ?? null,
+    email: userRow.email ?? null,
+    avatar: userRow.avatar ?? null,
+    wallet_address:
+      (userRow.wallet_address ?? address ?? null)?.toLowerCase?.() ?? null,
+    balance: ethBalance?.formatted ?? "0",
+    isConnected: Boolean(isConnected),
+    supabaseUser: sessionUser,
+    auth_provider: userRow.auth_provider ?? "wallet",
+    is_onboarded: userRow.is_onboarded ?? false,
+    google_id: userRow.google_id ?? null,
+  });
+
   const setUnifiedProfile = (userRow: any, sessionUser: User | null) => {
-    if (!userRow) return setProfile(null);
-    setProfile({
-      id: userRow.id,
-      name: userRow.name ?? null,
-      email: userRow.email ?? null,
-      avatar: userRow.avatar ?? null,
-      wallet_address:
-        (userRow.wallet_address ?? address ?? null)?.toLowerCase?.() ?? null,
-      balance: ethBalance?.formatted ?? "0",
-      isConnected: Boolean(isConnected),
-      supabaseUser: sessionUser,
-    });
+    if (!userRow) {
+      setProfile(null);
+      setNeedsOnboarding(false);
+      return;
+    }
+    const p = buildProfile(userRow, sessionUser);
+    setProfile(p);
+    setNeedsOnboarding(!p.is_onboarded);
   };
 
-  // Optional: keep this for future Supabase-session based flows
+  // Handle Google sign-in from OAuth callback
+  const handleGoogleSignIn = useCallback(
+    async (session: Session) => {
+      if (!supabase) return;
+      const user = session.user;
+
+      try {
+        // 1. Look up by Supabase auth user id
+        const { data: existing } = await supabase
+          .from("users")
+          .select("*")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (existing) {
+          setUnifiedProfile(existing, user);
+          return;
+        }
+
+        // 2. Check by email for potential linking with existing wallet user
+        const userEmail = user.email;
+        if (userEmail) {
+          const { data: emailMatch } = await supabase
+            .from("users")
+            .select("*")
+            .eq("email", userEmail)
+            .maybeSingle();
+
+          if (emailMatch) {
+            // Link Google to existing wallet account
+            const googleId =
+              user.identities?.[0]?.id ?? user.id;
+            const { data: updated, error } = await supabase
+              .from("users")
+              .update({
+                google_id: googleId,
+                auth_provider: "both",
+                avatar: emailMatch.avatar || user.user_metadata?.avatar_url || null,
+              })
+              .eq("id", emailMatch.id)
+              .select()
+              .single();
+
+            if (!error && updated) {
+              setUnifiedProfile(updated, user);
+              return;
+            }
+          }
+        }
+
+        // 3. Create new Google-only user (auto-onboarded)
+        const googleId = user.identities?.[0]?.id ?? user.id;
+        const { data: created, error: createErr } = await supabase
+          .from("users")
+          .upsert(
+            {
+              id: user.id,
+              name:
+                user.user_metadata?.full_name ??
+                user.user_metadata?.name ??
+                null,
+              email: user.email ?? null,
+              avatar: user.user_metadata?.avatar_url ?? null,
+              google_id: googleId,
+              auth_provider: "google",
+              is_onboarded: true,
+              wallet_address: null,
+            },
+            { onConflict: "id", ignoreDuplicates: true }
+          )
+          .select()
+          .maybeSingle();
+
+        if (createErr) {
+          console.error("[AUTH] Google user creation failed:", createErr);
+          setProfile(null);
+          return;
+        }
+
+        if (created) {
+          setUnifiedProfile(created, user);
+        } else {
+          // User already existed (ignoreDuplicates) — fetch existing
+          const { data: existing } = await supabase
+            .from("users")
+            .select("*")
+            .eq("id", user.id)
+            .maybeSingle();
+          if (existing) {
+            setUnifiedProfile(existing, user);
+          } else {
+            setProfile(null);
+          }
+        }
+      } catch (err) {
+        console.error("[AUTH] handleGoogleSignIn error:", err);
+        setProfile(null);
+      }
+    },
+    [supabase, address, isConnected, ethBalance]
+  );
+
+  // Effect: Session hydration on mount
   useEffect(() => {
     if (!supabase) {
-      setIsSessionLoading(false);
+      setIsLoading(false);
       return;
     }
     let mounted = true;
@@ -68,7 +210,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (err) {
         console.error("[AUTH] initial getSession error:", err);
       } finally {
-        if (mounted) setIsSessionLoading(false);
+        if (mounted) setIsLoading(false);
       }
     })();
     return () => {
@@ -76,22 +218,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [supabase]);
 
+  // Effect: Auth state change listener
   useEffect(() => {
     if (!supabase) return;
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      handleSession(session || null).catch((e) =>
-        console.error("[AUTH] onAuthStateChange error:", e)
-      );
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "SIGNED_IN" && session) {
+        const provider = session.user.app_metadata?.provider;
+        if (provider === "google") {
+          await handleGoogleSignIn(session);
+          return;
+        }
+      }
+      if (event === "SIGNED_OUT") {
+        // Only clear profile if no wallet connected
+        if (!isConnected) {
+          setProfile(null);
+          setNeedsOnboarding(false);
+        }
+        return;
+      }
+      if (session) {
+        await handleSession(session);
+      }
     });
     return () => subscription.unsubscribe();
-  }, [supabase]);
+  }, [supabase, isConnected, handleGoogleSignIn]);
 
   const handleSession = async (session: Session | null) => {
     if (!supabase) return;
     if (!session?.user) {
       setProfile(null);
+      setNeedsOnboarding(false);
       return;
     }
 
@@ -101,23 +260,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const walletLower = sessionWalletAddress?.toLowerCase?.() ?? null;
 
     try {
+      // Look up by auth id OR wallet_address (user may have a new session id
+      // but the same wallet already exists from a previous session)
+      const lookupFilter = walletLower
+        ? `id.eq.${session.user.id},wallet_address.eq.${walletLower}`
+        : `id.eq.${session.user.id}`;
+
       const { data: userProfile, error } = await supabase
         .from("users")
         .select("*")
-        .eq("id", session.user.id)
+        .or(lookupFilter)
         .maybeSingle();
 
-      if (error) console.error("[AUTH] fetch profile by id error:", error);
+      if (error) console.error("[AUTH] fetch profile error:", error);
 
       if (userProfile) {
         setUnifiedProfile(userProfile, session.user);
         return;
       }
 
-      // Don't attempt insert if wallet_address is null (NOT NULL constraint)
-      // The wallet-based flow (line 235+) will handle user creation properly
+      // Don't attempt insert if wallet_address is null
       if (!walletLower) {
-        console.warn("[AUTH] No wallet_address available, skipping user creation from session");
+        console.warn(
+          "[AUTH] No wallet_address available, skipping user creation from session"
+        );
         setProfile(null);
         return;
       }
@@ -125,9 +291,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const insertPayload = {
         id: session.user.id,
         wallet_address: walletLower,
-        name: session.user.user_metadata?.name ?? null,
+        name:
+          session.user.user_metadata?.name ?? null,
         email: session.user.email ?? null,
         avatar: session.user.user_metadata?.avatar_url ?? null,
+        auth_provider: "wallet" as const,
+        is_onboarded: false,
       };
 
       const { data: inserted, error: insertError } = await supabase
@@ -137,22 +306,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .maybeSingle();
 
       if (insertError) {
-        if (
-          insertError.code === "23505" &&
-          insertError.message?.includes("users_wallet_address_key")
-        ) {
-          console.warn(
-            "[AUTH] insert conflict on wallet_address, fetching existing..."
-          );
+        if (insertError.code === "23505") {
+          // Race condition: row was created between our lookup and insert
           const { data: existing, error: fetchExistingErr } = await supabase
             .from("users")
             .select("*")
-            .eq("wallet_address", walletLower)
+            .or(`id.eq.${session.user.id},wallet_address.eq.${walletLower}`)
             .maybeSingle();
 
           if (fetchExistingErr) {
             console.error(
-              "[AUTH] failed to fetch existing by wallet_address:",
+              "[AUTH] failed to fetch existing user:",
               fetchExistingErr
             );
             setProfile(null);
@@ -168,8 +332,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           );
           setProfile(null);
         }
-      } else {
+      } else if (inserted) {
         setUnifiedProfile(inserted, session.user);
+      } else {
+        // upsert with ignoreDuplicates returns null for existing rows — fetch it
+        const { data: existing } = await supabase
+          .from("users")
+          .select("*")
+          .eq("id", session.user.id)
+          .maybeSingle();
+        if (existing) {
+          setUnifiedProfile(existing, session.user);
+        } else {
+          setProfile(null);
+        }
       }
     } catch (err) {
       console.error("[AUTH] handleSession unexpected:", err);
@@ -177,101 +353,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // 🔴 THIS IS THE IMPORTANT PART: hydrate profile from /api/auth
-//   useEffect(() => {
-//     if (!isConnected || !address) return;
-//     if (profile) return; // ✅ already have a profile, don't pop MetaMask again
-//     if (signInAttemptRef.current) return;
+  // Wallet connection effect — hydrate without MetaMask popup for returning users
+  useEffect(() => {
+    if (!supabase) return;
+    if (!isConnected || !address) return;
+    if (signInAttemptRef.current) return;
+    if (profile) return;
 
-//     signInAttemptRef.current = true;
+    const run = async () => {
+      try {
+        const { data: existing, error } = await supabase
+          .from("users")
+          .select("*")
+          .eq("wallet_address", address.toLowerCase())
+          .maybeSingle();
 
-//     const triggerSignIn = async () => {
-//       const message = `Welcome to IStory 🌌
+        if (error) {
+          console.error("[AUTH] lookup by wallet_address error:", error);
+        }
 
-// Sign this message to log in securely.
+        if (existing) {
+          setUnifiedProfile(existing, null);
+          return;
+        }
 
-// Site: ${window.location.origin}
-// Page: ${window.location.pathname}
-// Address: ${address}
+        // No existing user → MetaMask signature flow
+        signInAttemptRef.current = true;
 
-// No transaction · No gas fees · Completely free
-
-// Nonce: ${Date.now()}`;
-
-//       try {
-//         const signature = await signMessageAsync({ message });
-
-//         const res = await fetch("/api/auth/login", {
-//           method: "POST",
-//           headers: { "Content-Type": "application/json" },
-//           body: JSON.stringify({ address, message, signature }),
-//         });
-
-//         if (!res.ok) {
-//           const errJson = await res.json().catch(() => ({}));
-//           console.error("[AUTH] /api/auth failed:", errJson);
-//           throw new Error(errJson.error || "Auth failed");
-//         }
-
-//         const json = await res.json();
-//         const userRow = json.user;
-
-//         if (!userRow) {
-//           console.warn("[AUTH] /api/auth returned no user row");
-//         } else {
-//           console.log("[AUTH] /api/auth success, setting profile:", userRow);
-//           // We don't have a Supabase session; pass null for supabaseUser.
-//           setUnifiedProfile(userRow, null);
-//         }
-
-//         console.log(
-//           "MetaMask signed → /api/auth called → profile hydrated from server"
-//         );
-//       } catch (err: any) {
-//         if (err.code !== "ACTION_REJECTED") {
-//           console.error("Sign-in error:", err);
-//         }
-//       } finally {
-//         setTimeout(() => (signInAttemptRef.current = false), 3000);
-//       }
-//     };
-
-//     triggerSignIn();
-//   }, [isConnected, address, profile, signMessageAsync]);
-
-// 🔴 HYDRATE PROFILE WITHOUT POPPING METAMASK ON EVERY RELOAD
-useEffect(() => {
-  if (!supabase) return;
-  if (!isConnected || !address) return;
-  if (signInAttemptRef.current) return;
-  if (profile) return; // ✅ already hydrated in memory
-
-  const run = async () => {
-    try {
-      // 1) Try to hydrate from existing public.users row by wallet_address (no signature needed)
-      const { data: existing, error } = await supabase
-        .from("users")
-        .select("*")
-        .eq("wallet_address", address.toLowerCase())
-        .maybeSingle();
-
-      if (error) {
-        console.error("[AUTH] lookup by wallet_address error:", error);
-      }
-
-      if (existing) {
-        console.log(
-          "[AUTH] found existing user by wallet_address, no MetaMask sign-in needed"
-        );
-        // We don't have a Supabase session; pass null for supabaseUser.
-        setUnifiedProfile(existing, null);
-        return; // ✅ stop here, do NOT trigger MetaMask
-      }
-
-      // 2) No existing user → run your current MetaMask + /api/auth/login flow
-      signInAttemptRef.current = true;
-
-      const message = `Welcome to IStory 🌌
+        const message = `Welcome to IStory
 
 Sign this message to log in securely.
 
@@ -283,57 +392,107 @@ No transaction · No gas fees · Completely free
 
 Nonce: ${Date.now()}`;
 
-      try {
-        const signature = await signMessageAsync({ message });
+        try {
+          const signature = await signMessageAsync({ message });
 
-        const res = await fetch("/api/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ address, message, signature }),
-        });
+          const res = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ address, message, signature }),
+          });
 
-        if (!res.ok) {
-          const errJson = await res.json().catch(() => ({}));
-          console.error("[AUTH] /api/auth/login failed:", errJson);
-          throw new Error(errJson.error || "Auth failed");
+          if (!res.ok) {
+            const errJson = await res.json().catch(() => ({}));
+            console.error("[AUTH] /api/auth/login failed:", errJson);
+            throw new Error(errJson.error || "Auth failed");
+          }
+
+          const json = await res.json();
+          const userRow = json.user;
+
+          if (userRow) {
+            setUnifiedProfile(userRow, null);
+          }
+        } catch (err: any) {
+          if (err.code !== "ACTION_REJECTED") {
+            console.error("Sign-in error:", err);
+          }
+        } finally {
+          setTimeout(() => {
+            signInAttemptRef.current = false;
+          }, 3000);
         }
-
-        const json = await res.json();
-        const userRow = json.user;
-
-        if (!userRow) {
-          console.warn("[AUTH] /api/auth/login returned no user row");
-        } else {
-          console.log(
-            "[AUTH] /api/auth/login success, setting profile from server:",
-            userRow
-          );
-          setUnifiedProfile(userRow, null);
-        }
-
-        console.log(
-          "MetaMask signed → /api/auth/login called → profile hydrated from server"
-        );
-      } catch (err: any) {
-        if (err.code !== "ACTION_REJECTED") {
-          console.error("Sign-in error:", err);
-        }
-      } finally {
-        setTimeout(() => {
-          signInAttemptRef.current = false;
-        }, 3000);
+      } catch (err) {
+        console.error("[AUTH] unexpected error in wallet login flow:", err);
       }
-    } catch (err) {
-      console.error("[AUTH] unexpected error in wallet login flow:", err);
+    };
+
+    run();
+  }, [supabase, isConnected, address, profile, signMessageAsync]);
+
+  // Public API functions
+  const signInWithGoogle = useCallback(async () => {
+    if (!supabase) return;
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/api/auth/callback`,
+      },
+    });
+  }, [supabase]);
+
+  const signOut = useCallback(async () => {
+    if (!supabase) return;
+    await supabase.auth.signOut();
+    setProfile(null);
+    setNeedsOnboarding(false);
+  }, [supabase]);
+
+  const completeOnboarding = useCallback(
+    async (data: OnboardingData) => {
+      if (!profile) throw new Error("No profile to onboard");
+
+      const res = await fetch("/api/auth/onboarding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: profile.id, ...data }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Onboarding failed");
+      }
+
+      const { user } = await res.json();
+      setUnifiedProfile(user, profile.supabaseUser);
+    },
+    [profile, address, isConnected, ethBalance]
+  );
+
+  const refreshProfile = useCallback(async () => {
+    if (!supabase || !profile) return;
+    const { data } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", profile.id)
+      .maybeSingle();
+    if (data) {
+      setUnifiedProfile(data, profile.supabaseUser);
     }
+  }, [supabase, profile, address, isConnected, ethBalance]);
+
+  const contextValue: AuthContextType = {
+    profile,
+    isLoading,
+    needsOnboarding,
+    signInWithGoogle,
+    signOut,
+    completeOnboarding,
+    refreshProfile,
   };
 
-  run();
-}, [supabase, isConnected, address, profile, signMessageAsync]);
-
-
   return (
-    <AuthContext.Provider value={profile}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
   );
 }
 

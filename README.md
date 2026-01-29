@@ -33,6 +33,14 @@ In a world where history has often been manipulated by conquerors, victors and d
 - Entity Extraction: Automatically identifies people, places, and time references mentioned
 - Significance Scoring: AI evaluates intensity and significance of each story
 - Story Insights UI: Beautiful component displaying AI-generated insights for each story
+- Weekly Reflections: AI-generated weekly summaries of journaling patterns (Phase 3 infrastructure ready)
+
+### 🔐 Authentication & Account Linking
+
+- Dual Auth: Sign in via Google OAuth or Web3 wallet
+- Account Linking: Link Google and wallet for unified access (Profile > Settings)
+- Signature Verification: Wallet linking uses viem message signing for security
+- Onboarding Flow: New Google users auto-onboarded, wallet users go through setup
 
 ### 💬 Social Features
 
@@ -94,8 +102,8 @@ History is written by the victors, but your story deserves to be heard unedited.
 
 ### Frontend
 
-- Framework: Next.js 14 (App Router) with React 18 and TypeScript for performant, SEO-friendly experiences
-- Styling: Tailwind CSS for responsive, modern UI with full dark/light mode support
+- Framework: Next.js 15.5.9 (App Router) with React 19 and TypeScript for performant, SEO-friendly experiences
+- Styling: Tailwind CSS 4 for responsive, modern UI with full dark/light mode support
 - Animations: Framer Motion for smooth, professional animations and transitions
 - UI Components: shadcn/ui for accessible, customizable components
 - Icons: Lucide React for consistent iconography
@@ -185,6 +193,7 @@ History is written by the victors, but your story deserves to be heard unedited.
 - Statistics: View total stories, likes earned, followers, and impact metrics
 - Writing Goals: Set and track monthly story targets
 - Settings: User account and preference management
+- Linked Accounts: Link Google OAuth and Web3 wallet from Settings tab
 
 ### 📖 Story Detail Page (/story/[storyId])
 
@@ -211,7 +220,11 @@ i_story_dapp/
 │   │   │   ├── analyze/              # Story analysis endpoint (Phase 1)
 │   │   │   ├── enhance/              # Text enhancement endpoint
 │   │   │   └── transcribe/           # Speech-to-text endpoint
-│   │   ├── auth/                     # Authentication
+│   │   ├── auth/
+│   │   │   ├── callback/             # OAuth callback handler
+│   │   │   ├── link-account/         # Account linking (wallet ↔ Google)
+│   │   │   ├── login/                # Supabase auth login
+│   │   │   └── onboarding/           # New user onboarding
 │   │   ├── book/
 │   │   │   └── compile/              # Book compilation
 │   │   ├── journal/
@@ -228,7 +241,9 @@ i_story_dapp/
 │   │   ├── useIStoryToken.ts         # Token contract interactions
 │   │   ├── useStoryProtocol.ts       # Protocol contract (tips/paywall)
 │   │   ├── useStoryNFT.ts            # NFT contract interactions
-│   │   └── useNotifications.ts       # Notification system hook
+│   │   ├── useNotifications.ts       # Notification system hook
+│   │   ├── usePatterns.ts            # Pattern aggregation hook
+│   │   └── useReflection.ts          # Weekly reflection hook
 │   ├── story/
 │   │   └── [storyId]/
 │   │       └── page.tsx              # Story detail page
@@ -265,6 +280,9 @@ i_story_dapp/
 │   ├── StoryCard.tsx                 # Story card component
 │   ├── StoryInsights.tsx             # AI insights display (Phase 1)
 │   ├── AuthProvider.tsx              # Auth context
+│   ├── AuthButton.tsx                # Auth action button
+│   ├── AuthModal.tsx                 # Auth modal dialog
+│   ├── OnboardingModal.tsx           # New user onboarding modal
 │   └── ui/                           # shadcn/ui components
 ├── contracts/                        # Solidity smart contracts
 │   ├── iStoryToken.sol               # ERC20 $STORY token
@@ -281,6 +299,11 @@ i_story_dapp/
 │   ├── wagmi.config.server.ts        # Server-side Wagmi config
 │   ├── viemClient.ts                 # Viem client setup
 │   └── abis/                         # Contract ABI JSON files
+├── supabase/
+│   └── migrations/                   # Database migrations
+│       ├── 001_create_weekly_reflections.sql
+│       ├── 002_enable_rls_policies.sql
+│       └── 003_add_oauth_fields.sql
 ├── public/                           # Static assets
 ├── vitest.config.ts                  # Vitest configuration
 ├── playwright.config.ts              # Playwright configuration
@@ -333,7 +356,7 @@ NEXT_PUBLIC_STORYBOOK_NFT_ADDRESS=0x...
 
 Set up Supabase:
 
-- Create tables: users, stories, comments, saved_stories, likes
+- Create tables: users, stories, comments, saved_stories, likes, story_metadata, weekly_reflections
 - Enable Row Level Security (RLS) for data privacy
 - Create storage bucket story-audio for audio files
 - Configure authentication with OAuth or email/password
@@ -429,6 +452,17 @@ Quick Start Guide
 - POST /api/notifications - Create notification
 - PUT /api/notifications - Mark as read
 - DELETE /api/notifications - Delete notification(s)
+
+### Auth Endpoints
+
+- POST /api/auth/login - Supabase authentication
+- GET /api/auth/callback - OAuth callback handler
+- POST /api/auth/link-account - Link wallet to Google account (requires signature)
+- POST /api/auth/onboarding - Complete new user onboarding
+
+### Reflection Endpoints
+
+- POST /api/ai/reflection - Generate weekly AI reflection
 
 ### User Endpoints
 
@@ -544,6 +578,9 @@ MIT © 2024 iStory Team
 - [x] Claude SDK thinking agent utility (scripts/think.ts)
 - [x] Comprehensive test suite for /api/ai/analyze endpoint (32 tests)
 - [x] StoryInsights component tests (41 tests)
+- [x] Authentication system (Google OAuth + wallet dual auth)
+- [x] Account linking (wallet ↔ Google)
+- [x] Onboarding flow for new users
 - [ ] Observability layer (logging, performance monitoring)
 - [ ] Edge case hardening (retry logic, rate limiting)
 - [ ] Database optimization
@@ -559,9 +596,11 @@ MIT © 2024 iStory Team
 
 ### Phase 3: AI Reflection (PLANNED)
 
-- Weekly AI-generated reflections
-- Pattern recognition across stories
-- Personalized insights dashboard
+- [x] `weekly_reflections` database table with RLS
+- [x] `useReflection` hook infrastructure
+- [ ] Weekly AI-generated reflections endpoint
+- [ ] Pattern recognition across stories
+- [ ] Personalized insights dashboard
 
 ### Q2 2026
 

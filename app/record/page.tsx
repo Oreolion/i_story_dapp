@@ -45,7 +45,7 @@ import {
 
 export default function RecordPage() {
   const { isConnected } = useApp();
-  const authInfo = useAuth();
+  const { profile: authInfo } = useAuth();
 
   // Set background mode for this page
   useBackgroundMode('record');

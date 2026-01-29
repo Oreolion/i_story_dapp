@@ -88,7 +88,7 @@ type LibraryItem = StoryEntry | BookEntry;
 
 export default function LibraryPage() {
   const { isConnected } = useApp();
-  const authInfo = useAuth();
+  const { profile: authInfo } = useAuth();
   const supabase = supabaseClient;
   const router = useRouter();
 

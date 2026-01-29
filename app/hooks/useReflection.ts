@@ -17,7 +17,7 @@ interface UseReflectionData {
 }
 
 export function useReflection(): UseReflectionData {
-  const authInfo = useAuth();
+  const { profile: authInfo } = useAuth();
 
   const [reflections, setReflections] = useState<WeeklyReflection[]>([]);
   const [isLoading, setIsLoading] = useState(true);

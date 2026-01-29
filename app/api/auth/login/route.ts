@@ -122,23 +122,51 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 5. Upsert into public.users (using admin client to bypass RLS for initial creation)
-    const { data: profile, error: upsertError } = await admin  // Changed to admin here
+    // 5. Check if a Google-auth user exists with matching wallet email
+    //    If so, link accounts instead of creating duplicate
+    const walletEmail2 = authUser.email; // The wallet@wallet.local email
+    const { data: existingByWallet } = await admin
       .from("users")
-      .upsert(
-        {
-          id: authUser.id,
-          wallet_address: walletAddress,
-          name: authUser.user_metadata?.name ?? authUser.user_metadata?.full_name ?? null,
-          email: authUser.email,
-          avatar: authUser.user_metadata?.avatar_url ?? null,
-        },
-        { onConflict: "id", ignoreDuplicates: false }
-      )
-      .select()
-      .single();
+      .select("*")
+      .eq("wallet_address", walletAddress)
+      .maybeSingle();
 
-    if (upsertError) throw upsertError;
+    let profile;
+    if (existingByWallet && existingByWallet.id !== authUser.id) {
+      // Existing user found by wallet — update with auth user id link
+      const { data: updated, error: updateErr } = await admin
+        .from("users")
+        .update({
+          auth_provider: existingByWallet.google_id ? "both" : "wallet",
+        })
+        .eq("id", existingByWallet.id)
+        .select()
+        .single();
+      if (updateErr) throw updateErr;
+      profile = updated;
+    } else {
+      // Upsert into public.users
+      const isNew = !existingByWallet;
+      const { data: upserted, error: upsertError } = await admin
+        .from("users")
+        .upsert(
+          {
+            id: authUser.id,
+            wallet_address: walletAddress,
+            name: authUser.user_metadata?.name ?? authUser.user_metadata?.full_name ?? null,
+            email: authUser.email,
+            avatar: authUser.user_metadata?.avatar_url ?? null,
+            auth_provider: "wallet",
+            is_onboarded: isNew ? false : undefined,
+          },
+          { onConflict: "id", ignoreDuplicates: false }
+        )
+        .select()
+        .single();
+
+      if (upsertError) throw upsertError;
+      profile = upserted;
+    }
 
     // 6. Return the final, updated profile
     return NextResponse.json({ success: true, user: profile });

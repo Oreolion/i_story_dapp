@@ -64,7 +64,7 @@ export default function StoryPage({
   const router = useRouter();
   const { isConnected } = useApp();
   const { address } = useAccount();
-  const authInfo = useAuth();
+  const { profile: authInfo } = useAuth();
 
   const supabase = supabaseClient;
 

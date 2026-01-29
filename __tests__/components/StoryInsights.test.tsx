@@ -158,9 +158,9 @@ describe("StoryInsights", () => {
 
       render(<StoryInsights {...defaultProps} />);
 
-      // After error, metadata is null, so generate button should show
+      // After error, component shows a retry/try again UI
       await waitFor(() => {
-        expect(screen.getByText("Generate Insights")).toBeInTheDocument();
+        expect(screen.getByText("Try Again")).toBeInTheDocument();
       });
     });
   });
@@ -206,7 +206,7 @@ describe("StoryInsights", () => {
       render(<StoryInsights {...defaultProps} />);
 
       await waitFor(() => {
-        expect(screen.getByText("identity")).toBeInTheDocument();
+        expect(screen.getByText("Identity & Self")).toBeInTheDocument();
       });
     });
 
@@ -530,7 +530,7 @@ describe("StoryInsights", () => {
       render(<StoryInsights {...defaultProps} />);
 
       await waitFor(() => {
-        expect(screen.getByText("work")).toBeInTheDocument();
+        expect(screen.getByText("Work & Career")).toBeInTheDocument();
       });
     });
 
@@ -541,7 +541,7 @@ describe("StoryInsights", () => {
       render(<StoryInsights {...defaultProps} />);
 
       await waitFor(() => {
-        expect(screen.getByText("relationships")).toBeInTheDocument();
+        expect(screen.getByText("Relationships")).toBeInTheDocument();
       });
     });
 
@@ -558,7 +558,7 @@ describe("StoryInsights", () => {
 
       // Check that the domain badge is rendered with "general" text
       // Using a more specific query since "general" might be ambiguous
-      const domainText = screen.getByText("general");
+      const domainText = screen.getByText("General");
       expect(domainText).toBeInTheDocument();
     });
   });

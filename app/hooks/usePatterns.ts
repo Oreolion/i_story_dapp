@@ -25,7 +25,7 @@ interface UsePatternData {
 }
 
 export function usePatterns(): UsePatternData {
-  const authInfo = useAuth();
+  const { profile: authInfo } = useAuth();
   const supabase = supabaseClient;
 
   const [stories, setStories] = useState<StoryWithMetadata[]>([]);

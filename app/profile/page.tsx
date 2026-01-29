@@ -12,6 +12,8 @@ import { useStoryNFT } from "../hooks/useStoryNFT";
 import { supabaseClient } from "../utils/supabase/supabaseClient";
 import { ipfsService } from "../utils/ipfsService";
 import { useBackgroundMode } from "@/contexts/BackgroundContext";
+import { useSignMessage } from "wagmi";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
 
 import {
   Card,
@@ -32,6 +34,10 @@ import {
   User,
   Settings,
   Award,
+  Link,
+  Wallet,
+  Check,
+  Chrome,
   Heart,
   Eye,
   BookOpen,
@@ -90,8 +96,10 @@ const getHeatmapColor = (count: number) => {
 export default function ProfilePage() {
   const { user: wagmiUser, isConnected } = useApp();
   const { address } = useAccount();
-  const authInfo = useAuth();
+  const { profile: authInfo, signInWithGoogle, refreshProfile } = useAuth();
   const supabase = supabaseClient;
+  const { signMessageAsync } = useSignMessage();
+  const { openConnectModal } = useConnectModal();
 
   // Set background mode for this page
   useBackgroundMode('profile');
@@ -125,8 +133,54 @@ export default function ProfilePage() {
   });
 
   const [isSaving, setIsSaving] = useState(false);
+  const [isLinking, setIsLinking] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [currentTab, setCurrentTab] = useState("overview");
+
+  const handleLinkWallet = async () => {
+    if (!authInfo?.id || !address) {
+      openConnectModal?.();
+      return;
+    }
+    setIsLinking(true);
+    try {
+      const message = `Link wallet ${address.toLowerCase()} to iStory account ${authInfo.id}`;
+      const signature = await signMessageAsync({ message });
+      const res = await fetch("/api/auth/link-account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: authInfo.id,
+          walletAddress: address,
+          signature,
+          message,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Linking failed");
+      toast.success("Wallet linked successfully!");
+      await refreshProfile();
+    } catch (err: any) {
+      if (err.message?.includes("User rejected")) {
+        toast.error("Signature rejected");
+      } else {
+        toast.error(err.message || "Failed to link wallet");
+      }
+    } finally {
+      setIsLinking(false);
+    }
+  };
+
+  const handleLinkGoogle = async () => {
+    setIsLinking(true);
+    try {
+      await signInWithGoogle();
+      // OAuth redirect will handle the rest
+    } catch {
+      toast.error("Failed to start Google sign-in");
+      setIsLinking(false);
+    }
+  };
 
   // --- 1. Fetch All Data ---
   useEffect(() => {
@@ -806,6 +860,97 @@ export default function ProfilePage() {
                     </Button>
                   </form>
                   
+                  {/* Linked Accounts Section */}
+                  <div className="space-y-4 border-t pt-6 dark:border-gray-700">
+                      <h3 className="text-lg font-semibold flex items-center gap-2">
+                        <Link className="w-5 h-5" /> Linked Accounts
+                      </h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Link both Google and Web3 wallet for a unified experience.
+                      </p>
+
+                      {/* Google Account */}
+                      <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                            authInfo?.auth_provider === "google" || authInfo?.auth_provider === "both"
+                              ? "bg-green-100 dark:bg-green-900/30"
+                              : "bg-gray-200 dark:bg-gray-700"
+                          }`}>
+                            <Chrome className={`w-5 h-5 ${
+                              authInfo?.auth_provider === "google" || authInfo?.auth_provider === "both"
+                                ? "text-green-600" : "text-gray-400"
+                            }`} />
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm">Google Account</p>
+                            {authInfo?.auth_provider === "google" || authInfo?.auth_provider === "both" ? (
+                              <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                                <Check className="w-3 h-3" /> Linked{authInfo?.email ? ` (${authInfo.email})` : ""}
+                              </p>
+                            ) : (
+                              <p className="text-xs text-gray-500">Not linked</p>
+                            )}
+                          </div>
+                        </div>
+                        {authInfo?.auth_provider !== "google" && authInfo?.auth_provider !== "both" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleLinkGoogle}
+                            disabled={isLinking}
+                          >
+                            {isLinking ? <Loader2 className="w-4 h-4 animate-spin" /> : "Link Google"}
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* Web3 Wallet */}
+                      <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                            authInfo?.auth_provider === "wallet" || authInfo?.auth_provider === "both"
+                              ? "bg-green-100 dark:bg-green-900/30"
+                              : "bg-gray-200 dark:bg-gray-700"
+                          }`}>
+                            <Wallet className={`w-5 h-5 ${
+                              authInfo?.auth_provider === "wallet" || authInfo?.auth_provider === "both"
+                                ? "text-green-600" : "text-gray-400"
+                            }`} />
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm">Web3 Wallet</p>
+                            {authInfo?.auth_provider === "wallet" || authInfo?.auth_provider === "both" ? (
+                              <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                                <Check className="w-3 h-3" /> Linked ({truncateAddress(authInfo?.wallet_address)})
+                              </p>
+                            ) : (
+                              <p className="text-xs text-gray-500">Not linked</p>
+                            )}
+                          </div>
+                        </div>
+                        {authInfo?.auth_provider !== "wallet" && authInfo?.auth_provider !== "both" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleLinkWallet}
+                            disabled={isLinking}
+                          >
+                            {isLinking ? <Loader2 className="w-4 h-4 animate-spin" /> : !address ? "Connect Wallet" : "Link Wallet"}
+                          </Button>
+                        )}
+                      </div>
+
+                      {authInfo?.auth_provider === "both" && (
+                        <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                          <p className="text-sm text-green-700 dark:text-green-300 flex items-center gap-2">
+                            <Shield className="w-4 h-4" />
+                            Both accounts linked. You can sign in with either Google or wallet.
+                          </p>
+                        </div>
+                      )}
+                  </div>
+
                   {/* Preferences Section */}
                   <div className="space-y-4 border-t pt-6 dark:border-gray-700">
                       <h3 className="text-lg font-semibold">Preferences</h3>
