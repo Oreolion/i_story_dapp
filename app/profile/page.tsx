@@ -185,7 +185,7 @@ export default function ProfilePage() {
   // --- 1. Fetch All Data ---
   useEffect(() => {
     if (!supabase || !authInfo?.id) {
-        if (isConnected === false) setIsLoading(false);
+        setIsLoading(false);
         return;
     }
 
@@ -438,13 +438,13 @@ export default function ProfilePage() {
 
   // --- Render ---
 
-  if (!isConnected) {
+  if (!isConnected && !authInfo) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
         <User className="w-12 h-12 text-[hsl(var(--memory-500))]" />
-        <h2 className="text-2xl font-semibold">Please Connect Your Wallet</h2>
+        <h2 className="text-2xl font-semibold">Sign In to View Profile</h2>
         <p className="text-gray-600 dark:text-gray-400 max-w-md">
-          Connect your wallet to view or edit your profile.
+          Connect your wallet or sign in with Google to view or edit your profile.
         </p>
       </div>
     );
