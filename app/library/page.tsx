@@ -202,12 +202,12 @@ export default function LibraryPage() {
   };
 
   useEffect(() => {
-    if (isConnected && authInfo?.id) {
+    if (authInfo?.id) {
       fetchData();
     } else {
       setIsLoading(false);
     }
-  }, [isConnected, authInfo?.id, supabase]);
+  }, [authInfo?.id, supabase]);
 
   // --- 2. Event Handlers ---
   const toggleSelection = (id: string) => {
@@ -345,7 +345,7 @@ export default function LibraryPage() {
 
   // --- 4. Render ---
 
-  if (!isConnected) {
+  if (!isConnected && !authInfo) {
     return (
       <div className="text-center space-y-8 py-16">
         <div className="w-24 h-24 mx-auto bg-[hsl(var(--memory-500)/0.15)] rounded-full flex items-center justify-center">
@@ -353,10 +353,10 @@ export default function LibraryPage() {
         </div>
         <div className="space-y-4">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Connect Your Wallet
+            Sign In to View Archive
           </h1>
           <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-            Connect your wallet to access your personal story archive.
+            Connect your wallet or sign in with Google to access your personal story archive.
           </p>
         </div>
       </div>

@@ -209,7 +209,7 @@ export default function RecordPage() {
 
   // --- 5. Save Logic (IPFS + Supabase + Backdating) ---
   const saveEntry = async () => {
-    if (!isConnected || !authInfo) return toast.error("Please sign in.");
+    if (!authInfo) return toast.error("Please sign in.");
     if (!authInfo.id) return toast.error("User ID missing.");
     if (!transcribedText.trim() || !entryTitle.trim())
       return toast.error("Story is empty.");
@@ -330,7 +330,7 @@ export default function RecordPage() {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  if (!isConnected) {
+  if (!isConnected && !authInfo) {
     return (
       <div className="text-center space-y-8 py-16">
         <div className="w-24 h-24 mx-auto bg-[hsl(var(--memory-500)/0.15)] rounded-full flex items-center justify-center">
@@ -338,10 +338,10 @@ export default function RecordPage() {
         </div>
         <div className="space-y-4">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Connect Your Wallet
+            Sign In to Record
           </h1>
           <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-            Please connect your Web3 wallet to start recording stories.
+            Connect your Web3 wallet or sign in with Google to start recording stories.
           </p>
         </div>
       </div>

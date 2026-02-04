@@ -273,19 +273,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const walletLower = sessionWalletAddress?.toLowerCase?.() ?? null;
 
     try {
-      // Look up by auth id OR wallet_address (user may have a new session id
-      // but the same wallet already exists from a previous session)
-      const lookupFilter = walletLower
-        ? `id.eq.${session.user.id},wallet_address.eq.${walletLower}`
-        : `id.eq.${session.user.id}`;
+      // Two-step lookup to avoid PGRST116 when both id and wallet_address
+      // match different rows (e.g. Google-created vs wallet-created users)
+      let userProfile = null;
 
-      const { data: userProfile, error } = await supabase
+      // Step 1: Try lookup by Supabase auth id
+      const { data: byId, error: idErr } = await supabase
         .from("users")
         .select("*")
-        .or(lookupFilter)
+        .eq("id", session.user.id)
         .maybeSingle();
 
-      if (error) console.error("[AUTH] fetch profile error:", error);
+      if (idErr) console.error("[AUTH] fetch profile by id error:", idErr);
+
+      if (byId) {
+        userProfile = byId;
+      } else if (walletLower) {
+        // Step 2: If not found by id, try by wallet_address
+        const { data: byWallet, error: walletErr } = await supabase
+          .from("users")
+          .select("*")
+          .eq("wallet_address", walletLower)
+          .maybeSingle();
+
+        if (walletErr) console.error("[AUTH] fetch profile by wallet error:", walletErr);
+        if (byWallet) userProfile = byWallet;
+      }
 
       if (userProfile) {
         setUnifiedProfile(userProfile, session.user);
@@ -321,21 +334,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (insertError) {
         if (insertError.code === "23505") {
           // Race condition: row was created between our lookup and insert
-          const { data: existing, error: fetchExistingErr } = await supabase
+          // Use two-step lookup to avoid PGRST116
+          let existing = null;
+          const { data: byId } = await supabase
             .from("users")
             .select("*")
-            .or(`id.eq.${session.user.id},wallet_address.eq.${walletLower}`)
+            .eq("id", session.user.id)
             .maybeSingle();
 
-          if (fetchExistingErr) {
-            console.error(
-              "[AUTH] failed to fetch existing user:",
-              fetchExistingErr
-            );
-            setProfile(null);
-          } else if (existing) {
+          if (byId) {
+            existing = byId;
+          } else if (walletLower) {
+            const { data: byWallet } = await supabase
+              .from("users")
+              .select("*")
+              .eq("wallet_address", walletLower)
+              .maybeSingle();
+            existing = byWallet;
+          }
+
+          if (existing) {
             setUnifiedProfile(existing, session.user);
           } else {
+            console.error("[AUTH] 23505 conflict but couldn't find existing user");
             setProfile(null);
           }
         } else {

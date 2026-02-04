@@ -248,7 +248,7 @@ export default function TasksPage() {
         <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
             <CalendarCheck className="w-12 h-12 text-purple-600" />
             <h2 className="text-2xl font-semibold">Daily Tracker</h2>
-            <p className="text-gray-500">Please connect your wallet to track your day.</p>
+            <p className="text-gray-500">Sign in to track your day.</p>
         </div>
       );
   }

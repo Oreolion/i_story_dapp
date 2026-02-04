@@ -141,7 +141,7 @@ export async function POST(req: NextRequest) {
         })
         .eq("id", existingByWallet.id)
         .select()
-        .single();
+        .maybeSingle();
       if (updateErr) throw updateErr;
       profile = updated;
     } else {
@@ -162,7 +162,7 @@ export async function POST(req: NextRequest) {
           { onConflict: "id", ignoreDuplicates: false }
         )
         .select()
-        .single();
+        .maybeSingle();
 
       if (upsertError) throw upsertError;
       profile = upserted;
