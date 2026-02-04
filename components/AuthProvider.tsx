@@ -152,6 +152,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
+        // 2b. Check by connected wallet address for linking scenario
+        //     (wallet user clicks "Link Google" — they have a connected wallet
+        //      but their DB row has a @wallet.local email, not matching Google email)
+        if (address) {
+          const walletLower = address.toLowerCase();
+          const { data: walletMatch } = await supabase
+            .from("users")
+            .select("*")
+            .eq("wallet_address", walletLower)
+            .maybeSingle();
+
+          if (walletMatch) {
+            const googleId = user.identities?.[0]?.id ?? user.id;
+            try {
+              const res = await fetch("/api/auth/link-google", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  existingUserId: walletMatch.id,
+                  googleId,
+                  googleEmail: user.email,
+                  googleAvatar: user.user_metadata?.avatar_url,
+                  googleName: user.user_metadata?.full_name ?? user.user_metadata?.name,
+                }),
+              });
+              if (res.ok) {
+                const { user: updated } = await res.json();
+                if (updated) {
+                  setUnifiedProfile(updated, user);
+                  return;
+                }
+              } else {
+                const errData = await res.json().catch(() => ({}));
+                console.error("[AUTH] link-google (wallet match) failed:", errData);
+              }
+            } catch (linkErr) {
+              console.error("[AUTH] link-google (wallet match) request error:", linkErr);
+            }
+          }
+        }
+
         // 3. Create new Google-only user (auto-onboarded)
         const googleId = user.identities?.[0]?.id ?? user.id;
         const { data: created, error: createErr } = await supabase

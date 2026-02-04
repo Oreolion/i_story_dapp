@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { useAccount } from "wagmi";
 import { toast } from "react-hot-toast";
@@ -133,16 +133,18 @@ export default function ProfilePage() {
   });
 
   const [isSaving, setIsSaving] = useState(false);
-  const [isLinking, setIsLinking] = useState(false);
+  const [isLinkingWallet, setIsLinkingWallet] = useState(false);
+  const [isLinkingGoogle, setIsLinkingGoogle] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [currentTab, setCurrentTab] = useState("overview");
 
-  const handleLinkWallet = async () => {
-    if (!authInfo?.id || !address) {
-      openConnectModal?.();
-      return;
-    }
-    setIsLinking(true);
+  // Track intent to link wallet — when user clicks "Connect Wallet" and
+  // the RainbowKit modal opens, we need to auto-continue after they connect
+  const pendingWalletLinkRef = useRef(false);
+
+  const performWalletLink = async () => {
+    if (!authInfo?.id || !address) return;
+    setIsLinkingWallet(true);
     try {
       const message = `Link wallet ${address.toLowerCase()} to iStory account ${authInfo.id}`;
       const signature = await signMessageAsync({ message });
@@ -167,18 +169,37 @@ export default function ProfilePage() {
         toast.error(err.message || "Failed to link wallet");
       }
     } finally {
-      setIsLinking(false);
+      setIsLinkingWallet(false);
     }
   };
 
+  const handleLinkWallet = async () => {
+    if (!authInfo?.id) return toast.error("Sign in required");
+    if (!address) {
+      // No wallet connected yet — open modal and remember intent
+      pendingWalletLinkRef.current = true;
+      openConnectModal?.();
+      return;
+    }
+    await performWalletLink();
+  };
+
+  // Auto-continue wallet linking after user connects via RainbowKit modal
+  useEffect(() => {
+    if (pendingWalletLinkRef.current && address && authInfo?.id) {
+      pendingWalletLinkRef.current = false;
+      performWalletLink();
+    }
+  }, [address, authInfo?.id]);
+
   const handleLinkGoogle = async () => {
-    setIsLinking(true);
+    setIsLinkingGoogle(true);
     try {
       await signInWithGoogle();
       // OAuth redirect will handle the rest
     } catch {
       toast.error("Failed to start Google sign-in");
-      setIsLinking(false);
+      setIsLinkingGoogle(false);
     }
   };
 
@@ -898,9 +919,9 @@ export default function ProfilePage() {
                             size="sm"
                             variant="outline"
                             onClick={handleLinkGoogle}
-                            disabled={isLinking}
+                            disabled={isLinkingGoogle}
                           >
-                            {isLinking ? <Loader2 className="w-4 h-4 animate-spin" /> : "Link Google"}
+                            {isLinkingGoogle ? <Loader2 className="w-4 h-4 animate-spin" /> : "Link Google"}
                           </Button>
                         )}
                       </div>
@@ -934,9 +955,9 @@ export default function ProfilePage() {
                             size="sm"
                             variant="outline"
                             onClick={handleLinkWallet}
-                            disabled={isLinking}
+                            disabled={isLinkingWallet}
                           >
-                            {isLinking ? <Loader2 className="w-4 h-4 animate-spin" /> : !address ? "Connect Wallet" : "Link Wallet"}
+                            {isLinkingWallet ? <Loader2 className="w-4 h-4 animate-spin" /> : !address ? "Connect Wallet" : "Link Wallet"}
                           </Button>
                         )}
                       </div>
