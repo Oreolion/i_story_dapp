@@ -193,12 +193,49 @@ export default function ProfilePage() {
   }, [address, authInfo?.id]);
 
   const handleLinkGoogle = async () => {
+    if (!authInfo?.id || !address) {
+      toast.error("Wallet must be connected to link Google");
+      return;
+    }
+
     setIsLinkingGoogle(true);
     try {
+      // Step 1: Sign message to prove wallet ownership
+      const message = `Link Google account to iStory wallet ${address.toLowerCase()}\n\nTimestamp: ${Date.now()}`;
+      const signature = await signMessageAsync({ message });
+
+      // Step 2: Get secure linking token from server
+      const res = await fetch("/api/auth/initiate-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: authInfo.id,
+          walletAddress: address,
+          signature,
+          message,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to initiate linking");
+      }
+
+      // Step 3: Store token in sessionStorage for AuthProvider to use after OAuth
+      sessionStorage.setItem("googleLinkingToken", data.linkingToken);
+      sessionStorage.setItem("googleLinkingUserId", authInfo.id);
+
+      // Step 4: Start OAuth flow
       await signInWithGoogle();
       // OAuth redirect will handle the rest
-    } catch {
-      toast.error("Failed to start Google sign-in");
+    } catch (err: any) {
+      sessionStorage.removeItem("googleLinkingToken");
+      sessionStorage.removeItem("googleLinkingUserId");
+      if (err.message?.includes("User rejected") || err.code === "ACTION_REJECTED") {
+        toast.error("Signature rejected");
+      } else {
+        toast.error(err.message || "Failed to start Google linking");
+      }
       setIsLinkingGoogle(false);
     }
   };
@@ -891,78 +928,90 @@ export default function ProfilePage() {
                       </p>
 
                       {/* Google Account */}
-                      <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                            authInfo?.auth_provider === "google" || authInfo?.auth_provider === "both"
-                              ? "bg-green-100 dark:bg-green-900/30"
-                              : "bg-gray-200 dark:bg-gray-700"
-                          }`}>
-                            <Chrome className={`w-5 h-5 ${
-                              authInfo?.auth_provider === "google" || authInfo?.auth_provider === "both"
-                                ? "text-green-600" : "text-gray-400"
-                            }`} />
-                          </div>
-                          <div>
-                            <p className="font-medium text-sm">Google Account</p>
-                            {authInfo?.auth_provider === "google" || authInfo?.auth_provider === "both" ? (
-                              <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
-                                <Check className="w-3 h-3" /> Linked{authInfo?.email ? ` (${authInfo.email})` : ""}
-                              </p>
-                            ) : (
-                              <p className="text-xs text-gray-500">Not linked</p>
+                      {(() => {
+                        // Check actual linked status from google_id field (more reliable than auth_provider)
+                        const isGoogleLinked = Boolean(authInfo?.google_id) || authInfo?.auth_provider === "google" || authInfo?.auth_provider === "both";
+                        return (
+                          <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                                isGoogleLinked
+                                  ? "bg-green-100 dark:bg-green-900/30"
+                                  : "bg-gray-200 dark:bg-gray-700"
+                              }`}>
+                                <Chrome className={`w-5 h-5 ${
+                                  isGoogleLinked ? "text-green-600" : "text-gray-400"
+                                }`} />
+                              </div>
+                              <div>
+                                <p className="font-medium text-sm">Google Account</p>
+                                {isGoogleLinked ? (
+                                  <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                                    <Check className="w-3 h-3" /> Linked{authInfo?.email && !authInfo.email.endsWith("@wallet.local") ? ` (${authInfo.email})` : ""}
+                                  </p>
+                                ) : (
+                                  <p className="text-xs text-gray-500">Not linked</p>
+                                )}
+                              </div>
+                            </div>
+                            {!isGoogleLinked && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={handleLinkGoogle}
+                                disabled={isLinkingGoogle || !address}
+                                title={!address ? "Connect wallet first" : undefined}
+                              >
+                                {isLinkingGoogle ? <Loader2 className="w-4 h-4 animate-spin" /> : "Link Google"}
+                              </Button>
                             )}
                           </div>
-                        </div>
-                        {authInfo?.auth_provider !== "google" && authInfo?.auth_provider !== "both" && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={handleLinkGoogle}
-                            disabled={isLinkingGoogle}
-                          >
-                            {isLinkingGoogle ? <Loader2 className="w-4 h-4 animate-spin" /> : "Link Google"}
-                          </Button>
-                        )}
-                      </div>
+                        );
+                      })()}
 
                       {/* Web3 Wallet */}
-                      <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                            authInfo?.auth_provider === "wallet" || authInfo?.auth_provider === "both"
-                              ? "bg-green-100 dark:bg-green-900/30"
-                              : "bg-gray-200 dark:bg-gray-700"
-                          }`}>
-                            <Wallet className={`w-5 h-5 ${
-                              authInfo?.auth_provider === "wallet" || authInfo?.auth_provider === "both"
-                                ? "text-green-600" : "text-gray-400"
-                            }`} />
-                          </div>
-                          <div>
-                            <p className="font-medium text-sm">Web3 Wallet</p>
-                            {authInfo?.auth_provider === "wallet" || authInfo?.auth_provider === "both" ? (
-                              <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
-                                <Check className="w-3 h-3" /> Linked ({truncateAddress(authInfo?.wallet_address)})
-                              </p>
-                            ) : (
-                              <p className="text-xs text-gray-500">Not linked</p>
+                      {(() => {
+                        // Check actual linked status from wallet_address field (more reliable than auth_provider)
+                        const isWalletLinked = Boolean(authInfo?.wallet_address) || authInfo?.auth_provider === "wallet" || authInfo?.auth_provider === "both";
+                        return (
+                          <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                                isWalletLinked
+                                  ? "bg-green-100 dark:bg-green-900/30"
+                                  : "bg-gray-200 dark:bg-gray-700"
+                              }`}>
+                                <Wallet className={`w-5 h-5 ${
+                                  isWalletLinked ? "text-green-600" : "text-gray-400"
+                                }`} />
+                              </div>
+                              <div>
+                                <p className="font-medium text-sm">Web3 Wallet</p>
+                                {isWalletLinked ? (
+                                  <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                                    <Check className="w-3 h-3" /> Linked ({truncateAddress(authInfo?.wallet_address || address)})
+                                  </p>
+                                ) : (
+                                  <p className="text-xs text-gray-500">Not linked</p>
+                                )}
+                              </div>
+                            </div>
+                            {!isWalletLinked && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={handleLinkWallet}
+                                disabled={isLinkingWallet}
+                              >
+                                {isLinkingWallet ? <Loader2 className="w-4 h-4 animate-spin" /> : !address ? "Connect Wallet" : "Link Wallet"}
+                              </Button>
                             )}
                           </div>
-                        </div>
-                        {authInfo?.auth_provider !== "wallet" && authInfo?.auth_provider !== "both" && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={handleLinkWallet}
-                            disabled={isLinkingWallet}
-                          >
-                            {isLinkingWallet ? <Loader2 className="w-4 h-4 animate-spin" /> : !address ? "Connect Wallet" : "Link Wallet"}
-                          </Button>
-                        )}
-                      </div>
+                        );
+                      })()}
 
-                      {authInfo?.auth_provider === "both" && (
+                      {/* Show success message when both are truly linked */}
+                      {Boolean(authInfo?.google_id) && Boolean(authInfo?.wallet_address) && (
                         <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
                           <p className="text-sm text-green-700 dark:text-green-300 flex items-center gap-2">
                             <Shield className="w-4 h-4" />

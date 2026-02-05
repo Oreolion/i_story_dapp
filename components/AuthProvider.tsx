@@ -94,9 +94,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (session: Session) => {
       if (!supabase) return;
       const user = session.user;
+      const googleId = user.identities?.[0]?.id ?? user.id;
 
       try {
-        // 1. Look up by Supabase auth user id
+        // PRIORITY 1: Check for secure linking token (wallet user initiated "Link Google")
+        const linkingToken = typeof window !== "undefined"
+          ? sessionStorage.getItem("googleLinkingToken")
+          : null;
+        const linkingUserId = typeof window !== "undefined"
+          ? sessionStorage.getItem("googleLinkingUserId")
+          : null;
+
+        if (linkingToken && linkingUserId) {
+          // Clear tokens immediately to prevent reuse
+          sessionStorage.removeItem("googleLinkingToken");
+          sessionStorage.removeItem("googleLinkingUserId");
+
+          try {
+            const res = await fetch("/api/auth/link-google", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                existingUserId: linkingUserId,
+                googleId,
+                googleEmail: user.email,
+                googleAvatar: user.user_metadata?.avatar_url,
+                googleName: user.user_metadata?.full_name ?? user.user_metadata?.name,
+                linkingToken,
+              }),
+            });
+
+            if (res.ok) {
+              const { user: updated } = await res.json();
+              if (updated) {
+                console.log("[AUTH] Google linked successfully via secure token");
+                setUnifiedProfile(updated, user);
+                return;
+              }
+            } else {
+              const errData = await res.json().catch(() => ({}));
+              console.error("[AUTH] Secure link-google failed:", errData);
+              // Fall through to other checks
+            }
+          } catch (linkErr) {
+            console.error("[AUTH] Secure link-google request error:", linkErr);
+          }
+        }
+
+        // PRIORITY 2: Look up by Supabase auth user id (returning Google user)
         const { data: existing } = await supabase
           .from("users")
           .select("*")
@@ -108,93 +153,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        // 2. Check by email for potential linking with existing wallet user
+        // PRIORITY 3: Look up by google_id (account was merged, ID differs)
+        const { data: byGoogleId } = await supabase
+          .from("users")
+          .select("*")
+          .eq("google_id", googleId)
+          .maybeSingle();
+
+        if (byGoogleId) {
+          setUnifiedProfile(byGoogleId, user);
+          return;
+        }
+
+        // PRIORITY 4: Check by email for potential auto-linking (same email)
         const userEmail = user.email;
-        if (userEmail) {
+        if (userEmail && !userEmail.endsWith("@wallet.local")) {
           const { data: emailMatch } = await supabase
             .from("users")
             .select("*")
             .eq("email", userEmail)
             .maybeSingle();
 
-          if (emailMatch) {
-            // Link Google to existing wallet account via server endpoint
-            // (client-side update fails with 406 because RLS blocks
-            //  updating another user's row — the Google OAuth session
-            //  has a different auth.uid() than the wallet user's id)
-            const googleId =
-              user.identities?.[0]?.id ?? user.id;
-            try {
-              const res = await fetch("/api/auth/link-google", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  existingUserId: emailMatch.id,
-                  googleId,
-                  googleEmail: user.email,
-                  googleAvatar: user.user_metadata?.avatar_url,
-                  googleName: user.user_metadata?.full_name ?? user.user_metadata?.name,
-                }),
-              });
-              if (res.ok) {
-                const { user: updated } = await res.json();
-                if (updated) {
-                  setUnifiedProfile(updated, user);
-                  return;
-                }
-              } else {
-                const errData = await res.json().catch(() => ({}));
-                console.error("[AUTH] link-google failed:", errData);
-              }
-            } catch (linkErr) {
-              console.error("[AUTH] link-google request error:", linkErr);
+          if (emailMatch && !emailMatch.google_id) {
+            // Email matches but no Google linked yet - this is a legitimate
+            // auto-link scenario (user signed up with same email)
+            // Note: This path doesn't require linkingToken because the email match
+            // proves account ownership (user controls both the wallet and the email)
+            console.log("[AUTH] Auto-linking by email match (same email proves ownership)");
+            const { data: updated, error: updateErr } = await supabase
+              .from("users")
+              .update({
+                google_id: googleId,
+                auth_provider: emailMatch.wallet_address ? "both" : "google",
+                avatar: emailMatch.avatar || user.user_metadata?.avatar_url || null,
+              })
+              .eq("id", emailMatch.id)
+              .select()
+              .single();
+
+            if (!updateErr && updated) {
+              setUnifiedProfile(updated, user);
+              return;
             }
           }
         }
 
-        // 2b. Check by connected wallet address for linking scenario
-        //     (wallet user clicks "Link Google" — they have a connected wallet
-        //      but their DB row has a @wallet.local email, not matching Google email)
-        if (address) {
-          const walletLower = address.toLowerCase();
-          const { data: walletMatch } = await supabase
-            .from("users")
-            .select("*")
-            .eq("wallet_address", walletLower)
-            .maybeSingle();
-
-          if (walletMatch) {
-            const googleId = user.identities?.[0]?.id ?? user.id;
-            try {
-              const res = await fetch("/api/auth/link-google", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  existingUserId: walletMatch.id,
-                  googleId,
-                  googleEmail: user.email,
-                  googleAvatar: user.user_metadata?.avatar_url,
-                  googleName: user.user_metadata?.full_name ?? user.user_metadata?.name,
-                }),
-              });
-              if (res.ok) {
-                const { user: updated } = await res.json();
-                if (updated) {
-                  setUnifiedProfile(updated, user);
-                  return;
-                }
-              } else {
-                const errData = await res.json().catch(() => ({}));
-                console.error("[AUTH] link-google (wallet match) failed:", errData);
-              }
-            } catch (linkErr) {
-              console.error("[AUTH] link-google (wallet match) request error:", linkErr);
-            }
-          }
-        }
-
-        // 3. Create new Google-only user (auto-onboarded)
-        const googleId = user.identities?.[0]?.id ?? user.id;
+        // PRIORITY 5: Create new Google-only user (fresh Google sign-up)
         const { data: created, error: createErr } = await supabase
           .from("users")
           .upsert(
@@ -226,13 +230,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUnifiedProfile(created, user);
         } else {
           // User already existed (ignoreDuplicates) — fetch existing
-          const { data: existing } = await supabase
+          const { data: existingFetch } = await supabase
             .from("users")
             .select("*")
             .eq("id", user.id)
             .maybeSingle();
-          if (existing) {
-            setUnifiedProfile(existing, user);
+          if (existingFetch) {
+            setUnifiedProfile(existingFetch, user);
           } else {
             setProfile(null);
           }
@@ -314,8 +318,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const walletLower = sessionWalletAddress?.toLowerCase?.() ?? null;
 
     try {
-      // Two-step lookup to avoid PGRST116 when both id and wallet_address
-      // match different rows (e.g. Google-created vs wallet-created users)
+      // Multi-step lookup to handle various account states
       let userProfile = null;
 
       // Step 1: Try lookup by Supabase auth id
@@ -339,6 +342,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (walletErr) console.error("[AUTH] fetch profile by wallet error:", walletErr);
         if (byWallet) userProfile = byWallet;
+      }
+
+      // Step 3: If still not found and this is a Google session, try by google_id
+      // (handles case where wallet user linked Google - their row ID differs from Google auth ID)
+      if (!userProfile && session.user.app_metadata?.provider === "google") {
+        const googleId = session.user.identities?.[0]?.id ?? session.user.id;
+        const { data: byGoogleId, error: googleErr } = await supabase
+          .from("users")
+          .select("*")
+          .eq("google_id", googleId)
+          .maybeSingle();
+
+        if (googleErr) console.error("[AUTH] fetch profile by google_id error:", googleErr);
+        if (byGoogleId) userProfile = byGoogleId;
       }
 
       if (userProfile) {
