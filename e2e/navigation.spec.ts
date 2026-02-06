@@ -29,11 +29,10 @@ test('Landing page loads and navigation works', async ({ page }) => {
 
 test('Record page protects route when disconnected', async ({ page }) => {
   await page.goto('/record');
-  
+
   // 1. Wait for hydration loader to finish
   await expect(page.getByText('Loading Wallet Connectors...')).not.toBeVisible({ timeout: 30000 });
-  
-  // 2. FIX: Use getByRole and increase timeout to 15s
-  // This waits specifically for the H1 heading "Connect Your Wallet"
-  await expect(page.getByRole('heading', { name: /Connect Your Wallet/i })).toBeVisible({ timeout: 15000 });
+
+  // 2. Verify the sign-in gate is shown when wallet is not connected
+  await expect(page.getByRole('heading', { name: /Sign In to Record/i })).toBeVisible({ timeout: 15000 });
 });
