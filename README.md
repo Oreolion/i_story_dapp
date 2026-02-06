@@ -575,7 +575,7 @@ MIT © 2024 iStory Team
 
 ### Phase 1.5: Validation & Hardening 🔨 IN PROGRESS
 
-- [x] Claude SDK thinking agent utility (scripts/think.ts)
+- [x] Claude SDK thinking agent utility
 - [x] Comprehensive test suite for /api/ai/analyze endpoint (32 tests)
 - [x] StoryInsights component tests (41 tests)
 - [x] Authentication system (Google OAuth + wallet dual auth)
@@ -584,7 +584,6 @@ MIT © 2024 iStory Team
 - [ ] Observability layer (logging, performance monitoring)
 - [ ] Edge case hardening (retry logic, rate limiting)
 - [ ] Database optimization
-- [ ] Documentation updates
 
 ### Phase 2: Patterns & Discovery (PLANNED)
 

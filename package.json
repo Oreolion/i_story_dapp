@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
+    "@chainlink/mcp-server": "^0.0.1-alpha.17",
     "@elevenlabs/elevenlabs-js": "^2.24.1",
     "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "^3.10.0",
