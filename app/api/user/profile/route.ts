@@ -1,36 +1,56 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createSupabaseAdminClient } from "@/app/utils/supabase/supabaseAdmin";
+import { validateAuthOrReject, isAuthError } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {
-    // Mock user profile data
-    const mockProfile = {
-      address: '0x1234567890abcdef1234567890abcdef12345678',
-      name: 'Alex Johnson',
-      bio: 'Digital storyteller sharing life moments on the blockchain',
-      avatar: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg',
-      badges: ['Early Adopter', '10-Day Streak', 'Community Star'],
+    // Auth check
+    const authResult = await validateAuthOrReject(request);
+    if (isAuthError(authResult)) return authResult;
+    const authenticatedUserId = authResult;
+
+    const admin = createSupabaseAdminClient();
+
+    // Fetch real user profile
+    const { data: user, error } = await admin
+      .from("users")
+      .select("*")
+      .eq("id", authenticatedUserId)
+      .single();
+
+    if (error || !user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Fetch story count
+    const { count: storyCount } = await admin
+      .from("stories")
+      .select("*", { count: "exact", head: true })
+      .eq("author_id", authenticatedUserId);
+
+    // Build profile response (omit sensitive fields)
+    const profile = {
+      id: user.id,
+      name: user.name,
+      username: user.username,
+      email: user.email,
+      avatar: user.avatar,
+      wallet_address: user.wallet_address,
+      bio: user.bio || null,
+      badges: user.badges || [],
+      auth_provider: user.auth_provider,
+      is_onboarded: user.is_onboarded,
+      followers_count: user.followers_count || 0,
       stats: {
-        stories: 24,
-        books: 2,
-        followers: 156,
-        following: 89,
-        totalLikes: 456,
-        totalViews: 2100,
-        storyTokens: 150,
-        ethBalance: 2.5
+        stories: storyCount || 0,
       },
-      achievements: [
-        { name: 'First Story', earned: true, date: '2025-01-15' },
-        { name: '10-Day Streak', earned: true, date: '2025-01-20' },
-        { name: 'Community Star', earned: true, date: '2025-01-18' }
-      ],
-      joinDate: '2025-01-15',
-      lastActive: new Date().toISOString()
+      joinDate: user.created_at,
+      lastActive: new Date().toISOString(),
     };
 
     return NextResponse.json({
       success: true,
-      data: mockProfile
+      data: profile
     });
 
   } catch (error) {
@@ -44,23 +64,44 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const updates = await request.json();
-    
-    // Validate and sanitize updates
-    const allowedFields = ['name', 'bio', 'location', 'website'];
-    const validUpdates = Object.keys(updates)
-      .filter(key => allowedFields.includes(key))
-      .reduce((obj, key) => {
-        obj[key] = updates[key];
-        return obj;
-      }, {} as any);
+    // Auth check
+    const authResult = await validateAuthOrReject(request);
+    if (isAuthError(authResult)) return authResult;
+    const authenticatedUserId = authResult;
 
-    // Mock profile update
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    const updates = await request.json();
+
+    // Validate and sanitize updates — only allow safe fields
+    const allowedFields = ['name', 'bio', 'avatar'];
+    const validUpdates: Record<string, string> = {};
+
+    for (const key of Object.keys(updates)) {
+      if (allowedFields.includes(key) && typeof updates[key] === "string") {
+        validUpdates[key] = updates[key].slice(0, 500); // Limit field length
+      }
+    }
+
+    if (Object.keys(validUpdates).length === 0) {
+      return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
+    }
+
+    const admin = createSupabaseAdminClient();
+
+    const { data: updatedProfile, error } = await admin
+      .from("users")
+      .update(validUpdates)
+      .eq("id", authenticatedUserId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("[PROFILE] Update error:", error);
+      return NextResponse.json({ error: "Failed to update profile" }, { status: 500 });
+    }
 
     return NextResponse.json({
       success: true,
-      data: validUpdates,
+      data: updatedProfile,
       message: 'Profile updated successfully!'
     });
 

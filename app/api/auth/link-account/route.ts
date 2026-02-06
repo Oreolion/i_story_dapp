@@ -1,14 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/app/utils/supabase/supabaseAdmin";
 import { verifyMessage, type Address, isHex } from "viem";
+import { validateAuthOrReject, isAuthError } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
+    // Auth check: require valid session
+    const authResult = await validateAuthOrReject(req);
+    if (isAuthError(authResult)) return authResult;
+    const authenticatedUserId = authResult;
+
     const body = await req.json();
     const { userId, walletAddress, signature, message } = body ?? {};
 
     if (!userId) {
       return NextResponse.json({ error: "Missing userId" }, { status: 400 });
+    }
+
+    // Verify the authenticated user matches the userId
+    if (authenticatedUserId !== userId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Linking a wallet to a Google-auth account
@@ -63,7 +74,7 @@ export async function POST(req: NextRequest) {
 
       if (error) {
         console.error("[LINK-ACCOUNT] Update error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
       }
 
       // Update Supabase auth metadata
@@ -78,10 +89,10 @@ export async function POST(req: NextRequest) {
       { error: "Missing wallet linking fields (walletAddress, signature, message)" },
       { status: 400 }
     );
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[LINK-ACCOUNT] Error:", err);
     return NextResponse.json(
-      { error: err.message || "Internal server error" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

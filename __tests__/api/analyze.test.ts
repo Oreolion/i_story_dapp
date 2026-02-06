@@ -6,11 +6,25 @@ import { NextRequest } from "next/server";
 // Mock environment variable
 const originalEnv = process.env;
 
+// Mock auth - use vi.hoisted to avoid hoisting issues
+const { MOCK_USER_ID } = vi.hoisted(() => ({
+  MOCK_USER_ID: "test-user-123",
+}));
+
+vi.mock("@/lib/auth", () => ({
+  validateAuthOrReject: vi.fn().mockResolvedValue(MOCK_USER_ID),
+  isAuthError: vi.fn().mockReturnValue(false),
+}));
+
 // Mock Supabase admin client
 const mockSupabaseFrom = vi.fn();
 const mockSupabaseUpsert = vi.fn();
 const mockSupabaseSelect = vi.fn();
 const mockSupabaseSingle = vi.fn();
+// For ownership check
+const mockOwnershipSelect = vi.fn();
+const mockOwnershipEq = vi.fn();
+const mockOwnershipSingle = vi.fn();
 
 vi.mock("@/app/utils/supabase/supabaseAdmin", () => ({
   createSupabaseAdminClient: () => ({
@@ -50,7 +64,17 @@ function createMockRequest(body: object): NextRequest {
 function setupSupabaseMock(options: {
   upsertData?: object | null;
   upsertError?: { code?: string; message?: string } | null;
+  ownerAuthorId?: string; // defaults to MOCK_USER_ID (passes ownership check)
 }) {
+  // Ownership check: from("stories").select("author_id").eq("id", storyId).single()
+  mockOwnershipSingle.mockResolvedValue({
+    data: { author_id: options.ownerAuthorId ?? MOCK_USER_ID },
+    error: null,
+  });
+  mockOwnershipEq.mockReturnValue({ single: mockOwnershipSingle });
+  mockOwnershipSelect.mockReturnValue({ eq: mockOwnershipEq });
+
+  // Upsert chain: from("story_metadata").upsert(...).select().single()
   mockSupabaseSingle.mockResolvedValue({
     data: options.upsertData ?? null,
     error: options.upsertError ?? null,
@@ -64,8 +88,13 @@ function setupSupabaseMock(options: {
     select: mockSupabaseSelect,
   });
 
-  mockSupabaseFrom.mockReturnValue({
-    upsert: mockSupabaseUpsert,
+  // Route calls from() for different tables
+  mockSupabaseFrom.mockImplementation((table: string) => {
+    if (table === "stories") {
+      return { select: mockOwnershipSelect };
+    }
+    // story_metadata
+    return { upsert: mockSupabaseUpsert };
   });
 }
 
@@ -539,7 +568,7 @@ describe("POST /api/ai/analyze", () => {
 
       expect(response.status).toBe(500);
       const data = await response.json();
-      expect(data.error).toBe("Gemini API error");
+      expect(data.error).toBe("Failed to analyze story");
     });
 
     it("handles malformed JSON from Gemini", async () => {
@@ -614,7 +643,7 @@ describe("POST /api/ai/analyze", () => {
 
       expect(response.status).toBe(500);
       const data = await response.json();
-      expect(data.error).toBe("Invalid JSON body");
+      expect(data.error).toBe("Failed to analyze story");
     });
   });
 
@@ -822,7 +851,7 @@ describe("POST /api/ai/analyze", () => {
 
       expect(response.status).toBe(500);
       const data = await response.json();
-      expect(data.error).toBe("Persistent Gemini error");
+      expect(data.error).toBe("Failed to analyze story");
     });
 
     it("handles JSON with trailing commas from Gemini", async () => {

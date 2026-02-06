@@ -472,19 +472,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // No existing user → MetaMask signature flow
         signInAttemptRef.current = true;
 
-        const message = `Welcome to IStory
-
-Sign this message to log in securely.
-
-Site: ${window.location.origin}
-Page: ${window.location.pathname}
-Address: ${address}
-
-No transaction · No gas fees · Completely free
-
-Nonce: ${Date.now()}`;
-
         try {
+          // Fetch server-generated nonce for replay prevention
+          const nonceRes = await fetch(`/api/auth/nonce?address=${address}`);
+          if (!nonceRes.ok) {
+            throw new Error("Failed to get nonce");
+          }
+          const { message } = await nonceRes.json();
+
           const signature = await signMessageAsync({ message });
 
           const res = await fetch("/api/auth/login", {

@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/app/utils/supabase/supabaseAdmin";
+import { validateAuthOrReject, isAuthError } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
+    // Auth check: user must be authenticated
+    const authResult = await validateAuthOrReject(req);
+    if (isAuthError(authResult)) return authResult;
+    const authenticatedUserId = authResult;
+
     const body = await req.json();
     const { userId, name, username, email } = body ?? {};
 
@@ -10,6 +16,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "Missing required fields: userId, name, username, email" },
         { status: 400 }
+      );
+    }
+
+    // Verify the authenticated user matches the userId being onboarded
+    if (authenticatedUserId !== userId) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 403 }
       );
     }
 
@@ -46,7 +60,7 @@ export async function POST(req: NextRequest) {
 
     if (existing) {
       return NextResponse.json(
-        { error: "Username is already taken" },
+        { error: "Username is not available" },
         { status: 409 }
       );
     }
@@ -65,14 +79,14 @@ export async function POST(req: NextRequest) {
 
     if (error) {
       console.error("[ONBOARDING] Update error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, user: profile });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[ONBOARDING] Unexpected error:", err);
     return NextResponse.json(
-      { error: err.message || "Internal server error" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

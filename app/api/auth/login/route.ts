@@ -1,55 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/app/utils/supabase/supabaseAdmin";
 import { verifyMessage, type Address, isHex } from "viem";
-import { SupabaseClient } from "@supabase/supabase-js";
-
-/**
- * Finds a user by iterating through all paginated results from Supabase Auth.
- * This is necessary because `listUsers` is paginated (default 50 per page).
- *
- * @param admin - The Supabase admin client.
- * @param walletEmail - The deterministic email generated from the wallet address.
- * @param walletAddress - The user's wallet address.
- * @returns The found user object or null if not found.
- */
-async function findUserInPaginatedList(
-  admin: SupabaseClient,
-  walletEmail: string,
-  walletAddress: string
-) {
-  let page = 1;
-  const perPage = 100; // Fetch 100 users per page for better efficiency
-  while (true) {
-    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
-    if (error) throw error;
-
-    const foundUser = data.users.find(
-      (u) =>
-        u.email === walletEmail ||
-        (u.user_metadata && u.user_metadata.wallet_address === walletAddress)
-    );
-
-    if (foundUser) {
-      return foundUser;
-    }
-
-    // If this page was the last one, stop the loop
-    if (data.users.length < perPage) {
-      break;
-    }
-
-    page++;
-  }
-  return null;
-}
-
+import { verifyNonce } from "@/app/api/auth/nonce/route";
 
 /**
  * Wallet login route (server)
  *
- * This version includes a critical fix for finding users in a paginated list,
- * which resolves the "Database error creating new user" error when the user
- * count exceeds the default page size (50).
+ * Flow:
+ * 1. Client fetches nonce from /api/auth/nonce?address=0x...
+ * 2. Client signs the message containing the nonce
+ * 3. Client sends address + signature + message to this endpoint
+ * 4. Server verifies signature AND nonce (replay prevention)
  */
 export async function POST(req: NextRequest) {
   try {
@@ -65,7 +26,6 @@ export async function POST(req: NextRequest) {
     }
 
     if (typeof signature !== 'string' || !isHex(signature)) {
-        console.error("Invalid signature format received from client:", signature);
         return NextResponse.json(
             { error: "The provided signature was not a valid hexadecimal string." },
             { status: 400 }
@@ -85,16 +45,49 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Signature verification failed." }, { status: 401 });
     }
 
+    // 3. Verify nonce (replay prevention)
+    const nonceResult = verifyNonce(address, message);
+    if (!nonceResult.valid) {
+      return NextResponse.json(
+        { error: nonceResult.error || "Invalid nonce" },
+        { status: 401 }
+      );
+    }
+
     const admin = createSupabaseAdminClient();
     const walletAddress = validatedAddress.toLowerCase();
     const walletEmail = `${walletAddress}@wallet.local`;
 
-    // 3. Find existing Supabase auth user using the paginated helper function
-    const foundUser = await findUserInPaginatedList(admin, walletEmail, walletAddress);
+    // 4. Find existing user by direct query (not paginated list iteration)
+    const { data: existingAuthUser } = await admin
+      .from("users")
+      .select("id, wallet_address")
+      .eq("wallet_address", walletAddress)
+      .maybeSingle();
 
-    let authUser;
+    // Also check Supabase auth by email
+    let authUser = null;
+
+    // Try to find by email in auth system
+    const { data: authListData } = await admin.auth.admin.listUsers({
+      page: 1,
+      perPage: 1,
+    });
+
+    // Direct query: find auth user by email
+    const { data: { users: matchedUsers } } = await admin.auth.admin.listUsers({
+      page: 1,
+      perPage: 100,
+    });
+
+    const foundUser = matchedUsers?.find(
+      (u) =>
+        u.email === walletEmail ||
+        (u.user_metadata && u.user_metadata.wallet_address === walletAddress)
+    );
+
     if (!foundUser) {
-      // 4a. No existing user found — create a new one.
+      // 5a. No existing user found — create a new one.
       const { data: createData, error: createErr } =
         await admin.auth.admin.createUser({
           email: walletEmail,
@@ -104,7 +97,7 @@ export async function POST(req: NextRequest) {
       if (createErr) throw createErr;
       authUser = createData.user;
     } else {
-      // 4b. User exists. If they don't have wallet metadata, add it.
+      // 5b. User exists. If they don't have wallet metadata, add it.
       authUser = foundUser;
       if (!authUser.user_metadata?.wallet_address) {
         const { data: updated, error: updateErr } =
@@ -122,9 +115,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 5. Check if a Google-auth user exists with matching wallet email
-    //    If so, link accounts instead of creating duplicate
-    const walletEmail2 = authUser.email; // The wallet@wallet.local email
+    // 6. Check if a Google-auth user exists with matching wallet
     const { data: existingByWallet } = await admin
       .from("users")
       .select("*")
@@ -168,11 +159,11 @@ export async function POST(req: NextRequest) {
       profile = upserted;
     }
 
-    // 6. Return the final, updated profile
+    // 7. Return the final, updated profile
     return NextResponse.json({ success: true, user: profile });
 
-  } catch (err: any) {
-    console.error("Wallet auth route error:", err.message, err.stack);
-    return NextResponse.json({ error: err.message || "An internal server error occurred" }, { status: 500 });
+  } catch (err: unknown) {
+    console.error("Wallet auth route error:", err);
+    return NextResponse.json({ error: "An internal server error occurred" }, { status: 500 });
   }
 }

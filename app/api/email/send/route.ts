@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import WelcomeEmail from "@/components/emails/WelcomeEmail";
+import { validateAuthOrReject, isAuthError } from "@/lib/auth";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(req: NextRequest) {
   try {
+    // Auth check
+    const authResult = await validateAuthOrReject(req);
+    if (isAuthError(authResult)) return authResult;
+
     const body = await req.json();
     const { email, username, type } = body;
 
@@ -27,19 +32,20 @@ export async function POST(req: NextRequest) {
     }
 
     const data = await resend.emails.send({
-      from: "IStory <onboarding@resend.dev>", // Change this to your domain in production
-      to: [email], // In dev, this must be YOUR email unless you verified a domain
+      from: "IStory <onboarding@resend.dev>",
+      to: [email],
       subject: subject,
       react: emailComponent,
     });
 
     if (data.error) {
-        return NextResponse.json({ error: data.error }, { status: 500 });
+        return NextResponse.json({ error: "Failed to send email" }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, id: data.data?.id });
 
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("[EMAIL] Error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

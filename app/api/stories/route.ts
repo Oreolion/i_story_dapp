@@ -1,9 +1,15 @@
 // app/api/stories/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/app/utils/supabase/supabaseAdmin";
+import { validateAuthOrReject, isAuthError } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
+    // Auth check
+    const authResult = await validateAuthOrReject(req);
+    if (isAuthError(authResult)) return authResult;
+    const authenticatedUserId = authResult;
+
     const body = await req.json();
 
     const {
@@ -24,6 +30,11 @@ export async function POST(req: NextRequest) {
         { error: "Missing required fields (author_id, author_wallet, title, content)." },
         { status: 400 }
       );
+    }
+
+    // Verify author_id matches authenticated user
+    if (authenticatedUserId !== author_id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const admin = createSupabaseAdminClient();
@@ -67,16 +78,16 @@ export async function POST(req: NextRequest) {
     if (insertError) {
       console.error("[API /stories] insert error:", insertError);
       return NextResponse.json(
-        { error: insertError.message || "Insert failed" },
+        { error: "Failed to save story" },
         { status: 500 }
       );
     }
 
     return NextResponse.json({ story: inserted }, { status: 200 });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[API /stories] unexpected error:", err);
     return NextResponse.json(
-      { error: err.message || "Internal server error" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

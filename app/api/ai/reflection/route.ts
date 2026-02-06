@@ -191,7 +191,7 @@ export async function GET(req: NextRequest) {
   } catch (error: unknown) {
     console.error("Error fetching reflections:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to fetch reflections" },
+      { error: "Failed to fetch reflections" },
       { status: 500 }
     );
   }
@@ -376,7 +376,7 @@ export async function POST(req: NextRequest) {
   } catch (error: unknown) {
     console.error("Error generating reflection:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to generate reflection" },
+      { error: "Failed to generate reflection" },
       { status: 500 }
     );
   }

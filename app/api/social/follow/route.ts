@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/app/utils/supabase/supabaseAdmin";
+import { validateAuthOrReject, isAuthError, validateWalletOwnership } from "@/lib/auth";
 
 /**
  * GET /api/social/follow?follower_wallet=0x...&followed_wallets=0x...,0x...
@@ -8,6 +9,10 @@ import { createSupabaseAdminClient } from "@/app/utils/supabase/supabaseAdmin";
  */
 export async function GET(req: NextRequest) {
   try {
+    // Auth check
+    const authResult = await validateAuthOrReject(req);
+    if (isAuthError(authResult)) return authResult;
+
     const { searchParams } = new URL(req.url);
     const followerWallet = searchParams.get("follower_wallet")?.toLowerCase();
     const followedWalletsParam = searchParams.get("followed_wallets");
@@ -39,7 +44,7 @@ export async function GET(req: NextRequest) {
     if (error) {
       console.error("[API /social/follow GET] error:", error);
       return NextResponse.json(
-        { error: error.message },
+        { error: "Internal server error" },
         { status: 500 }
       );
     }
@@ -51,10 +56,10 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({ following });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[API /social/follow GET] unexpected:", err);
     return NextResponse.json(
-      { error: err.message || "Internal server error" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
@@ -68,6 +73,11 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
+    // Auth check
+    const authResult = await validateAuthOrReject(req);
+    if (isAuthError(authResult)) return authResult;
+    const authenticatedUserId = authResult;
+
     const body = await req.json();
     const followerWallet = body.follower_wallet?.toLowerCase();
     const followedWallet = body.followed_wallet?.toLowerCase();
@@ -84,6 +94,12 @@ export async function POST(req: NextRequest) {
         { error: "Cannot follow yourself" },
         { status: 400 }
       );
+    }
+
+    // Verify authenticated user owns the follower wallet
+    const ownsWallet = await validateWalletOwnership(authenticatedUserId, followerWallet);
+    if (!ownsWallet) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const admin = createSupabaseAdminClient();
@@ -107,7 +123,7 @@ export async function POST(req: NextRequest) {
 
       if (deleteErr) {
         console.error("[API /social/follow] delete error:", deleteErr);
-        return NextResponse.json({ error: deleteErr.message }, { status: 500 });
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
       }
 
       // Decrement followers_count (floor at 0)
@@ -133,7 +149,7 @@ export async function POST(req: NextRequest) {
 
       if (insertErr) {
         console.error("[API /social/follow] insert error:", insertErr);
-        return NextResponse.json({ error: insertErr.message }, { status: 500 });
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
       }
 
       // Increment followers_count
@@ -184,10 +200,10 @@ export async function POST(req: NextRequest) {
       isFollowing,
       followers_count: updatedUser?.followers_count || 0,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[API /social/follow POST] unexpected:", err);
     return NextResponse.json(
-      { error: err.message || "Internal server error" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

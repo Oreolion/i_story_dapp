@@ -10,12 +10,14 @@ contract StoryNFT is ERC721URIStorage, AccessControl, ERC2981 {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     uint256 private _nextTokenId;
 
+    uint256 public mintFee = 0.001 ether; // Small fee to prevent spam
+
     event NFTMinted(uint256 indexed tokenId, address indexed recipient, string uri, string collectionType);
 
     constructor(address defaultAdmin) ERC721("IStory Collections", "ISTORY") {
         _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
         _grantRole(MINTER_ROLE, defaultAdmin);
-        
+
         // Set default royalty to 5% (500 basis points)
         _setDefaultRoyalty(defaultAdmin, 500);
     }
@@ -28,12 +30,26 @@ contract StoryNFT is ERC721URIStorage, AccessControl, ERC2981 {
         emit NFTMinted(tokenId, winner, uri, "WEEKLY_WINNER");
     }
 
-    // 2. BOOK/COLLECTION MINT (Public)
-    function mintBook(string memory uri) external {
+    // 2. BOOK/COLLECTION MINT (Public, requires mint fee)
+    function mintBook(string memory uri) external payable {
+        require(msg.value >= mintFee, "Insufficient mint fee");
         uint256 tokenId = ++_nextTokenId;
         _safeMint(msg.sender, tokenId);
         _setTokenURI(tokenId, uri);
         emit NFTMinted(tokenId, msg.sender, uri, "BOOK");
+    }
+
+    // Allow admin to update mint fee
+    function setMintFee(uint256 _fee) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        mintFee = _fee;
+    }
+
+    // Allow admin to withdraw accumulated fees
+    function withdraw() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        uint256 balance = address(this).balance;
+        require(balance > 0, "No balance to withdraw");
+        (bool success, ) = payable(msg.sender).call{value: balance}("");
+        require(success, "Withdrawal failed");
     }
 
     // Update Royalty settings if needed
@@ -41,21 +57,17 @@ contract StoryNFT is ERC721URIStorage, AccessControl, ERC2981 {
         _setDefaultRoyalty(receiver, feeNumerator);
     }
 
-    // --- OVERRIDES (Fixed) ---
+    // --- OVERRIDES ---
 
-    // FIX: Removed 'ERC721' from override list. 
-    // We only override ERC721URIStorage because it is the direct parent that implements tokenURI.
     function tokenURI(uint256 tokenId) public view override(ERC721URIStorage) returns (string memory) {
         return super.tokenURI(tokenId);
     }
 
-    // FIX: Removed 'ERC721' from override list here too.
-    // We override the specific extensions that modify interface support.
-    function supportsInterface(bytes4 interfaceId) 
-        public 
-        view 
-        override(ERC721URIStorage, AccessControl, ERC2981) 
-        returns (bool) 
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(ERC721URIStorage, AccessControl, ERC2981)
+        returns (bool)
     {
         return super.supportsInterface(interfaceId);
     }

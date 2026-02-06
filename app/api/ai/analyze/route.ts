@@ -3,6 +3,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createSupabaseAdminClient } from "@/app/utils/supabase/supabaseAdmin";
 import { analysisLogger } from "@/app/utils/analysisLogger";
 import { performanceMonitor, OperationTimer } from "@/app/utils/performanceMonitor";
+import { validateAuthOrReject, isAuthError } from "@/lib/auth";
 
 // ============================================================================
 // Configuration Constants
@@ -273,6 +274,11 @@ export async function POST(req: NextRequest) {
   let storyId = "unknown";
 
   try {
+    // Auth check
+    const authResult = await validateAuthOrReject(req);
+    if (isAuthError(authResult)) return authResult;
+    const authenticatedUserId = authResult;
+
     // Check API key configuration
     const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
     if (!apiKey) {
@@ -298,6 +304,18 @@ export async function POST(req: NextRequest) {
         { error: "Missing required fields: storyId and storyText" },
         { status: 400 }
       );
+    }
+
+    // Verify caller owns this story
+    const ownershipSupabase = createSupabaseAdminClient();
+    const { data: storyOwner } = await ownershipSupabase
+      .from("stories")
+      .select("author_id")
+      .eq("id", body.storyId)
+      .single();
+
+    if (storyOwner && storyOwner.author_id !== authenticatedUserId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Minimum content length check
@@ -442,7 +460,7 @@ export async function POST(req: NextRequest) {
     });
     fullAnalysisTimer.stop(false);
     return NextResponse.json(
-      { error: errorMessage },
+      { error: "Failed to analyze story" },
       { status: 500 }
     );
   }

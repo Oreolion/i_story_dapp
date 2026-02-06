@@ -118,16 +118,16 @@ export async function POST(req: NextRequest) {
     if (updateErr) {
       console.error("[LINK-GOOGLE] Update error:", updateErr);
       return NextResponse.json(
-        { error: updateErr.message },
+        { error: "Failed to link Google account" },
         { status: 500 }
       );
     }
 
     return NextResponse.json({ success: true, user: updated });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[LINK-GOOGLE] Error:", err);
     return NextResponse.json(
-      { error: err.message || "Internal server error" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

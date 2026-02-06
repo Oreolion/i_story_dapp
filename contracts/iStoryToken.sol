@@ -11,20 +11,23 @@ contract IStoryToken is ERC20, ERC20Burnable, ERC20Permit, AccessControl, Pausab
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
-    constructor(address initialAdmin) 
-        ERC20("iStoryToken", "ISTORY") 
-        ERC20Permit("iStoryToken") 
+    uint256 public constant MAX_SUPPLY = 100_000_000 * 10 ** 18; // 100M tokens
+
+    constructor(address initialAdmin)
+        ERC20("iStoryToken", "ISTORY")
+        ERC20Permit("iStoryToken")
     {
         _grantRole(DEFAULT_ADMIN_ROLE, initialAdmin);
         _grantRole(MINTER_ROLE, initialAdmin);
         _grantRole(PAUSER_ROLE, initialAdmin);
-        
+
         // Initial supply to admin for liquidity/rewards pool
         _mint(initialAdmin, 1_000_000 * 10 ** decimals());
     }
 
     // Called by Backend to reward users for off-chain activity (Likes, Streaks)
     function mint(address to, uint256 amount) external onlyRole(MINTER_ROLE) whenNotPaused {
+        require(totalSupply() + amount <= MAX_SUPPLY, "Exceeds max supply");
         _mint(to, amount);
     }
 

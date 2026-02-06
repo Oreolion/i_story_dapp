@@ -77,10 +77,10 @@ export async function POST(req: NextRequest) {
     const token = createLinkingToken(userId, wallet);
 
     return NextResponse.json({ success: true, linkingToken: token });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[INITIATE-LINK] Error:", err);
     return NextResponse.json(
-      { error: err.message || "Internal server error" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

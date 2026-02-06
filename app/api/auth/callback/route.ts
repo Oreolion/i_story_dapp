@@ -1,9 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/app/utils/supabase/supabaseServer";
 
+const ALLOWED_REDIRECT_PATHS = ['/', '/profile', '/record', '/social', '/library', '/books', '/tracker'];
+
+function isAllowedRedirect(url: string, origin: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const originParsed = new URL(origin);
+
+    // Must be same origin
+    if (parsed.origin !== originParsed.origin) return false;
+
+    // Must be an allowed path
+    return ALLOWED_REDIRECT_PATHS.some(path => parsed.pathname === path || parsed.pathname.startsWith(path + '/'));
+  } catch {
+    return false;
+  }
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams, origin } = new URL(req.url);
   const code = searchParams.get("code");
+  const next = searchParams.get("next");
 
   if (!code) {
     return NextResponse.redirect(`${origin}/?auth_error=missing_code`);
@@ -16,6 +34,11 @@ export async function GET(req: NextRequest) {
     if (error) {
       console.error("[AUTH CALLBACK] Code exchange failed:", error.message);
       return NextResponse.redirect(`${origin}/?auth_error=exchange_failed`);
+    }
+
+    // Validate redirect destination if provided
+    if (next && isAllowedRedirect(`${origin}${next}`, origin)) {
+      return NextResponse.redirect(`${origin}${next}`);
     }
 
     return NextResponse.redirect(origin);

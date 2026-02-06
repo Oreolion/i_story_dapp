@@ -4,6 +4,7 @@ import { createWalletClient, http, parseEther } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { baseSepolia } from "viem/chains";
 import { STORY_TOKEN_ADDRESS, STORY_TOKEN_ABI } from "@/lib/contracts";
+import { safeCompare } from "@/lib/crypto";
 
 // Force dynamic to prevent build-time execution
 export const dynamic = 'force-dynamic';
@@ -15,10 +16,10 @@ const adminSupabase = createClient(
 );
 
 export async function GET(req: NextRequest) {
-  // 1. SECURITY: Check for Vercel Cron Secret
-  // (Add CRON_SECRET to your Vercel Environment Variables)
+  // 1. SECURITY: Check for Vercel Cron Secret (timing-safe comparison)
   const authHeader = req.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret || !authHeader || !safeCompare(authHeader, `Bearer ${cronSecret}`)) {
      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -73,6 +74,7 @@ export async function GET(req: NextRequest) {
                 abi: STORY_TOKEN_ABI,
                 functionName: "mint",
                 args: [wallet as `0x${string}`, amountToMint],
+                gas: BigInt(200_000), // Explicit gas limit
             });
             
             mintCount++;
@@ -87,8 +89,8 @@ export async function GET(req: NextRequest) {
         message: "Rewards distributed successfully" 
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[REWARDS] Error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

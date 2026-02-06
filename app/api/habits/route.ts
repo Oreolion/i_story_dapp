@@ -1,16 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/app/utils/supabase/supabaseAdmin";
+import { validateAuthOrReject, isAuthError } from "@/lib/auth";
 
 // GET /api/habits?user_id=...&date=YYYY-MM-DD
 // Returns habits and (optionally) today's daily log for the user
 export async function GET(req: NextRequest) {
   try {
+    // Auth check
+    const authResult = await validateAuthOrReject(req);
+    if (isAuthError(authResult)) return authResult;
+    const authenticatedUserId = authResult;
+
     const { searchParams } = new URL(req.url);
     const user_id = searchParams.get("user_id");
     const date = searchParams.get("date"); // optional, for daily log
 
     if (!user_id) {
       return NextResponse.json({ error: "Missing user_id" }, { status: 400 });
+    }
+
+    // Verify user_id matches authenticated user
+    if (authenticatedUserId !== user_id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const admin = createSupabaseAdminClient();
@@ -25,7 +36,7 @@ export async function GET(req: NextRequest) {
     if (habitsErr) {
       console.error("[API /habits GET] habits error:", habitsErr);
       return NextResponse.json(
-        { error: habitsErr.message || "Failed to fetch habits" },
+        { error: "Failed to fetch habits" },
         { status: 500 }
       );
     }
@@ -48,10 +59,10 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({ habits: habits || [], dailyLog });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[API /habits GET] unexpected error:", err);
     return NextResponse.json(
-      { error: err.message || "Internal server error" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
@@ -60,6 +71,11 @@ export async function GET(req: NextRequest) {
 // POST /api/habits - Create a new habit
 export async function POST(req: NextRequest) {
   try {
+    // Auth check
+    const authResult = await validateAuthOrReject(req);
+    if (isAuthError(authResult)) return authResult;
+    const authenticatedUserId = authResult;
+
     const body = await req.json();
     const { user_id, title } = body ?? {};
 
@@ -68,6 +84,11 @@ export async function POST(req: NextRequest) {
         { error: "Missing user_id or title." },
         { status: 400 }
       );
+    }
+
+    // Verify user_id matches authenticated user
+    if (authenticatedUserId !== user_id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const admin = createSupabaseAdminClient();
@@ -91,16 +112,16 @@ export async function POST(req: NextRequest) {
     if (insertError) {
       console.error("[API /habits POST] insert error:", insertError);
       return NextResponse.json(
-        { error: insertError.message || "Insert failed" },
+        { error: "Failed to create habit" },
         { status: 500 }
       );
     }
 
     return NextResponse.json({ habit: inserted }, { status: 200 });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[API /habits POST] unexpected error:", err);
     return NextResponse.json(
-      { error: err.message || "Internal server error" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
@@ -109,6 +130,11 @@ export async function POST(req: NextRequest) {
 // PUT /api/habits - Upsert daily log state
 export async function PUT(req: NextRequest) {
   try {
+    // Auth check
+    const authResult = await validateAuthOrReject(req);
+    if (isAuthError(authResult)) return authResult;
+    const authenticatedUserId = authResult;
+
     const body = await req.json();
     const { user_id, date, completed_habit_ids, notes, mood } = body ?? {};
 
@@ -117,6 +143,11 @@ export async function PUT(req: NextRequest) {
         { error: "Missing user_id or date" },
         { status: 400 }
       );
+    }
+
+    // Verify user_id matches authenticated user
+    if (authenticatedUserId !== user_id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const admin = createSupabaseAdminClient();
@@ -139,16 +170,16 @@ export async function PUT(req: NextRequest) {
     if (error) {
       console.error("[API /habits PUT] upsert error:", error);
       return NextResponse.json(
-        { error: error.message || "Failed to save daily log" },
+        { error: "Failed to save daily log" },
         { status: 500 }
       );
     }
 
     return NextResponse.json({ dailyLog: upserted });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[API /habits PUT] unexpected error:", err);
     return NextResponse.json(
-      { error: err.message || "Internal server error" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
@@ -157,6 +188,11 @@ export async function PUT(req: NextRequest) {
 // DELETE /api/habits?id=... - Delete a habit
 export async function DELETE(req: NextRequest) {
   try {
+    // Auth check
+    const authResult = await validateAuthOrReject(req);
+    if (isAuthError(authResult)) return authResult;
+    const authenticatedUserId = authResult;
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
 
@@ -166,21 +202,32 @@ export async function DELETE(req: NextRequest) {
 
     const admin = createSupabaseAdminClient();
 
+    // Verify the habit belongs to the authenticated user
+    const { data: habit } = await admin
+      .from("habits")
+      .select("user_id")
+      .eq("id", id)
+      .single();
+
+    if (!habit || habit.user_id !== authenticatedUserId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const { error } = await admin.from("habits").delete().eq("id", id);
 
     if (error) {
       console.error("[API /habits DELETE] error:", error);
       return NextResponse.json(
-        { error: error.message || "Delete failed" },
+        { error: "Failed to delete habit" },
         { status: 500 }
       );
     }
 
     return NextResponse.json({ success: true });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[API /habits DELETE] unexpected error:", err);
     return NextResponse.json(
-      { error: err.message || "Internal server error" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

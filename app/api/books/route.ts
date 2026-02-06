@@ -70,16 +70,16 @@ export async function POST(req: NextRequest) {
     if (insertError) {
       console.error("[API /books] insert error:", insertError);
       return NextResponse.json(
-        { error: insertError.message || "Insert failed" },
+        { error: "Failed to save book" },
         { status: 500 }
       );
     }
 
     return NextResponse.json({ book: inserted }, { status: 200 });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[API /books] unexpected error:", err);
     return NextResponse.json(
-      { error: err.message || "Internal server error" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

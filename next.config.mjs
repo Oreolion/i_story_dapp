@@ -4,12 +4,9 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   eslint: {
-    // This tells Vercel/Next.js to not fail the build if it finds ESLint errors.
     ignoreDuringBuilds: true,
   },
   webpack: (config) => {
-    // This tells webpack to treat this import as an empty module
-    // It resolves the MetaMask SDK build warning
     config.resolve.fallback = {
       ...config.resolve.fallback,
       "@react-native-async-storage/async-storage": false,
@@ -21,30 +18,54 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "lovely-flamingo-139.convex.cloud",
-      },
-      {
-        protocol: "https",
-        hostname: "judicious-gazelle-541.convex.cloud",
-      },
-      {
-        protocol: "https",
-        hostname: "img.clerk.com",
-      },
-      {
-        protocol: "https",
         hostname: "images.pexels.com",
       },
       {
         protocol: "https",
         hostname: "placehold.co",
       },
-      {
-        protocol: "https",
-        hostname: "clever-dove-968.convex.cloud",
-        pathname: "/api/storage/**",
-      },
     ],
+  },
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            key: "X-Frame-Options",
+            value: "DENY",
+          },
+          {
+            key: "X-Content-Type-Options",
+            value: "nosniff",
+          },
+          {
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin",
+          },
+          {
+            key: "X-XSS-Protection",
+            value: "1; mode=block",
+          },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(self), geolocation=()",
+          },
+          {
+            key: "Content-Security-Policy",
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+              "style-src 'self' 'unsafe-inline'",
+              "img-src 'self' data: https: blob:",
+              "font-src 'self' data:",
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.elevenlabs.io https://api.pinata.cloud https://*.walletconnect.com https://*.walletconnect.org https://sepolia.base.org https://*.alchemy.com https://*.infura.io",
+              "frame-src 'self' https://*.walletconnect.com https://*.walletconnect.org",
+            ].join("; "),
+          },
+        ],
+      },
+    ];
   },
 };
 

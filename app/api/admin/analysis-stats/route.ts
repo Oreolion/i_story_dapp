@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/app/utils/supabase/supabaseAdmin";
 import { analysisLogger } from "@/app/utils/analysisLogger";
 import { performanceMonitor } from "@/app/utils/performanceMonitor";
+import { safeCompare } from "@/lib/crypto";
 
 /**
  * Admin endpoint for monitoring analysis pipeline health.
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  if (authHeader !== `Bearer ${adminSecret}`) {
+  if (!authHeader || !safeCompare(authHeader, `Bearer ${adminSecret}`)) {
     return NextResponse.json(
       { error: "Unauthorized" },
       { status: 401 }
@@ -125,10 +126,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error("Admin stats error:", error);
     return NextResponse.json(
-      {
-        error: "Failed to fetch stats",
-        details: error instanceof Error ? error.message : "Unknown error"
-      },
+      { error: "Failed to fetch stats" },
       { status: 500 }
     );
   }

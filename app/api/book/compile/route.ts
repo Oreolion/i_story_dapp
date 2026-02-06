@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from "@/app/utils/supabase/supabaseAdmin";
+import { validateAuthOrReject, isAuthError } from "@/lib/auth";
 
 // ============================================================================
 // Book Compilation API
@@ -30,6 +31,11 @@ interface BookMetadata {
 
 export async function POST(request: NextRequest) {
   try {
+    // Auth check
+    const authResult = await validateAuthOrReject(request);
+    if (isAuthError(authResult)) return authResult;
+    const authenticatedUserId = authResult;
+
     const body = await request.json();
     const { title, entryIds, description, coverStyle, authorId, authorWallet } = body;
 
@@ -45,6 +51,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Author ID is required' },
         { status: 400 }
+      );
+    }
+
+    // Verify authorId matches authenticated user
+    if (authenticatedUserId !== authorId) {
+      return NextResponse.json(
+        { error: 'Forbidden' },
+        { status: 403 }
       );
     }
 
@@ -168,7 +182,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error compiling book:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to compile book' },
+      { error: 'Failed to compile book' },
       { status: 500 }
     );
   }
