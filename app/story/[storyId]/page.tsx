@@ -93,6 +93,8 @@ export default function StoryPage({
   const [isTipping, setIsTipping] = useState(false);
   const [isPostingComment, setIsPostingComment] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isFollowingAuthor, setIsFollowingAuthor] = useState(false);
+  const [authorFollowers, setAuthorFollowers] = useState(0);
 
   // Inputs
   const [newComment, setNewComment] = useState("");
@@ -227,6 +229,29 @@ export default function StoryPage({
 
     fetchStoryAndComments();
   }, [supabase, storyId, authInfo?.id]);
+
+  // --- 1b. Fetch follow status once story and user are available ---
+  useEffect(() => {
+    if (!story?.author?.wallet_address || !address) return;
+    const authorWallet = story.author.wallet_address.toLowerCase();
+    if (address.toLowerCase() === authorWallet) return; // Can't follow yourself
+
+    const checkFollow = async () => {
+      try {
+        const res = await fetch(
+          `/api/social/follow?follower_wallet=${address.toLowerCase()}&followed_wallets=${authorWallet}`
+        );
+        if (res.ok) {
+          const { following } = await res.json();
+          setIsFollowingAuthor(following[authorWallet] || false);
+        }
+      } catch (err) {
+        console.error("[STORY PAGE] Follow status check error:", err);
+      }
+    };
+    checkFollow();
+    setAuthorFollowers(story.author.followers || 0);
+  }, [story?.author?.wallet_address, address]);
 
   // --- 2. Payment Verification Listener ---
   useEffect(() => {
@@ -380,6 +405,40 @@ export default function StoryPage({
       toast.error("Failed to post comment");
     } finally {
       setIsPostingComment(false);
+    }
+  };
+
+  const handleFollow = async () => {
+    if (!isConnected || !address) return toast.error("Connect wallet to follow");
+    if (!story?.author?.wallet_address) return;
+
+    const prevState = isFollowingAuthor;
+    const prevCount = authorFollowers;
+    // Optimistic
+    setIsFollowingAuthor(!prevState);
+    setAuthorFollowers(prevState ? Math.max(0, prevCount - 1) : prevCount + 1);
+
+    try {
+      const res = await fetch("/api/social/follow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          follower_wallet: address,
+          followed_wallet: story.author.wallet_address,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Follow action failed");
+
+      const { isFollowing, followers_count } = await res.json();
+      setIsFollowingAuthor(isFollowing);
+      setAuthorFollowers(followers_count);
+      toast.success(isFollowing ? "Followed!" : "Unfollowed");
+    } catch (error) {
+      console.error("Follow error:", error);
+      setIsFollowingAuthor(prevState);
+      setAuthorFollowers(prevCount);
+      toast.error("Follow action failed");
     }
   };
 
@@ -585,7 +644,7 @@ export default function StoryPage({
                       @{story.author.username || "user"}
                     </span>
                     <span className="w-1 h-1 rounded-full bg-gray-300 mr-2" />
-                    <span>{story.author.followers} followers</span>
+                    <span>{authorFollowers} followers</span>
                   </div>
                 </div>
               </div>
@@ -602,10 +661,10 @@ export default function StoryPage({
                 {!isAuthor && (
                   <Button
                     size="sm"
-                    variant="outline"
-                    onClick={() => toast("Follow feature coming soon")}
+                    variant={isFollowingAuthor ? "secondary" : "outline"}
+                    onClick={handleFollow}
                   >
-                    Follow
+                    {isFollowingAuthor ? "Following" : "Follow"}
                   </Button>
                 )}
               </div>

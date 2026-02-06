@@ -5,33 +5,23 @@ import { toast } from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle2,
-  Circle,
   Plus,
-  TrendingUp,
   Sparkles,
-  Save,
   Loader2,
   Trash2,
   Sun,
   PenLine,
-  BookOpen,
   CalendarCheck
 } from "lucide-react";
 
 // FIX: Components are at Root (Up 2 levels: tasks -> app -> root)
 import { useAuth } from "../../components/AuthProvider";
 
-// FIX: Utils are Siblings in App folder (Up 1 level: tasks -> app -> utils)
-import { supabaseClient } from "../utils/supabase/supabaseClient";
-
-// FIX: Hooks are Siblings in App folder (Up 1 level: tasks -> app -> hooks)
-import { useStoryNFT } from "../hooks/useStoryNFT";
 import { useBackgroundMode } from "@/contexts/BackgroundContext"; 
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 
@@ -44,7 +34,6 @@ const MOODS = [
 
 export default function TasksPage() {
   const { profile: authInfo } = useAuth();
-  const supabase = supabaseClient;
 
   // Set background mode for this page
   useBackgroundMode('tracker');
@@ -62,28 +51,20 @@ export default function TasksPage() {
 
   const todayStr = new Date().toISOString().split('T')[0];
 
-  // --- Fetch Data ---
+  // --- Fetch Data via API (bypasses RLS issues for wallet-auth users) ---
   useEffect(() => {
-    if (!authInfo?.id || !supabase) return;
+    if (!authInfo?.id) return;
 
     const loadData = async () => {
       try {
-        // 1. Get Habits
-        const { data: habitsData } = await supabase
-            .from('habits')
-            .select('*')
-            .eq('user_id', authInfo.id)
-            .order('created_at', { ascending: true });
-        
-        setHabits(habitsData || []);
+        const res = await fetch(`/api/habits?user_id=${authInfo.id}&date=${todayStr}`);
+        if (!res.ok) {
+          console.error("Failed to load tracker data:", res.status);
+          return;
+        }
+        const { habits: habitsData, dailyLog: logData } = await res.json();
 
-        // 2. Get Today's Log
-        const { data: logData } = await supabase
-            .from('daily_logs')
-            .select('*')
-            .eq('user_id', authInfo.id)
-            .eq('date', todayStr)
-            .maybeSingle();
+        setHabits(habitsData || []);
 
         if (logData) {
             setDailyLog(logData);
@@ -98,26 +79,34 @@ export default function TasksPage() {
     };
 
     loadData();
-  }, [authInfo?.id, supabase, todayStr]);
+  }, [authInfo?.id, todayStr]);
 
-  // --- Autosave Helper ---
+  // --- Autosave Helper (via API to bypass RLS) ---
   const saveLogState = async (updates: any) => {
-    if (!supabase || !authInfo?.id) return;
-    
+    if (!authInfo?.id) return;
+
     setDailyLog((prev: any) => ({ ...prev, ...updates }));
 
-    const { error } = await supabase
-      .from('daily_logs')
-      .upsert({
-        user_id: authInfo.id,
-        date: todayStr,
-        completed_habit_ids: dailyLog?.completed_habit_ids || [],
-        notes: dailyNote,
-        mood: currentMood,
-        ...updates
-      }, { onConflict: 'user_id, date' });
-
-    if (error) console.error("Autosave failed:", error);
+    try {
+      const res = await fetch("/api/habits", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: authInfo.id,
+          date: todayStr,
+          completed_habit_ids: dailyLog?.completed_habit_ids || [],
+          notes: dailyNote,
+          mood: currentMood,
+          ...updates,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        console.error("Autosave failed:", err.error);
+      }
+    } catch (error) {
+      console.error("Autosave failed:", error);
+    }
   };
 
   // --- Actions ---
@@ -154,10 +143,17 @@ export default function TasksPage() {
 
 
   const handleDeleteHabit = async (id: string) => {
-    if (!supabase) return;
     setHabits(habits.filter(h => h.id !== id)); // Optimistic
-    await supabase.from('habits').delete().eq('id', id);
-    toast.success("Habit removed");
+    try {
+      const res = await fetch(`/api/habits?id=${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        console.error("Delete failed");
+      }
+      toast.success("Habit removed");
+    } catch (error) {
+      console.error("Delete error:", error);
+      toast.error("Failed to remove habit");
+    }
   };
 
   const toggleHabit = async (habitId: string) => {
@@ -178,25 +174,25 @@ export default function TasksPage() {
 
   const handleAutoJournal = async () => {
     if (isGenerating) return;
-    if (!supabase || !authInfo?.id) return toast.error("Sign in required");
+    if (!authInfo?.id) return toast.error("Sign in required");
 
     // Save state before generating
     await saveLogState({ notes: dailyNote, mood: currentMood });
 
     setIsGenerating(true);
-    
+
     try {
         const completedList = habits
             .filter(h => dailyLog?.completed_habit_ids?.includes(h.id))
             .map(h => h.title).join(", ");
-        
+
         const missedList = habits
             .filter(h => !dailyLog?.completed_habit_ids?.includes(h.id))
             .map(h => h.title).join(", ");
 
         const prompt = `
           Write a short, personal journal entry for today (${todayStr}).
-          
+
           Context:
           - Mood: ${currentMood}
           - Completed Tasks: ${completedList || "Just relaxing"}
@@ -209,27 +205,32 @@ export default function TasksPage() {
           - Use "I" statements.
         `;
 
-        const res = await fetch("/api/ai/enhance", { 
+        const enhanceRes = await fetch("/api/ai/enhance", {
              method: "POST",
              headers: { "Content-Type": "application/json" },
-             body: JSON.stringify({ text: prompt }) 
-        });
-        
-        if (!res.ok) throw new Error("AI generation failed");
-        const { text: generatedEntry } = await res.json();
-
-        const { error } = await supabase.from('stories').insert({
-            author_id: authInfo.id,
-            author_wallet: authInfo.wallet_address,
-            title: `Daily Log: ${new Date().toLocaleDateString()}`,
-            content: generatedEntry,
-            mood: currentMood,
-            tags: ["auto-generated", "daily-tracker"],
+             body: JSON.stringify({ text: prompt })
         });
 
-        if (error) throw error;
+        if (!enhanceRes.ok) throw new Error("AI generation failed");
+        const { text: generatedEntry } = await enhanceRes.json();
 
-        toast.success("Journal Created!", { icon: "✨" });
+        const saveRes = await fetch("/api/journal/save", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                title: `Daily Log: ${new Date().toLocaleDateString()}`,
+                content: generatedEntry,
+                mood: currentMood,
+                tags: ["auto-generated", "daily-tracker"],
+            }),
+        });
+
+        if (!saveRes.ok) {
+            const err = await saveRes.json();
+            throw new Error(err.error || "Failed to save journal");
+        }
+
+        toast.success("Journal Created!");
 
     } catch (err) {
         console.error(err);

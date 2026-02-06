@@ -126,12 +126,35 @@ export default function SocialPage() {
 
         if (error) throw error;
 
-        console.log("[SOCIAL PAGE] Stories fetched:", data?.length);
-
         // 2. Filter out stories with missing authors (data integrity)
         const validStories = (data?.filter((s) => s.author) as any[]) || [];
 
-        // 3. Map DB data to UI format + Inject Dummy Data for missing fields
+        // 3. Collect unique author wallet addresses for follow status check
+        const authorWallets = [
+          ...new Set(
+            validStories
+              .map((s) => s.author?.wallet_address?.toLowerCase())
+              .filter(Boolean)
+          ),
+        ] as string[];
+
+        // 4. Fetch follow status for all authors (if user is connected)
+        let followingMap: Record<string, boolean> = {};
+        if (address && authorWallets.length > 0) {
+          try {
+            const followRes = await fetch(
+              `/api/social/follow?follower_wallet=${address.toLowerCase()}&followed_wallets=${authorWallets.join(",")}`
+            );
+            if (followRes.ok) {
+              const { following } = await followRes.json();
+              followingMap = following || {};
+            }
+          } catch (err) {
+            console.error("[SOCIAL PAGE] Follow status fetch error:", err);
+          }
+        }
+
+        // 5. Map DB data to UI format
         const authorProfile = (s: any): AuthorProfile => ({
           id: s.author.id,
           name: s.author.name || "Anonymous Writer",
@@ -141,9 +164,10 @@ export default function SocialPage() {
           avatar: s.author.avatar,
           wallet_address: s.author.wallet_address,
           followers:
-            s.author.followers_count ?? Math.floor(Math.random() * 500),
+            s.author.followers_count ?? 0,
           badges: s.author.badges ?? ["Storyteller"],
-          isFollowing: false,
+          isFollowing:
+            followingMap[s.author.wallet_address?.toLowerCase()] || false,
         });
 
         const storiesWithDefaults: StoryDataType[] = validStories.map((s) => {
@@ -195,7 +219,7 @@ export default function SocialPage() {
     };
 
     fetchSupabaseData();
-  }, [supabase]);
+  }, [supabase, address]);
 
   // --- Event Handlers ---
 
@@ -280,10 +304,69 @@ export default function SocialPage() {
     }
   };
 
-  const handleFollow = (username: string) => {
-    if (!isConnected) return toast.error("Connect wallet to follow.");
-    toast.success(`You followed ${username}!`);
-    // Future: Implement DB follow logic
+  const handleFollow = async (authorWallet: string) => {
+    if (!isConnected || !address) return toast.error("Connect wallet to follow.");
+    if (address.toLowerCase() === authorWallet.toLowerCase()) return;
+
+    // Optimistic UI: toggle isFollowing on all stories by this author
+    setStories((prev) =>
+      prev.map((s) =>
+        s.author_wallet?.wallet_address?.toLowerCase() === authorWallet.toLowerCase()
+          ? {
+              ...s,
+              author_wallet: { ...s.author_wallet, isFollowing: !s.author_wallet.isFollowing },
+              author: { ...s.author, isFollowing: !s.author.isFollowing },
+            }
+          : s
+      )
+    );
+
+    try {
+      const res = await fetch("/api/social/follow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          follower_wallet: address,
+          followed_wallet: authorWallet,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Follow action failed");
+      }
+
+      const { isFollowing, followers_count } = await res.json();
+
+      // Update with server-confirmed state and follower count
+      setStories((prev) =>
+        prev.map((s) =>
+          s.author_wallet?.wallet_address?.toLowerCase() === authorWallet.toLowerCase()
+            ? {
+                ...s,
+                author_wallet: { ...s.author_wallet, isFollowing, followers: followers_count },
+                author: { ...s.author, isFollowing, followers: followers_count },
+              }
+            : s
+        )
+      );
+
+      toast.success(isFollowing ? "Followed!" : "Unfollowed");
+    } catch (error) {
+      console.error("Follow error:", error);
+      // Revert optimistic update
+      setStories((prev) =>
+        prev.map((s) =>
+          s.author_wallet?.wallet_address?.toLowerCase() === authorWallet.toLowerCase()
+            ? {
+                ...s,
+                author_wallet: { ...s.author_wallet, isFollowing: !s.author_wallet.isFollowing },
+                author: { ...s.author, isFollowing: !s.author.isFollowing },
+              }
+            : s
+        )
+      );
+      toast.error("Follow action failed");
+    }
   };
 
   const handleShare = (id: string) => {
@@ -429,7 +512,7 @@ export default function SocialPage() {
                           }}
                           onFollow={() =>
                             handleFollow(
-                              story.author_wallet?.username || "writer"
+                              story.author_wallet?.wallet_address || ""
                             )
                           }
                           onShare={() => handleShare(String(story.id))}

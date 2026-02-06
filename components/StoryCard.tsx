@@ -231,7 +231,7 @@ export function StoryCard({
           <Button
             size="sm"
             variant={story.author_wallet?.isFollowing ? "secondary" : "outline"}
-            onClick={() => onFollow?.(story.author_wallet?.username || '')}
+            onClick={(e) => { e.stopPropagation(); e.preventDefault(); onFollow?.(story.author_wallet?.username || ''); }}
             className="text-sm"
           >
             {story.author_wallet?.isFollowing ? "Following" : "Follow"}
@@ -259,7 +259,7 @@ export function StoryCard({
               {story.teaser || "Premium content locked behind paywall"}
             </p>
             <Button
-              onClick={handlePaywall}
+              onClick={(e) => { e.stopPropagation(); e.preventDefault(); handlePaywall(); }}
               disabled={isPaying}
               size="sm"
               className="btn-solid-story"
@@ -299,19 +299,19 @@ export function StoryCard({
             <Button
               size="sm"
               variant="ghost"
-              onClick={() => onLike?.(story.id)}
+              onClick={(e) => { e.stopPropagation(); e.preventDefault(); onLike?.(story.id); }}
               className={`hover:bg-transparent ${story.isLiked ? "text-red-500" : "text-muted-foreground hover:text-foreground"}`}
             >
               <Heart className={`w-4 h-4 mr-1 ${story.isLiked ? "fill-current" : ""}`} />
               {story.likes}
             </Button>
-            <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-foreground hover:bg-transparent">
+            <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); e.preventDefault(); }} className="text-muted-foreground hover:text-foreground hover:bg-transparent">
               <MessageCircle className="w-4 h-4 mr-1" />
             </Button>
             <Button
               size="sm"
               variant="ghost"
-              onClick={() => onShare?.(story.id)}
+              onClick={(e) => { e.stopPropagation(); e.preventDefault(); onShare?.(story.id); }}
               className="text-muted-foreground hover:text-foreground hover:bg-transparent"
             >
               <Share2 className="w-4 h-4 mr-1" />
@@ -324,7 +324,7 @@ export function StoryCard({
             <Button
               size="sm"
               variant="ghost"
-              onClick={handleTip}
+              onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleTip(); }}
               disabled={isTipping}
               className="text-[hsl(var(--story-500))] hover:text-[hsl(var(--story-400))] hover:bg-[hsl(var(--story-500)/0.1)]"
             >
@@ -336,7 +336,8 @@ export function StoryCard({
               min="1"
               max="50"
               value={tipAmount}
-              onChange={(e) => setTipAmount(Number(e.target.value))}
+              onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
+              onChange={(e) => { e.stopPropagation(); setTipAmount(Number(e.target.value)); }}
               className="w-16 h-1.5 bg-[hsl(var(--void-light))] rounded-lg appearance-none cursor-pointer"
             />
           </div>
