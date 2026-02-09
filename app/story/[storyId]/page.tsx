@@ -34,7 +34,10 @@ import { Separator } from "@/components/ui/separator";
 import { StoryDataType, CommentDataTypes, moodColors } from '../../types/index';
 import { StoryInsights } from '@/components/StoryInsights';
 import { CanonicalBadge } from '@/components/CanonicalBadge';
+import { VerifiedBadge } from '@/components/VerifiedBadge';
+import { VerifiedMetricsCard } from '@/components/VerifiedMetricsCard';
 import { useStoryMetadata } from '../../hooks/useStoryMetadata';
+import { useVerifiedMetrics } from '../../hooks/useVerifiedMetrics';
 
 import {
   Heart,
@@ -73,6 +76,8 @@ export default function StoryPage({
 
   // Metadata hook for canonical status
   const { metadata: storyMetadata } = useStoryMetadata(storyId);
+  // CRE verified metrics hook
+  const { metrics: verifiedMetrics, isPending: isVerifyPending, isVerified } = useVerifiedMetrics(storyId);
   const {
     payPaywall,
     isPending: isPayingProtocol,
@@ -599,6 +604,10 @@ export default function StoryPage({
                       isAuthor={isAuthor}
                       size="md"
                     />
+                    <VerifiedBadge
+                      status={isVerified ? "verified" : isVerifyPending ? "pending" : "unverified"}
+                      txHash={verifiedMetrics?.on_chain_tx_hash}
+                    />
                   </div>
                 </div>
                 
@@ -672,26 +681,33 @@ export default function StoryPage({
 
             {/* Paywall Content Blocker */}
             {isPaywalled ? (
-              <div className="relative p-12 rounded-xl bg-gray-50 dark:bg-gray-900 border border-dashed border-purple-300 text-center space-y-4">
-                <Lock className="w-12 h-12 mx-auto text-purple-500" />
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                  Premium Story
-                </h3>
-                <p className="text-gray-500">
-                  Support the author to read the full story.
-                </p>
-                <div className="flex justify-center pt-4">
-                  <Button
-                    size="lg"
-                    className="bg-linear-to-r from-purple-600 to-indigo-600 shadow-lg hover:scale-105 transition-transform"
-                    onClick={() => setShowPaywallDialog(true)}
-                  >
-                    Unlock for {story.paywallAmount} $ISTORY
-                  </Button>
+              <div className="space-y-6">
+                <div className="relative p-12 rounded-xl bg-gray-50 dark:bg-gray-900 border border-dashed border-purple-300 text-center space-y-4">
+                  <Lock className="w-12 h-12 mx-auto text-purple-500" />
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                    Premium Story
+                  </h3>
+                  <p className="text-gray-500">
+                    Support the author to read the full story.
+                  </p>
+                  <div className="flex justify-center pt-4">
+                    <Button
+                      size="lg"
+                      className="bg-linear-to-r from-purple-600 to-indigo-600 shadow-lg hover:scale-105 transition-transform"
+                      onClick={() => setShowPaywallDialog(true)}
+                    >
+                      Unlock for {story.paywallAmount} $ISTORY
+                    </Button>
+                  </div>
+                  <div className="absolute inset-0 -z-10 opacity-10 blur-sm p-8 select-none overflow-hidden">
+                    {story.teaser || "This content is hidden behind a paywall..."}
+                  </div>
                 </div>
-                <div className="absolute inset-0 -z-10 opacity-10 blur-sm p-8 select-none overflow-hidden">
-                  {story.teaser || "This content is hidden behind a paywall..."}
-                </div>
+                {/* Verified metrics card for paywalled content - shows buyers what they're getting */}
+                <VerifiedMetricsCard
+                  metrics={verifiedMetrics}
+                  isPending={isVerifyPending}
+                />
               </div>
             ) : (
               <div className="space-y-6">
@@ -775,6 +791,14 @@ export default function StoryPage({
       {/* AI Insights Section - only show when story content is accessible */}
       {!isPaywalled && story.content && (
         <StoryInsights storyId={storyId} storyText={story.content} />
+      )}
+
+      {/* Verified Metrics - show for all stories with CRE verification */}
+      {(isVerified || isVerifyPending) && !isPaywalled && (
+        <VerifiedMetricsCard
+          metrics={verifiedMetrics}
+          isPending={isVerifyPending}
+        />
       )}
 
       {/* Comments Section */}

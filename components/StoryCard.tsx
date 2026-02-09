@@ -12,6 +12,9 @@ import { parseEther } from "viem";
 import Image from "next/image";
 import { Heart, MessageCircle, Share2, Calendar, Globe, Lock, Star, Headphones } from "lucide-react";
 import { StoryDataType, EmotionalTone } from "@/app/types";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
+import { VerifiedMetricsCard } from "@/components/VerifiedMetricsCard";
+import { useVerifiedMetrics } from "@/app/hooks/useVerifiedMetrics";
 
 interface StoryCardProps {
   story: StoryDataType;
@@ -54,6 +57,7 @@ export function StoryCard({
   const [tipAmount, setTipAmount] = useState(5);
   const [isPaying, setIsPaying] = useState(false);
   const [isTipping, setIsTipping] = useState(false);
+  const { metrics: verifiedMetrics, isPending: isVerifyPending, isVerified } = useVerifiedMetrics(story.id?.toString() || null);
   const { writeContract, data: tipHash } = useWriteContract();
   const { writeContract: payContract, data: payHash } = useWriteContract();
 
@@ -240,32 +244,45 @@ export function StoryCard({
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {/* Title with canonical indicator */}
+        {/* Title with canonical indicator and verified badge */}
         <div className="flex items-start gap-2">
           <h3 className="text-xl font-semibold text-foreground flex-1">
             {story.title}
           </h3>
-          {isCanonical && (
-            <div className="flex items-center gap-1 text-[hsl(var(--story-500))]" title="Key Moment">
-              <Star className="w-4 h-4" fill="currentColor" />
-            </div>
-          )}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <VerifiedBadge
+              status={isVerified ? "verified" : isVerifyPending ? "pending" : "unverified"}
+              txHash={verifiedMetrics?.on_chain_tx_hash}
+            />
+            {isCanonical && (
+              <div className="flex items-center gap-1 text-[hsl(var(--story-500))]" title="Key Moment">
+                <Star className="w-4 h-4" fill="currentColor" />
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Content or Paywall */}
         {isLocked ? (
-          <div className="p-4 bg-[hsl(var(--story-500)/0.08)] rounded-lg border border-[hsl(var(--story-500)/0.15)]">
-            <p className="text-muted-foreground mb-3">
-              {story.teaser || "Premium content locked behind paywall"}
-            </p>
-            <Button
-              onClick={(e) => { e.stopPropagation(); e.preventDefault(); handlePaywall(); }}
-              disabled={isPaying}
-              size="sm"
-              className="btn-solid-story"
-            >
-              {isPaying ? "Processing..." : `Unlock for ${story.paywallAmount} $STORY`}
-            </Button>
+          <div className="space-y-3">
+            <div className="p-4 bg-[hsl(var(--story-500)/0.08)] rounded-lg border border-[hsl(var(--story-500)/0.15)]">
+              <p className="text-muted-foreground mb-3">
+                {story.teaser || "Premium content locked behind paywall"}
+              </p>
+              <Button
+                onClick={(e) => { e.stopPropagation(); e.preventDefault(); handlePaywall(); }}
+                disabled={isPaying}
+                size="sm"
+                className="btn-solid-story"
+              >
+                {isPaying ? "Processing..." : `Unlock for ${story.paywallAmount} $STORY`}
+              </Button>
+            </div>
+            {/* Show verified metrics preview for paywalled content */}
+            <VerifiedMetricsCard
+              metrics={verifiedMetrics}
+              isPending={isVerifyPending}
+            />
           </div>
         ) : (
           <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">

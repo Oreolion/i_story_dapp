@@ -1,0 +1,17 @@
+{
+  "name": "istory-verification-workflow",
+  "version": "1.0.0",
+  "main": "dist/main.js",
+  "private": true,
+  "scripts": {
+    "postinstall": "bunx cre-setup"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@chainlink/cre-sdk": "^1.0.1",
+    "viem": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/bun": "1.2.21"
+  }
+}

@@ -78,6 +78,24 @@ export async function POST(request: NextRequest) {
       // Non-critical: analysis can be retried later
     }
 
+    // Trigger CRE verification in the background (fire and forget)
+    try {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const authHeader = request.headers.get("Authorization");
+      if (authHeader) {
+        fetch(`${appUrl}/api/cre/trigger`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: authHeader,
+          },
+          body: JSON.stringify({ storyId: story.id }),
+        }).catch(err => console.error("[JOURNAL/SAVE] CRE trigger failed:", err));
+      }
+    } catch {
+      // Non-critical: verification can be triggered manually later
+    }
+
     return NextResponse.json({
       success: true,
       data: story,
