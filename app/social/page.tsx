@@ -57,7 +57,7 @@ const featuredWriters: FeaturedWriterType[] = [
   {
     name: "David Kim",
     username: "@davidk",
-    avatar: "/avatars/david.jpg",
+    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=david",
     followers: 2100,
     stories: 45,
     speciality: "Life Philosophy",
@@ -65,7 +65,7 @@ const featuredWriters: FeaturedWriterType[] = [
   {
     name: "Anna Thompson",
     username: "@annat",
-    avatar: "/avatars/anna.jpg",
+    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=anna",
     followers: 1800,
     stories: 38,
     speciality: "Travel Adventures",
@@ -73,7 +73,7 @@ const featuredWriters: FeaturedWriterType[] = [
   {
     name: "James Wilson",
     username: "@jamesw",
-    avatar: "/avatars/james.jpg",
+    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=james",
     followers: 1450,
     stories: 52,
     speciality: "Tech Stories",
@@ -100,6 +100,17 @@ export default function SocialPage() {
   const iStoryToken = useIStoryToken();
   const { payPaywall } = useStoryProtocol();
   const supabase = supabaseClient;
+
+  // Helper to get auth token for API calls
+  const getAuthHeaders = async (): Promise<Record<string, string>> => {
+    if (!supabase) return { "Content-Type": "application/json" };
+    const { data } = await supabase.auth.getSession();
+    const token = data?.session?.access_token;
+    return {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+  };
 
   // --- Fetch Data ---
   useEffect(() => {
@@ -142,8 +153,10 @@ export default function SocialPage() {
         let followingMap: Record<string, boolean> = {};
         if (address && authorWallets.length > 0) {
           try {
+            const headers = await getAuthHeaders();
             const followRes = await fetch(
-              `/api/social/follow?follower_wallet=${address.toLowerCase()}&followed_wallets=${authorWallets.join(",")}`
+              `/api/social/follow?follower_wallet=${address.toLowerCase()}&followed_wallets=${authorWallets.join(",")}`,
+              { headers }
             );
             if (followRes.ok) {
               const { following } = await followRes.json();
@@ -322,9 +335,10 @@ export default function SocialPage() {
     );
 
     try {
+      const headers = await getAuthHeaders();
       const res = await fetch("/api/social/follow", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           follower_wallet: address,
           followed_wallet: authorWallet,

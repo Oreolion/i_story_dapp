@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -16,8 +16,9 @@ import {
 
 // FIX: Components are at Root (Up 2 levels: tasks -> app -> root)
 import { useAuth } from "../../components/AuthProvider";
+import { useBrowserSupabase } from "@/app/hooks/useBrowserSupabase";
 
-import { useBackgroundMode } from "@/contexts/BackgroundContext"; 
+import { useBackgroundMode } from "@/contexts/BackgroundContext";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -34,9 +35,21 @@ const MOODS = [
 
 export default function TasksPage() {
   const { profile: authInfo } = useAuth();
+  const supabase = useBrowserSupabase();
 
   // Set background mode for this page
   useBackgroundMode('tracker');
+
+  // Helper to get auth token for API calls
+  const getAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
+    if (!supabase) return { "Content-Type": "application/json" };
+    const { data } = await supabase.auth.getSession();
+    const token = data?.session?.access_token;
+    return {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+  }, [supabase]);
 
   // Data State
   const [habits, setHabits] = useState<any[]>([]);
@@ -53,11 +66,12 @@ export default function TasksPage() {
 
   // --- Fetch Data via API (bypasses RLS issues for wallet-auth users) ---
   useEffect(() => {
-    if (!authInfo?.id) return;
+    if (!authInfo?.id || !supabase) return;
 
     const loadData = async () => {
       try {
-        const res = await fetch(`/api/habits?user_id=${authInfo.id}&date=${todayStr}`);
+        const headers = await getAuthHeaders();
+        const res = await fetch(`/api/habits?user_id=${authInfo.id}&date=${todayStr}`, { headers });
         if (!res.ok) {
           console.error("Failed to load tracker data:", res.status);
           return;
@@ -79,7 +93,7 @@ export default function TasksPage() {
     };
 
     loadData();
-  }, [authInfo?.id, todayStr]);
+  }, [authInfo?.id, todayStr, getAuthHeaders, supabase]);
 
   // --- Autosave Helper (via API to bypass RLS) ---
   const saveLogState = async (updates: any) => {
@@ -88,9 +102,10 @@ export default function TasksPage() {
     setDailyLog((prev: any) => ({ ...prev, ...updates }));
 
     try {
+      const headers = await getAuthHeaders();
       const res = await fetch("/api/habits", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           user_id: authInfo.id,
           date: todayStr,
@@ -118,9 +133,10 @@ export default function TasksPage() {
   setIsAdding(true);
 
   try {
+    const headers = await getAuthHeaders();
     const res = await fetch("/api/habits", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ user_id: authInfo.id, title: newHabitTitle })
     });
 
@@ -145,7 +161,8 @@ export default function TasksPage() {
   const handleDeleteHabit = async (id: string) => {
     setHabits(habits.filter(h => h.id !== id)); // Optimistic
     try {
-      const res = await fetch(`/api/habits?id=${id}`, { method: "DELETE" });
+      const headers = await getAuthHeaders();
+      const res = await fetch(`/api/habits?id=${id}`, { method: "DELETE", headers });
       if (!res.ok) {
         console.error("Delete failed");
       }
@@ -205,9 +222,10 @@ export default function TasksPage() {
           - Use "I" statements.
         `;
 
+        const headers = await getAuthHeaders();
         const enhanceRes = await fetch("/api/ai/enhance", {
              method: "POST",
-             headers: { "Content-Type": "application/json" },
+             headers,
              body: JSON.stringify({ text: prompt })
         });
 
@@ -216,7 +234,7 @@ export default function TasksPage() {
 
         const saveRes = await fetch("/api/journal/save", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers,
             body: JSON.stringify({
                 title: `Daily Log: ${new Date().toLocaleDateString()}`,
                 content: generatedEntry,

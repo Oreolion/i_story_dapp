@@ -24,6 +24,10 @@ const nextConfig = {
         protocol: "https",
         hostname: "placehold.co",
       },
+      {
+        protocol: "https",
+        hostname: "api.dicebear.com",
+      },
     ],
   },
   async headers() {
@@ -56,9 +60,9 @@ const nextConfig = {
             value: [
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-              "style-src 'self' 'unsafe-inline'",
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "img-src 'self' data: https: blob:",
-              "font-src 'self' data:",
+              "font-src 'self' data: https://fonts.gstatic.com",
               "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.elevenlabs.io https://api.pinata.cloud https://*.walletconnect.com wss://*.walletconnect.com https://*.walletconnect.org wss://*.walletconnect.org https://sepolia.base.org https://*.alchemy.com https://*.infura.io https://*.rpc.thirdweb.com https://api.web3modal.org https://*.reown.com https://cca-lite.coinbase.com https://*.coinbase.com https://rpc.walletconnect.org https://rpc.walletconnect.com",
               "frame-src 'self' https://*.walletconnect.com https://*.walletconnect.org https://*.reown.com",
             ].join("; "),

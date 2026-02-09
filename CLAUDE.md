@@ -28,9 +28,11 @@ Detailed references are in `docs/` — read them on-demand when needed.
 - **Email:** Resend
 - **Blockchain:** Base Sepolia (chain ID: 84532)
 
+- **Verification:** Chainlink CRE (verifiable off-chain compute + on-chain attestation)
+
 ### Current Phase
 
-Phase 1.5 Complete (Security Hardening) — Ready for Phase 2 (Patterns & Discovery). See `docs/ROADMAP.md` for details.
+Phase 1.5 Complete (Security Hardening), CRE Integration Complete — Ready for Phase 2 (Patterns & Discovery). See `docs/ROADMAP.md` for details.
 
 ---
 
@@ -80,7 +82,9 @@ i_story_dapp/
 │   ├── utils/                    # Utilities (Supabase clients, services)
 │   └── [pages]/                  # books, library, profile, record, social, story, tracker
 ├── components/                   # React components (ui/, emails/, Provider, AuthProvider, Nav)
-├── contracts/                    # Solidity smart contracts
+├── contracts/                    # Solidity smart contracts + CRE interfaces
+├── cre/                          # Chainlink CRE workflows (project.yaml, secrets, workflows)
+├── skills/                       # Claude Code skills (CRE templates + patterns)
 ├── lib/                          # Shared libraries (auth, crypto, contracts, wagmi, viem)
 ├── scripts/                      # Hardhat deployment & utility scripts
 ├── middleware.ts                 # API rate limiting
@@ -163,14 +167,52 @@ WagmiProvider → QueryClientProvider → RainbowKitProvider → ThemeProvider �
 
 ### Smart Contracts (Base Sepolia)
 
-| Contract | Purpose | Key Features |
-|----------|---------|--------------|
-| **iStoryToken** | ERC20 $STORY token | MAX_SUPPLY 100M, Pausable, AccessControl |
-| **StoryProtocol** | Tips & paywall | Pausable |
-| **StoryNFT** | ERC721 story books | mintFee 0.001 ETH, ERC2981 royalties |
+| Contract | Address | Purpose |
+|----------|---------|---------|
+| **iStoryToken** | `0xf9eDD76B...` | ERC20 $STORY token, MAX_SUPPLY 100M |
+| **StoryProtocol** | `0xA51a4cA0...` | Tips & paywall |
+| **StoryNFT** | `0x6D37ebc5...` | ERC721 story books, mintFee 0.001 ETH |
+| **VerifiedMetrics** | `0x052B52A4...` | CRE-attested story metrics (ReceiverTemplate) |
 
-- Addresses in `lib/contracts.ts`, ABIs in `lib/abis/`
-- Verify: `npx hardhat run scripts/verify-deployment.ts --network baseSepolia`
+- Addresses in `lib/contracts.ts`
+- VerifiedMetrics uses Chainlink KeystoneForwarder (`0x82300bd7...`) for CRE report delivery
+
+### Chainlink CRE Integration
+
+CRE (Compute Runtime Environment) provides verifiable AI analysis with on-chain attestation.
+
+**Architecture:**
+```
+POST /api/cre/trigger → CRE Workflow (Chainlink DON)
+                              ↓
+                         Gemini AI Analysis + DON Consensus
+                              ↓
+                         Signed Report → KeystoneForwarder → VerifiedMetrics.onReport()
+                              ↓
+POST /api/cre/check ← Read from contract ← useVerifiedMetrics hook (polls)
+```
+
+**Key files:**
+| File | Purpose |
+|------|---------|
+| `cre/iStory_workflow/main.ts` | Workflow entry: HTTPCapability + Runner |
+| `cre/iStory_workflow/gemini.ts` | Gemini AI via HTTPClient consensus |
+| `cre/iStory_workflow/httpCallback.ts` | Handler: parse → analyze → encode → sign → write |
+| `contracts/VerifiedMetrics.sol` | ReceiverTemplate receiver, decodes CRE reports |
+| `contracts/interfaces/` | IERC165, IReceiver, ReceiverTemplate |
+| `app/api/cre/trigger/route.ts` | Triggers CRE workflow |
+| `app/api/cre/check/route.ts` | Reads verified metrics from contract |
+| `app/hooks/useVerifiedMetrics.ts` | Frontend polling hook |
+| `skills/cre/SKILL.md` | CRE SDK patterns reference |
+
+**CRE Commands (run from `cre/` directory):**
+```bash
+cre workflow simulate iStory_workflow              # Local test
+cre workflow simulate iStory_workflow --broadcast  # Test with on-chain write
+cre workflow deploy iStory_workflow                # Deploy (requires early access)
+```
+
+**CRITICAL SDK patterns** — see `skills/cre/SKILL.md` for correct vs wrong patterns.
 
 ### Supabase Client Variants (`app/utils/supabase/`)
 
@@ -251,5 +293,6 @@ Create `.env.local` from `.env.example`. Key groups: Supabase, WalletConnect, AI
 ## Hooks Reference
 
 **Web3:** `useIStoryToken` (balance, approve), `useStoryProtocol` (tipCreator, payPaywall), `useStoryNFT` (mintBook)
+**CRE:** `useVerifiedMetrics` (poll for CRE-attested story metrics)
 **Supabase:** `useBrowserSupabase` (client singleton), `useNotifications` (CRUD + real-time polling)
 **Planned:** `useStoryMetadata`, `usePatterns` — see `docs/ROADMAP.md`

@@ -1,88 +1,132 @@
 /**
- * CRE AI Analysis Function Template
+ * CRE AI Analysis Function — Gemini via HTTPClient Consensus
  *
- * Reusable AI analysis helper for CRE compute steps.
- * Calls Gemini Flash via HTTP for structured text analysis.
+ * Reusable AI analysis helper for CRE workflows.
+ * Uses the HTTPClient "sugar" pattern for DON node consensus.
  *
- * Usage in CRE workflow:
- *   import { analyzeContent } from "./ai-analysis"
- *   const result = analyzeContent(nodeRuntime, text)
+ * CORRECT SDK pattern (tested and verified):
+ *   1. runtime.getSecret({ id: "GEMINI_API_KEY" }) — access CRE-managed secrets
+ *   2. httpClient.sendRequest(runtime, buildFn, consensusIdenticalAggregation<T>())
+ *   3. Body must be base64-encoded: Buffer.from(new TextEncoder().encode(json)).toString("base64")
+ *   4. Response body decoded: new TextDecoder().decode(resp.body)
+ *
+ * WRONG patterns (will fail):
+ *   - nodeRuntime.httpClient.sendRequest({...}) — old pattern, doesn't exist
+ *   - runtime.runInNodeMode(...) — doesn't exist in CRE SDK
+ *   - Passing JSON string directly as body — must be base64
  */
 
-import type { NodeRuntime } from "@chainlink/cre-sdk";
+import {
+  cre,
+  ok,
+  consensusIdenticalAggregation,
+  type Runtime,
+  type HTTPSendRequester,
+} from "@chainlink/cre-sdk";
 
-export interface AnalysisConfig {
-  apiKey: string;
-}
+// ─── Types ───────────────────────────────────────────────────────────
 
 export interface ContentAnalysis {
-  significanceScore: number;   // 0-100
-  emotionalDepth: number;      // 1-5
-  qualityScore: number;        // 0-100
+  significanceScore: number; // 0-100
+  emotionalDepth: number; // 1-5
+  qualityScore: number; // 0-100
   wordCount: number;
   themes: string[];
 }
 
+interface GeminiResult {
+  metrics: ContentAnalysis;
+}
+
+// ─── Main Analysis Function ──────────────────────────────────────────
+
 /**
- * Analyze text content using Gemini Flash.
- * Uses low temperature (0.1) for consistency across CRE nodes.
+ * Analyze text content using Gemini AI with DON consensus.
+ * All nodes query Gemini independently and must agree on the result.
  */
-export function analyzeContent(
-  nodeRuntime: NodeRuntime<AnalysisConfig>,
-  text: string
+export function analyzeContent<C extends { geminiModel: string }>(
+  runtime: Runtime<C>,
+  title: string,
+  content: string
 ): ContentAnalysis {
-  const prompt = `Analyze this text and return a JSON object with exactly these fields:
-- significanceScore: number 0-100 (how significant/meaningful is this content)
+  const geminiApiKey = runtime.getSecret({ id: "GEMINI_API_KEY" }).result();
+  const httpClient = new cre.capabilities.HTTPClient();
+
+  const result = httpClient
+    .sendRequest(
+      runtime,
+      buildGeminiRequest(title, content, geminiApiKey.value),
+      consensusIdenticalAggregation<GeminiResult>()
+    )(runtime.config)
+    .result();
+
+  return result.metrics;
+}
+
+// ─── Request Builder ─────────────────────────────────────────────────
+
+const buildGeminiRequest =
+  <C extends { geminiModel: string }>(
+    title: string,
+    content: string,
+    apiKey: string
+  ) =>
+  (sendRequester: HTTPSendRequester, config: C): GeminiResult => {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${config.geminiModel}:generateContent?key=${apiKey}`;
+
+    const prompt = `Analyze this story and return a JSON object with exactly these fields:
+- significanceScore: number 0-100 (how significant/meaningful)
 - emotionalDepth: number 1-5 (depth of emotional expression)
-- qualityScore: number 0-100 (writing quality, coherence, structure)
+- qualityScore: number 0-100 (writing quality)
 - wordCount: number (exact word count)
 - themes: string[] (2-5 main themes, lowercase)
 
-Text to analyze:
-"""
-${text}
-"""
+Title: "${title}"
+Content: "${content}"
 
-Return ONLY valid JSON, no explanation.`;
+Return ONLY a JSON object with a "metrics" key containing these fields.`;
 
-  const response = nodeRuntime.httpClient.sendRequest({
-    url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-goog-api-key": nodeRuntime.config.apiKey,
-    },
-    body: JSON.stringify({
+    const requestData = {
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.1,
         responseMimeType: "application/json",
       },
-    }),
-  });
+    };
 
-  if (response.statusCode !== 200) {
-    throw new Error(`Gemini API error: ${response.statusCode}`);
-  }
+    // CRITICAL: Body must be base64-encoded for CRE HTTPClient
+    const bodyBytes = new TextEncoder().encode(JSON.stringify(requestData));
+    const body = Buffer.from(bodyBytes).toString("base64");
 
-  const geminiResponse = JSON.parse(response.body);
-  const resultText = geminiResponse.candidates?.[0]?.content?.parts?.[0]?.text;
+    const resp = sendRequester
+      .sendRequest({
+        url,
+        method: "POST",
+        body,
+        headers: { "Content-Type": "application/json" },
+      })
+      .result();
 
-  if (!resultText) {
-    throw new Error("No content in Gemini response");
-  }
+    // Decode response body from Uint8Array
+    const bodyText = new TextDecoder().decode(resp.body);
+    const parsed = JSON.parse(bodyText);
+    const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    const raw = JSON.parse(text);
 
-  const raw = JSON.parse(resultText);
-
-  // Validate and clamp scores
-  return {
-    significanceScore: clamp(Math.round(raw.significanceScore || 0), 0, 100),
-    emotionalDepth: clamp(Math.round(raw.emotionalDepth || 1), 1, 5),
-    qualityScore: clamp(Math.round(raw.qualityScore || 0), 0, 100),
-    wordCount: Math.max(0, Math.round(raw.wordCount || 0)),
-    themes: deduplicateThemes(raw.themes || []),
+    // Extract and clamp metrics
+    const m = raw.metrics || raw;
+    return {
+      metrics: {
+        significanceScore: clamp(Math.round(m.significanceScore || 0), 0, 100),
+        emotionalDepth: clamp(Math.round(m.emotionalDepth || 1), 1, 5),
+        qualityScore: clamp(Math.round(m.qualityScore || 0), 0, 100),
+        wordCount: Math.max(0, Math.round(m.wordCount || 0)),
+        themes: deduplicateThemes(m.themes || []),
+      },
+    };
   };
-}
+
+// ─── Helpers ─────────────────────────────────────────────────────────
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));

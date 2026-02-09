@@ -46,6 +46,42 @@ app/api/auth/nonce/route.ts                (nonce generation)
 scripts/verify-deployment.ts               (contract deployment verification)
 ```
 
+## Phase 1.6: Chainlink CRE Integration -- COMPLETE
+
+**Goal:** Verifiable AI-attested story metrics via Chainlink DON nodes.
+
+**Tasks:**
+- [x] Set up CRE CLI project structure (`cre/iStory_workflow/`)
+- [x] Build CRE workflow: HTTP trigger → Gemini AI → DON consensus → on-chain write
+- [x] Create ReceiverTemplate interfaces (`contracts/interfaces/`)
+- [x] Rewrite VerifiedMetrics.sol to extend ReceiverTemplate
+- [x] Deploy VerifiedMetrics to Base Sepolia (`0x052B52A4841080a98876275d5f8E6d094c9E086C`)
+- [x] Verify contract on Sourcify
+- [x] Build trigger API route (`/api/cre/trigger`)
+- [x] Build check API route (`/api/cre/check`)
+- [x] Build frontend hook (`useVerifiedMetrics`) with polling
+- [x] Build display components (`VerifiedBadge`, `VerifiedMetricsCard`)
+- [x] Test simulation with --broadcast (end-to-end on-chain write confirmed)
+- [x] Update CRE skill templates with correct SDK patterns
+- [ ] Pending: CRE workflow deployment (awaiting Chainlink early access approval)
+
+**Key files created/modified:**
+```
+cre/iStory_workflow/main.ts               (CRE workflow entry point)
+cre/iStory_workflow/gemini.ts             (Gemini AI with HTTPClient consensus)
+cre/iStory_workflow/httpCallback.ts       (Full handler: parse → analyze → sign → write)
+contracts/VerifiedMetrics.sol             (ReceiverTemplate-based receiver)
+contracts/interfaces/                      (IERC165, IReceiver, ReceiverTemplate)
+app/api/cre/trigger/route.ts              (Trigger verification)
+app/api/cre/check/route.ts               (Read results from contract)
+app/hooks/useVerifiedMetrics.ts           (Frontend polling hook)
+components/VerifiedBadge.tsx              (Verification badge)
+components/VerifiedMetricsCard.tsx        (Metrics display)
+lib/contracts.ts                          (Updated ABI + address)
+scripts/deployVerifiedMetrics.ts          (Deployment script)
+skills/cre/                               (CRE skill templates + SKILL.md)
+```
+
 ## Phase 2: Patterns & Discovery (Next Up)
 
 **Goal:** Users can see patterns across their stories.

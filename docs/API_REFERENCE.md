@@ -63,6 +63,13 @@
 
 Notification types: `like`, `comment`, `tip`, `follow`, `book_published`, `story_mentioned`
 
+## CRE Verification (`/api/cre/*`) — Auth Required
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/cre/trigger` | POST | Bearer + ownership | Trigger CRE story verification. Fetches story from DB, validates ownership, sends to CRE workflow. Input: `{ storyId }`. Output: `{ success, workflowRunId }` |
+| `/api/cre/check` | POST | Bearer | Check verification status. Reads from VerifiedMetrics contract on-chain, caches to Supabase. Input: `{ storyId }`. Output: `{ verified, metrics }` |
+
 ## Infrastructure — Special Auth
 
 | Endpoint | Method | Auth | Description |
