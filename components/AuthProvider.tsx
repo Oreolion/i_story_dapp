@@ -465,11 +465,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (existing) {
-          setUnifiedProfile(existing, null);
-          return;
+          // Check if current Supabase session matches this user row.
+          // A mismatch (e.g. stale Google session) causes 403 on API calls.
+          const {
+            data: { session: currentSession },
+          } = await supabase.auth.getSession();
+
+          if (currentSession?.user?.id === existing.id) {
+            // Session matches — safe to use without re-auth
+            setUnifiedProfile(existing, currentSession.user);
+            return;
+          }
+
+          // Session doesn't match or doesn't exist — need wallet sign-in
+          // to create a matching session. Clear stale session first.
+          if (currentSession) {
+            console.log(
+              "[AUTH] Session/profile mismatch, clearing stale session for wallet re-auth"
+            );
+            await supabase.auth.signOut();
+          }
+          // Fall through to signature flow below
         }
 
-        // No existing user → MetaMask signature flow
+        // No matching session or no existing user → MetaMask signature flow
         signInAttemptRef.current = true;
 
         try {
@@ -497,8 +516,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const json = await res.json();
           const userRow = json.user;
 
+          // Create a Supabase client session from the server-generated token
+          if (json.session_token && json.session_email) {
+            try {
+              const { error: otpErr } = await supabase.auth.verifyOtp({
+                email: json.session_email,
+                token: json.session_token,
+                type: "email",
+              });
+              if (otpErr) {
+                console.error("[AUTH] Session creation failed:", otpErr);
+              }
+            } catch (e) {
+              console.error("[AUTH] verifyOtp error:", e);
+            }
+          }
+
           if (userRow) {
-            setUnifiedProfile(userRow, null);
+            const {
+              data: { session: newSession },
+            } = await supabase.auth.getSession();
+            setUnifiedProfile(userRow, newSession?.user ?? null);
           }
         } catch (err: any) {
           if (err.code !== "ACTION_REJECTED") {

@@ -79,6 +79,46 @@ export async function validateWalletOwnership(
 }
 
 /**
+ * Resolve the effective users-table ID from the JWT-authenticated user ID.
+ * Handles session/profile ID mismatch by falling back to wallet_address lookup
+ * via Supabase auth user metadata.
+ */
+export async function resolveUserId(
+  authenticatedUserId: string
+): Promise<string> {
+  const supabase = getAdminClient();
+
+  // Fast path: JWT user ID directly matches a users row
+  const { data: directUser } = await supabase
+    .from("users")
+    .select("id")
+    .eq("id", authenticatedUserId)
+    .maybeSingle();
+
+  if (directUser) return directUser.id;
+
+  // Slow path: look up via wallet_address from auth user metadata
+  try {
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.admin.getUserById(authenticatedUserId);
+    const walletAddress = authUser?.user_metadata?.wallet_address;
+    if (walletAddress) {
+      const { data: walletUser } = await supabase
+        .from("users")
+        .select("id")
+        .eq("wallet_address", walletAddress.toLowerCase())
+        .maybeSingle();
+      if (walletUser) return walletUser.id;
+    }
+  } catch {
+    // getUserById failed — return original ID
+  }
+
+  return authenticatedUserId;
+}
+
+/**
  * Helper: check if a value is a NextResponse (i.e., auth failed).
  */
 export function isAuthError(

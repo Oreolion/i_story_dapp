@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/app/utils/supabase/supabaseAdmin";
-import { validateAuthOrReject, isAuthError } from "@/lib/auth";
+import { validateAuthOrReject, isAuthError, resolveUserId } from "@/lib/auth";
 
 // GET /api/habits?user_id=...&date=YYYY-MM-DD
 // Returns habits and (optionally) today's daily log for the user
@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
     // Auth check
     const authResult = await validateAuthOrReject(req);
     if (isAuthError(authResult)) return authResult;
-    const authenticatedUserId = authResult;
+    const effectiveUserId = await resolveUserId(authResult);
 
     const { searchParams } = new URL(req.url);
     const user_id = searchParams.get("user_id");
@@ -19,8 +19,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Missing user_id" }, { status: 400 });
     }
 
-    // Verify user_id matches authenticated user
-    if (authenticatedUserId !== user_id) {
+    // Verify user_id matches authenticated user (resolved via wallet fallback)
+    if (effectiveUserId !== user_id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
     // Auth check
     const authResult = await validateAuthOrReject(req);
     if (isAuthError(authResult)) return authResult;
-    const authenticatedUserId = authResult;
+    const effectiveUserId = await resolveUserId(authResult);
 
     const body = await req.json();
     const { user_id, title } = body ?? {};
@@ -86,8 +86,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Verify user_id matches authenticated user
-    if (authenticatedUserId !== user_id) {
+    // Verify user_id matches authenticated user (resolved via wallet fallback)
+    if (effectiveUserId !== user_id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -133,7 +133,7 @@ export async function PUT(req: NextRequest) {
     // Auth check
     const authResult = await validateAuthOrReject(req);
     if (isAuthError(authResult)) return authResult;
-    const authenticatedUserId = authResult;
+    const effectiveUserId = await resolveUserId(authResult);
 
     const body = await req.json();
     const { user_id, date, completed_habit_ids, notes, mood } = body ?? {};
@@ -145,8 +145,8 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    // Verify user_id matches authenticated user
-    if (authenticatedUserId !== user_id) {
+    // Verify user_id matches authenticated user (resolved via wallet fallback)
+    if (effectiveUserId !== user_id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -191,7 +191,7 @@ export async function DELETE(req: NextRequest) {
     // Auth check
     const authResult = await validateAuthOrReject(req);
     if (isAuthError(authResult)) return authResult;
-    const authenticatedUserId = authResult;
+    const effectiveUserId = await resolveUserId(authResult);
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
@@ -209,7 +209,7 @@ export async function DELETE(req: NextRequest) {
       .eq("id", id)
       .single();
 
-    if (!habit || habit.user_id !== authenticatedUserId) {
+    if (!habit || habit.user_id !== effectiveUserId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

@@ -68,13 +68,7 @@ export async function POST(req: NextRequest) {
     // Also check Supabase auth by email
     let authUser = null;
 
-    // Try to find by email in auth system
-    const { data: authListData } = await admin.auth.admin.listUsers({
-      page: 1,
-      perPage: 1,
-    });
-
-    // Direct query: find auth user by email
+    // Find auth user by email or wallet metadata
     const { data: { users: matchedUsers } } = await admin.auth.admin.listUsers({
       page: 1,
       perPage: 100,
@@ -159,8 +153,47 @@ export async function POST(req: NextRequest) {
       profile = upserted;
     }
 
-    // 7. Return the final, updated profile
-    return NextResponse.json({ success: true, user: profile });
+    // 7. Generate a session token so the client can create a Supabase session.
+    //    Wallet ownership was already verified via signature above, so this is safe.
+    let sessionToken = null;
+    let sessionEmail = null;
+
+    // Determine which auth user the session should be for.
+    // If the users row has a different ID, try to find the original auth user
+    // so the session user.id matches users.id (prevents 403 on API calls).
+    let sessionAuthUser = authUser;
+    if (profile && profile.id !== authUser.id) {
+      try {
+        const { data: { user: originalAuth } } =
+          await admin.auth.admin.getUserById(profile.id);
+        if (originalAuth) {
+          sessionAuthUser = originalAuth;
+        }
+      } catch {
+        // Original auth user not found — use current authUser
+      }
+    }
+
+    try {
+      const { data: linkData, error: linkErr } =
+        await admin.auth.admin.generateLink({
+          type: "magiclink",
+          email: sessionAuthUser.email!,
+        });
+      if (!linkErr && linkData?.properties) {
+        sessionToken = linkData.properties.email_otp;
+        sessionEmail = sessionAuthUser.email;
+      }
+    } catch (linkErr) {
+      console.error("[AUTH LOGIN] Failed to generate session token:", linkErr);
+    }
+
+    return NextResponse.json({
+      success: true,
+      user: profile,
+      session_token: sessionToken,
+      session_email: sessionEmail,
+    });
 
   } catch (err: unknown) {
     console.error("Wallet auth route error:", err);
