@@ -1,0 +1,16 @@
+{
+  "name": "iStory - AI-Powered Blockchain Journaling",
+  "short_name": "iStory",
+  "description": "Record your life stories with AI transcription, store them on blockchain, and discover patterns in your narrative.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#1a56db",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    }
+  ]
+}

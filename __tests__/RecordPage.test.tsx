@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import RecordPage from "../app/record/page";
+import RecordPage from "../app/record/RecordPageClient";
 
 // --- 1. MOCK DEPENDENCIES ---
 

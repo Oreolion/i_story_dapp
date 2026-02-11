@@ -32,7 +32,7 @@ Detailed references are in `docs/` — read them on-demand when needed.
 
 ### Current Phase
 
-Phase 1.5 Complete (Security Hardening), CRE Integration Complete — Ready for Phase 2 (Patterns & Discovery). See `docs/ROADMAP.md` for details.
+Phase 1.5 Complete (Security Hardening), CRE Integration Complete, SEO Overhaul Complete — Ready for Phase 2 (Patterns & Discovery). See `docs/ROADMAP.md` for details.
 
 ---
 
@@ -81,6 +81,7 @@ i_story_dapp/
 │   ├── types/                    # TypeScript definitions
 │   ├── utils/                    # Utilities (Supabase clients, services)
 │   └── [pages]/                  # books, library, profile, record, social, story, tracker
+│                                   # Each page: server page.tsx (metadata) + *PageClient.tsx (UI)
 ├── components/                   # React components (ui/, emails/, Provider, AuthProvider, Nav)
 ├── contracts/                    # Solidity smart contracts + CRE interfaces
 ├── cre/                          # Chainlink CRE workflows (project.yaml, secrets, workflows)
@@ -258,8 +259,11 @@ cre workflow deploy iStory_workflow                # Deploy (requires early acce
 4. Use generic error messages (never `error.message`)
 
 ### Add a new page
-1. Create folder in `app/[page-name]/`, add `page.tsx`
-2. Update `Navigation.tsx` if needed
+1. Create `app/[page-name]/[PageName]PageClient.tsx` with `"use client"` (UI logic)
+2. Create `app/[page-name]/page.tsx` as server component that exports `metadata` and renders the client component
+3. For dynamic routes (`[id]`): use `generateMetadata()` with `createSupabaseAdminClient()` for server-side data fetching
+4. Private content must return `robots: { index: false }` with no content leak in metadata
+5. Update `Navigation.tsx` if needed
 
 ### Add a new Web3 hook
 1. Create in `app/hooks/`, import ABI from `lib/contracts.ts`
@@ -287,6 +291,10 @@ Create `.env.local` from `.env.example`. Key groups: Supabase, WalletConnect, AI
 | `vitest.config.ts` | Unit test config |
 | `playwright.config.ts` | E2E test config |
 | `tailwind.config.ts` | Tailwind CSS config |
+| `app/robots.ts` | Crawler directives |
+| `app/sitemap.ts` | Dynamic sitemap (public stories) |
+| `app/opengraph-image.tsx` | Default branded OG image |
+| `public/manifest.json` | PWA manifest |
 
 ---
 

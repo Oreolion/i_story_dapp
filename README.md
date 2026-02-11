@@ -252,25 +252,39 @@ i_story_dapp/
 │   │   ├── useNotifications.ts       # Notification system hook
 │   │   ├── usePatterns.ts            # Pattern aggregation hook
 │   │   └── useReflection.ts          # Weekly reflection hook
+│   ├── robots.ts                     # SEO: Crawler directives
+│   ├── sitemap.ts                    # SEO: Dynamic sitemap (public stories)
+│   ├── opengraph-image.tsx           # SEO: Default branded OG image
 │   ├── story/
 │   │   └── [storyId]/
-│   │       └── page.tsx              # Story detail page
+│   │       ├── page.tsx              # Server component (metadata + JSON-LD)
+│   │       ├── StoryPageClient.tsx   # Client component (UI)
+│   │       └── opengraph-image.tsx   # Dynamic per-story OG image
+│   ├── books/
+│   │   └── [bookId]/
+│   │       ├── page.tsx              # Server component (metadata + JSON-LD)
+│   │       └── BookPageClient.tsx    # Client component (UI)
 │   ├── library/
-│   │   └── page.tsx                  # User library
+│   │   ├── page.tsx                  # Server component (metadata)
+│   │   └── LibraryPageClient.tsx     # Client component (UI)
 │   ├── profile/
-│   │   └── page.tsx                  # User profile
+│   │   ├── page.tsx                  # Server component (metadata)
+│   │   └── ProfilePageClient.tsx     # Client component (UI)
 │   ├── record/
-│   │   └── page.tsx                  # Recording page
+│   │   ├── page.tsx                  # Server component (metadata)
+│   │   └── RecordPageClient.tsx      # Client component (UI)
 │   ├── social/
-│   │   └── page.tsx                  # Social feed
+│   │   ├── page.tsx                  # Server component (metadata)
+│   │   └── SocialPageClient.tsx      # Client component (UI)
 │   ├── types/
 │   │   └── index.ts                  # TypeScript interfaces (includes StoryMetadata)
 │   ├── utils/
 │   │   ├── supabase/                 # Supabase clients (browser, server, admin)
 │   │   ├── ipfsService.ts            # IPFS/Pinata service
 │   │   └── emailService.ts           # Resend email service
-│   ├── layout.tsx                    # Root layout with Footer
-│   ├── page.tsx                      # Home page
+│   ├── layout.tsx                    # Root layout (metadata, JSON-LD, Footer)
+│   ├── page.tsx                      # Home page (server wrapper)
+│   ├── HomePageClient.tsx            # Home page (client UI)
 │   └── globals.css                   # Global styles
 ├── __tests__/                        # Unit tests (Vitest)
 │   ├── api/
@@ -316,7 +330,7 @@ i_story_dapp/
 │       ├── 001_create_weekly_reflections.sql
 │       ├── 002_enable_rls_policies.sql
 │       └── 003_add_oauth_fields.sql
-├── public/                           # Static assets
+├── public/                           # Static assets + manifest.json (PWA)
 ├── vitest.config.ts                  # Vitest configuration
 ├── playwright.config.ts              # Playwright configuration
 ├── hardhat.config.ts                 # Hardhat configuration
@@ -645,6 +659,18 @@ MIT © 2024-2026 iStory Team
 - [x] Smart contract hardening (MAX_SUPPLY, mint fees)
 - [x] Real DB implementations replacing mock endpoints (journal/save, social/like, user/profile)
 - [x] 96 total tests passing across 3 test files
+
+### Phase 1.7: SEO Overhaul ✅ COMPLETE
+
+- [x] Server/client page split (server `page.tsx` + `*PageClient.tsx`) for all routes
+- [x] `robots.ts` with crawler directives
+- [x] Dynamic `sitemap.ts` with all public stories
+- [x] Root layout metadata overhaul (title template, OG, Twitter, JSON-LD)
+- [x] `generateMetadata` for dynamic routes (stories, books) with privacy protection
+- [x] Default branded OG image + per-story dynamic OG images (mood-based gradients)
+- [x] JSON-LD structured data (Organization, WebSite, BlogPosting, BreadcrumbList)
+- [x] PWA manifest
+- [x] Image alt text accessibility fixes
 
 ### Phase 2: Patterns & Discovery (PLANNED)
 
