@@ -20,7 +20,7 @@ const eslintConfig = [
       "next-env.d.ts",
       "typechain-types/**",
       "skills/**",
-      "cre/**/tmp.js",
+      "cre/**",
     ],
   },
   {
