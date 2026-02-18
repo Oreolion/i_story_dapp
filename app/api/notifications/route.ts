@@ -1,15 +1,21 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
-// Initialize Supabase Admin Client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error("Missing Supabase environment variables");
+// Lazy Supabase Admin Client (avoids build-time initialization)
+function getSupabase() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error("Missing Supabase environment variables");
+  }
+  return createClient(supabaseUrl, supabaseServiceKey);
 }
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+let _supabase: ReturnType<typeof getSupabase> | null = null;
+function supabase() {
+  if (!_supabase) _supabase = getSupabase();
+  return _supabase;
+}
 
 // ============================================
 // Types
@@ -64,7 +70,7 @@ async function validateAuth(request: NextRequest): Promise<string | null> {
     const {
       data: { user },
       error,
-    } = await supabase.auth.getUser(token);
+    } = await supabase().auth.getUser(token);
 
     if (error || !user) {
       return null;
@@ -84,7 +90,7 @@ async function getUserIdFromWallet(
   walletAddress: string
 ): Promise<string | null> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabase()
       .from("users")
       .select("id")
       .eq("wallet_address", walletAddress.toLowerCase())
@@ -109,7 +115,7 @@ async function createNotification(
   payload: NotificationPayload
 ): Promise<Notification | null> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabase()
       .from("notifications")
       .insert([
         {
@@ -150,7 +156,7 @@ async function getUserNotifications(
   unreadOnly = false
 ): Promise<{ notifications: Notification[]; total: number } | null> {
   try {
-    let query = supabase
+    let query = supabase()
       .from("notifications")
       .select("*", { count: "exact" })
       .eq("user_id", userId);
@@ -185,7 +191,7 @@ async function markNotificationAsRead(
   notificationId: string
 ): Promise<boolean> {
   try {
-    const { error } = await supabase
+    const { error } = await supabase()
       .from("notifications")
       .update({ read: true })
       .eq("id", notificationId);
@@ -207,7 +213,7 @@ async function markNotificationAsRead(
  */
 async function markAllNotificationsAsRead(userId: string): Promise<boolean> {
   try {
-    const { error } = await supabase
+    const { error } = await supabase()
       .from("notifications")
       .update({ read: true })
       .eq("user_id", userId)
@@ -230,7 +236,7 @@ async function markAllNotificationsAsRead(userId: string): Promise<boolean> {
  */
 async function deleteNotification(notificationId: string): Promise<boolean> {
   try {
-    const { error } = await supabase
+    const { error } = await supabase()
       .from("notifications")
       .delete()
       .eq("id", notificationId);
@@ -252,7 +258,7 @@ async function deleteNotification(notificationId: string): Promise<boolean> {
  */
 async function deleteAllNotifications(userId: string): Promise<boolean> {
   try {
-    const { error } = await supabase
+    const { error } = await supabase()
       .from("notifications")
       .delete()
       .eq("user_id", userId);
@@ -274,7 +280,7 @@ async function deleteAllNotifications(userId: string): Promise<boolean> {
  */
 async function getUnreadCount(userId: string): Promise<number> {
   try {
-    const { count, error } = await supabase
+    const { count, error } = await supabase()
       .from("notifications")
       .select("*", { count: "exact", head: true })
       .eq("user_id", userId)
@@ -498,7 +504,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Verify notification belongs to user
-    const { data: notification, error: fetchError } = await supabase
+    const { data: notification, error: fetchError } = await supabase()
       .from("notifications")
       .select("user_id")
       .eq("id", notificationId)
@@ -581,7 +587,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Verify notification belongs to user
-    const { data: notification, error: fetchError } = await supabase
+    const { data: notification, error: fetchError } = await supabase()
       .from("notifications")
       .select("user_id")
       .eq("id", notificationId)
