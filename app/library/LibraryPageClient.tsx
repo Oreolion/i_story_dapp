@@ -626,7 +626,7 @@ export default function LibraryPage() {
                     No Key Moments Yet
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                    Mark important stories as "Key Moments" to track the most significant events in your life.
+                    Mark important stories as &quot;Key Moments&quot; to track the most significant events in your life.
                   </p>
                 </div>
               </CardContent>
@@ -1027,7 +1027,7 @@ function CanonicalStoryCard({
           {story.story_metadata?.brief_insight && (
             <div className="p-3 bg-[hsl(var(--void-surface))] rounded-lg">
               <p className="text-sm text-gray-600 dark:text-gray-400 italic">
-                "{story.story_metadata.brief_insight}"
+                &quot;{story.story_metadata.brief_insight}&quot;
               </p>
             </div>
           )}

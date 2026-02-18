@@ -283,7 +283,7 @@ export default function TasksPage() {
                 <p className="text-gray-500 mt-2">Track habits, log thoughts, and let AI write your story.</p>
             </div>
             <div className="text-right hidden md:block">
-                <p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Today's Progress</p>
+                <p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Today&apos;s Progress</p>
                 <div className="flex items-end gap-2 justify-end">
                     <span className="text-4xl font-bold text-emerald-600">{completionRate}%</span>
                 </div>

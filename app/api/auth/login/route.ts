@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/app/utils/supabase/supabaseAdmin";
 import { verifyMessage, type Address, isHex } from "viem";
-import { verifyNonce } from "@/app/api/auth/nonce/route";
+import { verifyNonce } from "@/lib/nonce";
 
 /**
  * Wallet login route (server)
