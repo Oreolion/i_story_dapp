@@ -4,11 +4,11 @@ import ProfilePage from "./ProfilePageClient";
 export const metadata: Metadata = {
   title: "Profile & Settings",
   description:
-    "Manage your iStory account, track writing progress, view achievements, and configure your preferences.",
+    "Manage your eStory account, track writing progress, view achievements, and configure your preferences.",
   openGraph: {
-    title: "Profile & Settings | iStory",
+    title: "Profile & Settings | eStory",
     description:
-      "Manage your iStory account and track your writing progress.",
+      "Manage your eStory account and track your writing progress.",
   },
 };
 

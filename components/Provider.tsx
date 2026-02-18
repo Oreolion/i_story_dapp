@@ -10,7 +10,7 @@ import { useAccount, useBalance } from "wagmi";
 import { AuthProvider } from "./AuthProvider";
 import { BackgroundProvider } from "@/contexts/BackgroundContext";
 // import { useReadContract } from 'wagmi'; // Uncomment later
-// import { iStoryTokenABI } from '@/lib/abis/iStoryToken.json';
+// import { eStoryTokenABI } from '@/lib/abis/iStoryToken.json';
 const queryClient = new QueryClient();
 interface User {
   address: string;
@@ -38,8 +38,8 @@ function AppInner({ children }: { children: ReactNode }) {
   const { address, isConnected, isDisconnected } = useAccount();
   const { data: ethBalance } = useBalance({ address });
   // const { data: storyTokens } = useReadContract({ // Uncomment after deploy
-  //   address: '0xYouriStoryTokenAddress',
-  //   abi: iStoryTokenABI.default,
+  //   address: '0xYoureStoryTokenAddress',
+  //   abi: eStoryTokenABI.default,
   //   functionName: 'balanceOf',
   //   args: [address as `0x${string}`],
   //   chainId: baseSepolia.id,

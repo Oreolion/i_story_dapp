@@ -13,7 +13,7 @@ if (!projectId) {
 
 // Create the Wagmi config using RainbowKit's helper
 export const config = getDefaultConfig({
-  appName: "IStory DApp",
+  appName: "EStory DApp",
   
   projectId: projectId || "",
 

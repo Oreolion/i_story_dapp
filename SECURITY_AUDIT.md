@@ -1,7 +1,7 @@
-# iStory dApp — Security Audit Report
+# eStory dApp — Security Audit Report
 
 **Date:** January 30, 2026
-**Application:** iStory — Web3 AI Voice Journaling dApp
+**Application:** eStory — Web3 AI Voice Journaling dApp
 **Stack:** Next.js 15 / React 19 / Supabase / Wagmi / Hardhat / Solidity 0.8.20 / Base Sepolia
 **Overall Risk Score:** D+ (significant remediation required before production)
 
@@ -112,14 +112,14 @@
 
 ### HIGH-2: Single admin controls all contract roles
 
-- **Files:** `contracts/iStoryToken.sol:18-20`, `contracts/StoryNFT.sol:16-17`, `contracts/StoryProtocol.sol:22-23`
+- **Files:** `contracts/eStoryToken.sol:18-20`, `contracts/StoryNFT.sol:16-17`, `contracts/StoryProtocol.sol:22-23`
 - **Severity:** High
 - **Description:** One address holds `DEFAULT_ADMIN_ROLE`, `MINTER_ROLE`, and `PAUSER_ROLE` across all three contracts. Compromise of this key gives full control over token supply, NFT minting, and protocol pausing.
 - **Fix:** Use separate addresses per role; implement multi-sig (e.g., Gnosis Safe); add timelocks for critical operations.
 
-### HIGH-3: No minting cap on IStoryToken
+### HIGH-3: No minting cap on EStoryToken
 
-- **File:** `contracts/iStoryToken.sol:27-29`
+- **File:** `contracts/eStoryToken.sol:27-29`
 - **Severity:** High
 - **Description:** `mint()` has no supply cap. A compromised minter can inflate token supply infinitely.
 - **Fix:** Add a `MAX_SUPPLY` constant and check in `mint()`.
@@ -340,7 +340,7 @@
 | `app/api/book/compile/route.ts` | CRIT-7 |
 | `app/api/cron/distribute-rewards/route.ts` | CRIT-8, HIGH-1, MED-7, LOW-1, LOW-4 |
 | `lib/contracts.ts` | CRIT-10 |
-| `contracts/iStoryToken.sol` | HIGH-2, HIGH-3 |
+| `contracts/eStoryToken.sol` | HIGH-2, HIGH-3 |
 | `contracts/StoryProtocol.sol` | HIGH-2, HIGH-4 |
 | `contracts/StoryNFT.sol` | HIGH-2, HIGH-5 |
 | `app/utils/supabase/supabaseAdmin.ts` | HIGH-6 |

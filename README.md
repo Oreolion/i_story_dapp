@@ -1,4 +1,4 @@
-# Speak Your Story (iStory): AI-Powered Blockchain Journaling App
+# Speak Your Story (eStory): AI-Powered Blockchain Journaling App
 
 ![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)
@@ -13,9 +13,9 @@
 
 ## Overview
 
-iStory is an innovative AI-powered web3 application that empowers users to chronicle their daily lives through voice journaling, immortalize their personal narratives on the blockchain, and monetize their stories in a decentralized ecosystem. Built on Base, a secure and scalable Layer 2 solution on Ethereum, this app ensures low-cost, fast transactions while maintaining Ethereum's security.
+eStory is an innovative AI-powered web3 application that empowers users to chronicle their daily lives through voice journaling, immortalize their personal narratives on the blockchain, and monetize their stories in a decentralized ecosystem. Built on Base, a secure and scalable Layer 2 solution on Ethereum, this app ensures low-cost, fast transactions while maintaining Ethereum's security.
 
-In a world where history has often been manipulated by conquerors, victors and dominating empires, iStory reclaims the power of authentic storytelling. Users can broadcast their unfiltered truths forever on the blockchain, ensuring tamper-proof preservation, while earning rewards through community engagement and NFT-based sales.
+In a world where hestory has often been manipulated by conquerors, victors and dominating empires, eStory reclaims the power of authentic storytelling. Users can broadcast their unfiltered truths forever on the blockchain, ensuring tamper-proof preservation, while earning rewards through community engagement and NFT-based sales.
 
 ## Key Features
 
@@ -98,9 +98,9 @@ Store your stories as NFTs on the blockchain for secure and permanent ownership.
 
 Engage with the community, share your stories, and earn $STORY tokens based on interactions. Build your audience and monetize your creativity!
 
-## Why iStory?
+## Why eStory?
 
-History is written by the victors, but your story deserves to be heard unedited. iStory counters narrative manipulation by giving individuals the tools to create, own, and profit from their personal histories on an immutable blockchain. Whether it's a daily reflection, a life milestone, or a cultural tale, your voice becomes part of an unbreakable digital archive—all powered by the efficiency of Base Layer 2.
+Hestory is written by the victors, but your story deserves to be heard unedited. eStory counters narrative manipulation by giving individuals the tools to create, own, and profit from their personal histories on an immutable blockchain. Whether it's a daily reflection, a life milestone, or a cultural tale, your voice becomes part of an unbreakable digital archive—all powered by the efficiency of Base Layer 2.
 
 ## Tech Stack
 
@@ -118,7 +118,7 @@ History is written by the victors, but your story deserves to be heard unedited.
 - Smart Contracts: Solidity contracts deployed on Base (Ethereum L2)
 - Contract Interaction: Viem for efficient blockchain interactions
 - Contracts Included:
-  - iStoryToken.sol - ERC20 token ($STORY) with 100M max supply cap, pausable, role-based minting
+  - eStoryToken.sol - ERC20 token ($STORY) with 100M max supply cap, pausable, role-based minting
   - StoryProtocol.sol - Smart contract for tips and paywall payments
   - StoryNFT.sol - ERC721 NFT contract for minting story books with mint fee (0.001 ETH) and ERC2981 royalties
 
@@ -246,7 +246,7 @@ i_story_dapp/
 │   │       └── profile/              # User profile API (real DB)
 │   ├── hooks/
 │   │   ├── useBrowserSupabase.ts     # Supabase singleton hook
-│   │   ├── useIStoryToken.ts         # Token contract interactions
+│   │   ├── useEStoryToken.ts         # Token contract interactions
 │   │   ├── useStoryProtocol.ts       # Protocol contract (tips/paywall)
 │   │   ├── useStoryNFT.ts            # NFT contract interactions
 │   │   ├── useNotifications.ts       # Notification system hook
@@ -307,7 +307,7 @@ i_story_dapp/
 │   ├── OnboardingModal.tsx           # New user onboarding modal
 │   └── ui/                           # shadcn/ui components
 ├── contracts/                        # Solidity smart contracts
-│   ├── iStoryToken.sol               # ERC20 $STORY token
+│   ├── eStoryToken.sol               # ERC20 $STORY token
 │   ├── StoryProtocol.sol             # Tips & paywall payments
 │   └── StoryNFT.sol                  # ERC721 book NFTs
 ├── middleware.ts                      # API rate limiting (route-specific)
@@ -376,7 +376,7 @@ ELEVENLABS_API_KEY=your_elevenlabs_key
 NEXT_PUBLIC_PROJECT_ID=your_walletconnect_project_id
 
 # Smart Contracts (Base Sepolia)
-NEXT_PUBLIC_ISTORY_TOKEN_ADDRESS=0x...
+NEXT_PUBLIC_ESTORY_TOKEN_ADDRESS=0x...
 NEXT_PUBLIC_STORY_PROTOCOL_ADDRESS=0x...
 NEXT_PUBLIC_STORY_NFT_ADDRESS=0x...
 
@@ -552,7 +552,7 @@ Open a Pull Request with:
 
 ### Security Architecture
 
-iStory implements a comprehensive, layered security model addressing 34 audit findings across API routes, smart contracts, and infrastructure.
+eStory implements a comprehensive, layered security model addressing 34 audit findings across API routes, smart contracts, and infrastructure.
 
 **API Security:**
 - Bearer Token Authentication: All API routes validate Supabase JWTs via shared `lib/auth.ts` middleware
@@ -576,7 +576,7 @@ iStory implements a comprehensive, layered security model addressing 34 audit fi
 
 | Contract | Security Features |
 |----------|-------------------|
-| iStoryToken | MAX_SUPPLY cap (100M tokens), Pausable, AccessControl (MINTER_ROLE, PAUSER_ROLE) |
+| eStoryToken | MAX_SUPPLY cap (100M tokens), Pausable, AccessControl (MINTER_ROLE, PAUSER_ROLE) |
 | StoryProtocol | Pausable, AccessControl |
 | StoryNFT | Mint fee (0.001 ETH) prevents spam, AccessControl, ERC2981 royalties, secure withdrawal pattern |
 
@@ -627,7 +627,7 @@ npm install --save-dev @pinata/sdk
 
 This project is licensed under the MIT License - see LICENSE file for details.
 
-MIT © 2024-2026 iStory Team
+MIT © 2024-2026 eStory Team
 
 ## Roadmap
 
@@ -710,8 +710,8 @@ MIT © 2024-2026 iStory Team
 ### Get Help
 
 - Discord: Join our community
-- Twitter/X: @iStoryApp
-- Email: <support@istory.app>
+- Twitter/X: @eStoryApp
+- Email: <support@estory.app>
 
 ### Discussions
 
@@ -729,7 +729,7 @@ MIT © 2024-2026 iStory Team
 
 Contributing
 
-Special thanks to all contributors who help make iStory better! 🙏
+Special thanks to all contributors who help make eStory better! 🙏
 
 ## Target Audience
 
@@ -767,7 +767,7 @@ The target customer for Speak Your Story is a diverse group of individuals who v
 
 Primary Demographics: Ages 18-45, with a focus on millennials and Gen Z who are tech-savvy and active on social media. Balanced gender split, appealing to both men and women interested in self-reflection, creativity, or activism. Global users, particularly in regions with high blockchain adoption (e.g., North America, Europe, Asia) and those facing narrative suppression or censorship.
 
-Key Personas: Aspiring Storytellers and Journalers: Everyday people who want an easy way to document their lives via voice, without the hassle of writing. They seek AI tools to enhance their entries and compile them into books for personal growth or sharing. Blockchain and Crypto Enthusiasts: Web3 users who appreciate NFTs, tokens, and decentralization for owning and monetizing content. They value the app's use of Base (Ethereum L2) for low fees and tamper-proof storage. Content Creators and Influencers: Writers, podcasters, or social media users looking to broadcast authentic stories, build communities, and earn through likes, tips, paywalls, or NFT sales. They use viral features like streaks and leaderboards to grow their audience. History and Truth Advocates: Individuals concerned about manipulated narratives (e.g., activists, historians, or those from marginalized communities) who want to preserve unfiltered truths on an immutable blockchain. Monetization Seekers: Freelancers or side-hustlers aiming to turn personal stories into revenue streams, such as selling digital books or earning $STORY tokens from engagement.
+Key Personas: Aspiring Storytellers and Journalers: Everyday people who want an easy way to document their lives via voice, without the hassle of writing. They seek AI tools to enhance their entries and compile them into books for personal growth or sharing. Blockchain and Crypto Enthusiasts: Web3 users who appreciate NFTs, tokens, and decentralization for owning and monetizing content. They value the app's use of Base (Ethereum L2) for low fees and tamper-proof storage. Content Creators and Influencers: Writers, podcasters, or social media users looking to broadcast authentic stories, build communities, and earn through likes, tips, paywalls, or NFT sales. They use viral features like streaks and leaderboards to grow their audience. Hestory and Truth Advocates: Individuals concerned about manipulated narratives (e.g., activists, historians, or those from marginalized communities) who want to preserve unfiltered truths on an immutable blockchain. Monetization Seekers: Freelancers or side-hustlers aiming to turn personal stories into revenue streams, such as selling digital books or earning $STORY tokens from engagement.
 
 Pain Points Addressed: Traditional journaling apps lack permanence and monetization; Speak Your Story counters this with blockchain immortality and rewards. Users frustrated by centralized platforms' censorship or data ownership issues find solace in decentralized, user-owned content.
 
@@ -775,4 +775,4 @@ Acquisition Channels: Crypto communities (e.g., X/Twitter, Discord, Reddit's r/c
 
 This app targets about 10-20 million potential users in the journaling (e.g., Day One app users) and NFT creator markets, with growth potential in emerging Web3 economies. Early adopters are likely crypto holders with wallets like MetaMask, seeking innovative dApps.
 
-### *Preserve your truth. Mint your legacy. Speak Your Story. Made with ❤️ by the iStory Team*
+### *Preserve your truth. Mint your legacy. Speak Your Story. Made with ❤️ by the eStory Team*

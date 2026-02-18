@@ -35,7 +35,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-center">Connect to iStory</DialogTitle>
+          <DialogTitle className="text-center">Connect to eStory</DialogTitle>
           <DialogDescription className="text-center">
             Choose how to get started
           </DialogDescription>

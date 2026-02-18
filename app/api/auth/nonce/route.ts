@@ -41,11 +41,11 @@ export async function GET(req: NextRequest) {
     // Store nonce for validation
     nonceStore.set(address, { nonce, createdAt: Date.now() });
 
-    const message = `Welcome to IStory
+    const message = `Welcome to EStory
 
 Sign this message to log in securely.
 
-Site: iStory
+Site: eStory
 Address: ${address}
 
 No transaction · No gas fees · Completely free

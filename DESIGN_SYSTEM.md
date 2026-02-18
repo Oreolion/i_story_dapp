@@ -1,8 +1,8 @@
-# iStory Design System Documentation
+# eStory Design System Documentation
 
 > **Design Philosophy:** "Narrative Luminance" — A refined, editorial aesthetic where stories breathe through generous space, subtle motion, and emotional color.
 
-This document serves as a comprehensive guide for maintaining visual consistency and implementing new features in the iStory application.
+This document serves as a comprehensive guide for maintaining visual consistency and implementing new features in the eStory application.
 
 ---
 

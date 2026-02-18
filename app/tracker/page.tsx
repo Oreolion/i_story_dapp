@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description:
     "Track daily habits, log your mood, and let AI generate journal entries from your day. Build consistent writing habits.",
   openGraph: {
-    title: "Daily Tracker | iStory",
+    title: "Daily Tracker | eStory",
     description:
       "Track daily habits, log your mood, and let AI generate journal entries.",
   },

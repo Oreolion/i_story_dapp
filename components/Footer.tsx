@@ -90,7 +90,7 @@ export function Footer() {
                   <BookOpen className="w-6 h-6 text-white" />
                 </motion.div>
                 <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
-                  IStory
+                  eStory
                 </span>
               </Link>
               <p className="text-gray-600 dark:text-gray-400 leading-relaxed max-w-xs">
@@ -124,7 +124,7 @@ export function Footer() {
                 <motion.a
                   whileHover={{ scale: 1.1, rotate: 5 }}
                   whileTap={{ scale: 0.95 }}
-                  href="mailto:contact@istory.com"
+                  href="mailto:contact@estory.com"
                   className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-purple-100 dark:hover:bg-purple-900/30 hover:text-purple-600 transition-colors"
                   aria-label="Email"
                 >
@@ -221,7 +221,7 @@ export function Footer() {
               rel="noopener noreferrer"
               className="hover:text-emerald-600 flex items-center gap-1"
             >
-              $ISTORY Token <ExternalLink className="w-3 h-3" />
+              $STORY Token <ExternalLink className="w-3 h-3" />
             </a>
           </div>
         </div>
@@ -243,11 +243,11 @@ export function Footer() {
               variants={itemVariants}
               className="text-sm text-gray-600 dark:text-gray-400"
             >
-              © 2026 IStory. All rights reserved. Built with{" "}
+              © 2026 EStory. All rights reserved. Built with{" "}
               <Heart className="w-4 h-4 inline text-red-500 animate-pulse" /> by
               the{" "}
               <span className="font-semibold text-purple-600 dark:text-purple-400">
-                iStory Team
+                eStory Team
               </span>
             </motion.p>
 

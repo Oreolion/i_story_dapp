@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
         const amountToMint = parseEther(totalLikes.toString());
 
         try {
-            console.log(`Minting ${totalLikes} ISTORY to ${wallet}`);
+            console.log(`Minting ${totalLikes} ESTORY to ${wallet}`);
             
             await walletClient.writeContract({
                 address: STORY_TOKEN_ADDRESS as `0x${string}`,

@@ -252,7 +252,7 @@ export default function RecordPage() {
           date: storyDate, // User-selected date
           timestamp: actualCreatedDate, // System upload time
           is_public: isPublic, // Visibility state
-          app: "IStory DApp",
+          app: "EStory DApp",
         };
 
         const ipfsResult = await ipfsService.uploadMetadata(ipfsMetadata);

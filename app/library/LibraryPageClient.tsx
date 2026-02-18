@@ -252,7 +252,7 @@ export default function LibraryPage() {
       const metadata = {
         name: newBookTitle,
         description: newBookDesc,
-        external_url: "https://istory.vercel.app",
+        external_url: "https://estory.vercel.app",
         attributes: [
           { trait_type: "Author", value: authInfo.name },
           { trait_type: "Stories", value: selectedStories.length },

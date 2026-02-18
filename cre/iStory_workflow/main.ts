@@ -1,5 +1,5 @@
 /**
- * iStory CRE Workflow: Story Verification
+ * eStory CRE Workflow: Story Verification
  *
  * Flow: HTTP Trigger (with content) → AI Analysis (Gemini) → Write On-Chain
  *

@@ -11,23 +11,23 @@ async function main() {
   console.log("Verifying deployments with account:", signer.address);
   console.log("---");
 
-  const tokenAddress = process.env.NEXT_PUBLIC_ISTORY_TOKEN_ADDRESS;
+  const tokenAddress = process.env.NEXT_PUBLIC_ESTORY_TOKEN_ADDRESS;
   const protocolAddress = process.env.NEXT_PUBLIC_STORY_PROTOCOL_ADDRESS;
   const nftAddress = process.env.NEXT_PUBLIC_STORY_NFT_ADDRESS;
 
   if (!tokenAddress || !protocolAddress || !nftAddress) {
     console.error("Missing contract addresses in .env");
-    console.error("Set NEXT_PUBLIC_ISTORY_TOKEN_ADDRESS, NEXT_PUBLIC_STORY_PROTOCOL_ADDRESS, NEXT_PUBLIC_STORY_NFT_ADDRESS");
+    console.error("Set NEXT_PUBLIC_ESTORY_TOKEN_ADDRESS, NEXT_PUBLIC_STORY_PROTOCOL_ADDRESS, NEXT_PUBLIC_STORY_NFT_ADDRESS");
     process.exit(1);
   }
 
   let passed = 0;
   let failed = 0;
 
-  // 1. Verify IStoryToken
-  console.log("\n[1/3] Verifying IStoryToken at", tokenAddress);
+  // 1. Verify EStoryToken
+  console.log("\n[1/3] Verifying EStoryToken at", tokenAddress);
   try {
-    const token = await ethers.getContractAt("IStoryToken", tokenAddress);
+    const token = await ethers.getContractAt("EStoryToken", tokenAddress);
 
     const name = await token.name();
     const symbol = await token.symbol();
@@ -41,14 +41,14 @@ async function main() {
     console.log(`  Total Supply: ${ethers.formatEther(totalSupply)}`);
     console.log(`  Max Supply: ${ethers.formatEther(maxSupply)}`);
 
-    if (name !== "iStoryToken") throw new Error(`Expected name 'iStoryToken', got '${name}'`);
-    if (symbol !== "ISTORY") throw new Error(`Expected symbol 'ISTORY', got '${symbol}'`);
+    if (name !== "eStoryToken") throw new Error(`Expected name 'eStoryToken', got '${name}'`);
+    if (symbol !== "ESTORY") throw new Error(`Expected symbol 'ESTORY', got '${symbol}'`);
     if (maxSupply !== ethers.parseEther("100000000")) throw new Error("MAX_SUPPLY mismatch");
 
-    console.log("  ✓ IStoryToken verified successfully");
+    console.log("  ✓ EStoryToken verified successfully");
     passed++;
   } catch (err: any) {
-    console.error(`  ✗ IStoryToken verification failed:`, err.message);
+    console.error(`  ✗ EStoryToken verification failed:`, err.message);
     failed++;
   }
 
@@ -81,7 +81,7 @@ async function main() {
     console.log(`  Symbol: ${symbol}`);
     console.log(`  Mint Fee: ${ethers.formatEther(mintFee)} ETH`);
 
-    if (name !== "IStory Collections") throw new Error(`Expected name 'IStory Collections', got '${name}'`);
+    if (name !== "EStory Collections") throw new Error(`Expected name 'EStory Collections', got '${name}'`);
     if (mintFee < 0) throw new Error("Mint fee not set");
 
     console.log("  ✓ StoryNFT verified successfully");

@@ -94,7 +94,7 @@ cre/
             └── helpers.ts # Helper functions
 \`\`\`
 
-## iStory Integration Context
+## eStory Integration Context
 - Using CRE to verify AI-extracted story metrics (significance, emotional depth, quality)
 - Flow: Story saved → CRE triggered → AI analysis via Gemini → results stored on-chain
 - Contract: VerifiedMetrics.sol on Base Sepolia (chain ID 84532)

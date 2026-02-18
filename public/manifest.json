@@ -1,6 +1,6 @@
 {
-  "name": "iStory - AI-Powered Blockchain Journaling",
-  "short_name": "iStory",
+  "name": "eStory - AI-Powered Blockchain Journaling",
+  "short_name": "eStory",
   "description": "Record your life stories with AI transcription, store them on blockchain, and discover patterns in your narrative.",
   "start_url": "/",
   "display": "standalone",

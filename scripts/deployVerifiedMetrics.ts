@@ -32,7 +32,7 @@ async function main() {
 
   console.log("\n--- NEXT STEPS ---");
   console.log("1. Update .env.local: NEXT_PUBLIC_VERIFIED_METRICS_ADDRESS=" + address);
-  console.log("2. Update cre/iStory_workflow/config.staging.json verifiedMetricsAddress");
+  console.log("2. Update cre/eStory_workflow/config.staging.json verifiedMetricsAddress");
   console.log("3. Verify contract: npx hardhat verify --network baseSepolia " + address + " " + BASE_SEPOLIA_FORWARDER);
 }
 

@@ -300,7 +300,7 @@ export default function HomePage() {
             From Our <span className="text-gradient-story">Community</span>
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Hear how iStory is helping people preserve and understand their memories
+            Hear how eStory is helping people preserve and understand their memories
           </p>
         </div>
 

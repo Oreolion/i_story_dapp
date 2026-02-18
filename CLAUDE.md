@@ -16,7 +16,7 @@ Detailed references are in `docs/` — read them on-demand when needed.
 
 ## Project Overview
 
-**iStory** is a Web3 AI-powered voice journaling dApp that transforms personal narratives into structured, sovereign memory infrastructure. Built on Base (Ethereum L2), it combines voice capture, AI transcription, blockchain permanence, and cognitive analysis.
+**eStory** is a Web3 AI-powered voice journaling dApp that transforms personal narratives into structured, sovereign memory infrastructure. Built on Base (Ethereum L2), it combines voice capture, AI transcription, blockchain permanence, and cognitive analysis.
 
 ### Tech Stack
 
@@ -170,7 +170,7 @@ WagmiProvider → QueryClientProvider → RainbowKitProvider → ThemeProvider �
 
 | Contract | Address | Purpose |
 |----------|---------|---------|
-| **iStoryToken** | `0xf9eDD76B...` | ERC20 $STORY token, MAX_SUPPLY 100M |
+| **eStoryToken** | `0xf9eDD76B...` | ERC20 $STORY token, MAX_SUPPLY 100M |
 | **StoryProtocol** | `0xA51a4cA0...` | Tips & paywall |
 | **StoryNFT** | `0x6D37ebc5...` | ERC721 story books, mintFee 0.001 ETH |
 | **VerifiedMetrics** | `0x052B52A4...` | CRE-attested story metrics (ReceiverTemplate) |
@@ -196,9 +196,9 @@ POST /api/cre/check ← Read from contract ← useVerifiedMetrics hook (polls)
 **Key files:**
 | File | Purpose |
 |------|---------|
-| `cre/iStory_workflow/main.ts` | Workflow entry: HTTPCapability + Runner |
-| `cre/iStory_workflow/gemini.ts` | Gemini AI via HTTPClient consensus |
-| `cre/iStory_workflow/httpCallback.ts` | Handler: parse → analyze → encode → sign → write |
+| `cre/eStory_workflow/main.ts` | Workflow entry: HTTPCapability + Runner |
+| `cre/eStory_workflow/gemini.ts` | Gemini AI via HTTPClient consensus |
+| `cre/eStory_workflow/httpCallback.ts` | Handler: parse → analyze → encode → sign → write |
 | `contracts/VerifiedMetrics.sol` | ReceiverTemplate receiver, decodes CRE reports |
 | `contracts/interfaces/` | IERC165, IReceiver, ReceiverTemplate |
 | `app/api/cre/trigger/route.ts` | Triggers CRE workflow |
@@ -208,9 +208,9 @@ POST /api/cre/check ← Read from contract ← useVerifiedMetrics hook (polls)
 
 **CRE Commands (run from `cre/` directory):**
 ```bash
-cre workflow simulate iStory_workflow              # Local test
-cre workflow simulate iStory_workflow --broadcast  # Test with on-chain write
-cre workflow deploy iStory_workflow                # Deploy (requires early access)
+cre workflow simulate eStory_workflow              # Local test
+cre workflow simulate eStory_workflow --broadcast  # Test with on-chain write
+cre workflow deploy eStory_workflow                # Deploy (requires early access)
 ```
 
 **CRITICAL SDK patterns** — see `skills/cre/SKILL.md` for correct vs wrong patterns.
@@ -300,7 +300,7 @@ Create `.env.local` from `.env.example`. Key groups: Supabase, WalletConnect, AI
 
 ## Hooks Reference
 
-**Web3:** `useIStoryToken` (balance, approve), `useStoryProtocol` (tipCreator, payPaywall), `useStoryNFT` (mintBook)
+**Web3:** `useEStoryToken` (balance, approve), `useStoryProtocol` (tipCreator, payPaywall), `useStoryNFT` (mintBook)
 **CRE:** `useVerifiedMetrics` (poll for CRE-attested story metrics)
 **Supabase:** `useBrowserSupabase` (client singleton), `useNotifications` (CRUD + real-time polling)
 **Planned:** `useStoryMetadata`, `usePatterns` — see `docs/ROADMAP.md`

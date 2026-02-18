@@ -7,15 +7,15 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 
-contract IStoryToken is ERC20, ERC20Burnable, ERC20Permit, AccessControl, Pausable {
+contract EStoryToken is ERC20, ERC20Burnable, ERC20Permit, AccessControl, Pausable {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
     uint256 public constant MAX_SUPPLY = 100_000_000 * 10 ** 18; // 100M tokens
 
     constructor(address initialAdmin)
-        ERC20("iStoryToken", "ISTORY")
-        ERC20Permit("iStoryToken")
+        ERC20("eStoryToken", "ESTORY")
+        ERC20Permit("eStoryToken")
     {
         _grantRole(DEFAULT_ADMIN_ROLE, initialAdmin);
         _grantRole(MINTER_ROLE, initialAdmin);

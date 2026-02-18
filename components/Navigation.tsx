@@ -57,7 +57,7 @@ export function Navigation() {
               <BookOpen className="w-5 h-5 text-white" />
             </motion.div>
             <span className="text-xl font-bold text-gradient-memory">
-              IStory
+              eStory
             </span>
           </Link>
 

@@ -29,13 +29,13 @@ export async function generateMetadata({
   params,
 }: StoryPageProps): Promise<Metadata> {
   const { storyId } = await params;
-  const baseUrl = "https://istory.vercel.app";
+  const baseUrl = "https://estory.vercel.app";
   const story = await getStoryData(storyId);
 
   if (!story) {
     return {
       title: "Story Not Found",
-      description: "This story could not be found on iStory.",
+      description: "This story could not be found on eStory.",
     };
   }
 
@@ -65,7 +65,7 @@ export async function generateMetadata({
       title: story.title || "Untitled Story",
       description,
       url: `${baseUrl}/story/${storyId}`,
-      siteName: "iStory",
+      siteName: "eStory",
       publishedTime: story.story_date || story.created_at,
       authors: [authorName],
       tags,
@@ -85,7 +85,7 @@ export async function generateMetadata({
 
 export default async function Page({ params }: StoryPageProps) {
   const { storyId } = await params;
-  const baseUrl = "https://istory.vercel.app";
+  const baseUrl = "https://estory.vercel.app";
   const story = await getStoryData(storyId);
 
   // Build JSON-LD for public stories
@@ -110,8 +110,8 @@ export default async function Page({ params }: StoryPageProps) {
       },
       publisher: {
         "@type": "Organization",
-        name: "iStory",
-        url: "https://istory.vercel.app",
+        name: "eStory",
+        url: "https://estory.vercel.app",
       },
       url: `${baseUrl}/story/${storyId}`,
       keywords: (story.tags || []).join(", "),
