@@ -629,66 +629,6 @@ This project is licensed under the MIT License - see LICENSE file for details.
 
 MIT © 2024-2026 eStory Team
 
-## Roadmap
-
-### Phase 1: Story Metadata Foundation ✅ COMPLETE
-
-- AI-powered story analysis with Gemini Flash
-- Automatic extraction of themes, emotions, and life domains
-- Entity extraction (people, places, time references)
-- Intensity and significance scoring
-- StoryInsights UI component
-- story_metadata database table with RLS
-
-### Phase 1.5: Validation & Hardening ✅ COMPLETE
-
-- [x] Claude SDK thinking agent utility
-- [x] Comprehensive test suite for /api/ai/analyze endpoint (38 tests)
-- [x] StoryInsights component tests (41 tests)
-- [x] Authentication system (Google OAuth + wallet dual auth)
-- [x] Account linking (wallet ↔ Google)
-- [x] Onboarding flow for new users
-- [x] Security audit remediation (34 findings across 8 phases)
-- [x] Bearer token auth on all API routes
-- [x] Nonce-based wallet signature replay prevention
-- [x] Rate limiting middleware (route-specific limits)
-- [x] Input validation (file size, MIME type, text length)
-- [x] Security headers (CSP, X-Frame-Options, etc.)
-- [x] Error response sanitization
-- [x] Timing-safe secret comparison for cron/admin
-- [x] Smart contract hardening (MAX_SUPPLY, mint fees)
-- [x] Real DB implementations replacing mock endpoints (journal/save, social/like, user/profile)
-- [x] 96 total tests passing across 3 test files
-
-### Phase 1.7: SEO Overhaul ✅ COMPLETE
-
-- [x] Server/client page split (server `page.tsx` + `*PageClient.tsx`) for all routes
-- [x] `robots.ts` with crawler directives
-- [x] Dynamic `sitemap.ts` with all public stories
-- [x] Root layout metadata overhaul (title template, OG, Twitter, JSON-LD)
-- [x] `generateMetadata` for dynamic routes (stories, books) with privacy protection
-- [x] Default branded OG image + per-story dynamic OG images (mood-based gradients)
-- [x] JSON-LD structured data (Organization, WebSite, BlogPosting, BreadcrumbList)
-- [x] PWA manifest
-- [x] Image alt text accessibility fixes
-
-### Phase 2: Patterns & Discovery (PLANNED)
-
-- Themes tab in Library for story grouping
-- Life Domains view
-- "Mark as Important" feature for canonical stories
-- Monthly summary component
-- Pattern visualization
-
-### Phase 3: AI Reflection (PARTIALLY BUILT)
-
-- [x] `weekly_reflections` database table with RLS
-- [x] `useReflection` hook infrastructure
-- [x] Weekly AI-generated reflections endpoint (`/api/ai/reflection`)
-- [ ] Reflection display on Profile page
-- [ ] Pattern recognition across stories
-- [ ] Personalized insights dashboard
-
 ### Q2 2026
 
 - Mobile app (React Native)
@@ -731,27 +671,11 @@ Contributing
 
 Special thanks to all contributors who help make eStory better! 🙏
 
-## Target Audience
-
-### Primary Demographics
-
-- Ages: 18-45 (Millennials & Gen Z focus)
-- Tech-Savviness: Comfortable with Web3 and blockchain
-- Geography: Global, with focus on blockchain-active regions (North America, Europe, Asia)
-- Interest: Storytelling, digital ownership, creative expression
-
-### Key Personas
-
-- Aspiring Storytellers: People who journal via voice and want AI enhancements
-- Web3 Enthusiasts: Crypto users interested in NFTs and blockchain permanence
-- Content Creators: Influencers looking to monetize stories and build communities
-- Truth Advocates: Activists and historians preserving unfiltered narratives
-- Side Hustlers: Freelancers earning through story monetization
-
 ### Use Cases
 
 - Daily voice journaling with AI transcription
 - Compiling life stories into published books
+- Mind decluttering, self reflection, themes, insights, patterns acrross stories
 - Building personal brand as a creator
 - Earning passive income from story engagement
 - Creating permanent, tamper-proof records
@@ -773,6 +697,4 @@ Pain Points Addressed: Traditional journaling apps lack permanence and monetizat
 
 Acquisition Channels: Crypto communities (e.g., X/Twitter, Discord, Reddit's r/cryptocurrency or r/web3). Storytelling forums (e.g., Wattpad, Medium users migrating to Web3). Viral marketing via #MyLifeStoryChallenge on social media. Partnerships with AI/blockchain influencers.
 
-This app targets about 10-20 million potential users in the journaling (e.g., Day One app users) and NFT creator markets, with growth potential in emerging Web3 economies. Early adopters are likely crypto holders with wallets like MetaMask, seeking innovative dApps.
-
-### *Preserve your truth. Mint your legacy. Speak Your Story. Made with ❤️ by the eStory Team*
+#### *Preserve your truth. Mint your legacy. Speak Your Story. Made with ❤️ by the eStory Team*
