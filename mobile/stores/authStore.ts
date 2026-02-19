@@ -32,7 +32,7 @@ interface AuthState {
   // Actions
   initialize: () => Promise<void>;
   loginWithWallet: (address: string, signMessage: (message: string) => Promise<string>) => Promise<void>;
-  loginWithGoogle: (idToken: string) => Promise<void>;
+  loginWithGoogle: (accessToken: string, refreshToken: string) => Promise<{ needsOnboarding: boolean }>;
   logout: () => Promise<void>;
   fetchProfile: () => Promise<void>;
   completeOnboarding: (data: OnboardingData) => Promise<void>;
@@ -114,20 +114,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  loginWithGoogle: async (idToken: string) => {
+  loginWithGoogle: async (accessToken: string, refreshToken: string) => {
     set({ isLoading: true });
     try {
-      const { data, error } = await supabase.auth.signInWithIdToken({
-        provider: "google",
-        token: idToken,
+      const { data, error } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
       });
 
       if (error) throw error;
-      if (data.session) {
-        await setAuthToken(data.session.access_token);
-        await get().fetchProfile();
-        set({ isAuthenticated: true, authMethod: "google" });
-      }
+      if (!data.session) throw new Error("No session returned");
+
+      await setAuthToken(data.session.access_token);
+      await get().fetchProfile();
+      set({ isAuthenticated: true, authMethod: "google" });
+
+      const user = get().user;
+      return { needsOnboarding: !user?.name || !user?.username };
     } catch (err) {
       console.error("[Auth] Google login failed:", err);
       throw err;

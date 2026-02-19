@@ -7,14 +7,65 @@ import { Wallet, X } from "lucide-react-native";
 import { useAppKit } from "@reown/appkit-react-native";
 import { useAccount, useSignMessage } from "wagmi";
 import Toast from "react-native-toast-message";
+import * as WebBrowser from "expo-web-browser";
+import { makeRedirectUri } from "expo-auth-session";
+import * as QueryParams from "expo-auth-session/build/QueryParams";
 import { useAuthStore } from "../../stores/authStore";
+import { supabase } from "../../lib/supabase";
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
-  const { loginWithWallet } = useAuthStore();
+  const { loginWithWallet, loginWithGoogle } = useAuthStore();
   const { open } = useAppKit();
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true);
+    try {
+      const redirectTo = makeRedirectUri();
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo,
+          skipBrowserRedirect: true,
+        },
+      });
+
+      if (error || !data.url) throw error || new Error("No OAuth URL returned");
+
+      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+
+      if (result.type !== "success" || !result.url) {
+        // User cancelled or dismissed the browser
+        return;
+      }
+
+      // Parse tokens from the redirect URL
+      const { params, errorCode } = QueryParams.getQueryParams(result.url);
+
+      if (errorCode) throw new Error(errorCode);
+
+      const { access_token, refresh_token } = params;
+      if (!access_token || !refresh_token) {
+        throw new Error("Missing tokens in callback URL");
+      }
+
+      const { needsOnboarding } = await loginWithGoogle(access_token, refresh_token);
+
+      Toast.show({ type: "success", text1: "Signed in with Google!" });
+      router.replace(needsOnboarding ? "/auth/onboarding" : "/");
+    } catch (err) {
+      console.error("[Login] Google login failed:", err);
+      Toast.show({ type: "error", text1: "Google sign-in failed. Try again." });
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   const handleWalletLogin = async () => {
     if (!isConnected) {
@@ -84,17 +135,17 @@ export default function LoginScreen() {
 
             {/* Google Sign In */}
             <TouchableOpacity
-              onPress={() => {
-                Toast.show({
-                  type: "info",
-                  text1: "Google sign-in coming soon",
-                });
-              }}
+              onPress={handleGoogleLogin}
+              disabled={googleLoading}
               className="flex-row items-center justify-center gap-3 rounded-2xl bg-white p-4"
             >
-              <Text className="text-lg font-semibold text-slate-900">
-                Continue with Google
-              </Text>
+              {googleLoading ? (
+                <ActivityIndicator color="#0f172a" />
+              ) : (
+                <Text className="text-lg font-semibold text-slate-900">
+                  Continue with Google
+                </Text>
+              )}
             </TouchableOpacity>
           </View>
 
