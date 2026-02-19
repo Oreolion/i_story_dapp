@@ -14,7 +14,7 @@ contract StoryNFT is ERC721URIStorage, AccessControl, ERC2981 {
 
     event NFTMinted(uint256 indexed tokenId, address indexed recipient, string uri, string collectionType);
 
-    constructor(address defaultAdmin) ERC721("IStory Collections", "ISTORY") {
+    constructor(address defaultAdmin) ERC721("EStory Collections", "ESTORY") {
         _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
         _grantRole(MINTER_ROLE, defaultAdmin);
 

@@ -4,11 +4,11 @@ import SocialPage from "./SocialPageClient";
 export const metadata: Metadata = {
   title: "Community Stories",
   description:
-    "Discover inspiring stories from writers around the world. Read, like, tip creators, and join the iStory community.",
+    "Discover inspiring stories from writers around the world. Read, like, tip creators, and join the eStory community.",
   openGraph: {
-    title: "Community Stories | iStory",
+    title: "Community Stories | eStory",
     description:
-      "Discover inspiring stories from writers around the world on iStory.",
+      "Discover inspiring stories from writers around the world on eStory.",
   },
 };
 

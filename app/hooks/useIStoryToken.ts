@@ -5,7 +5,7 @@ import { parseEther, formatEther } from "viem";
 import { STORY_TOKEN_ADDRESS, STORY_TOKEN_ABI, STORY_PROTOCOL_ADDRESS } from "@/lib/contracts";
 import { toast } from "react-hot-toast";
 
-export function useIStoryToken() {
+export function useEStoryToken() {
   const { address } = useAccount();
   const { writeContract, data: hash, isPending } = useWriteContract();
 

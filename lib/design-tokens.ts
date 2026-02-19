@@ -1,5 +1,5 @@
 /**
- * iStory Design Tokens
+ * eStory Design Tokens
  *
  * TypeScript utilities for the Memory Space design system.
  * Provides type-safe access to colors, animations, and component classes.

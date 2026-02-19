@@ -65,7 +65,7 @@ export function OnboardingModal({ isOpen, onComplete }: OnboardingModalProps) {
             Complete Your Profile
           </DialogTitle>
           <DialogDescription className="text-center">
-            Set up your profile to start using iStory
+            Set up your profile to start using eStory
           </DialogDescription>
         </DialogHeader>
 

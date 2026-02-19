@@ -11,7 +11,7 @@ import { parseEther } from "viem";
 import { useApp } from "../../../components/Provider";
 import { useAuth } from "../../../components/AuthProvider";
 
-import { useIStoryToken } from "../../hooks/useIStoryToken";
+import { useEStoryToken } from "../../hooks/useIStoryToken";
 import { useStoryProtocol } from "../../hooks/useStoryProtocol";
 import { useStoryNFT } from "../../hooks/useStoryNFT";
 import { supabaseClient } from "../../utils/supabase/supabaseClient";
@@ -72,7 +72,7 @@ export default function StoryPage({
   const supabase = supabaseClient;
 
   // Blockchain Hooks
-  const { allowance, approve, isPending: isApproving } = useIStoryToken();
+  const { allowance, approve, isPending: isApproving } = useEStoryToken();
 
   // Metadata hook for canonical status
   const { metadata: storyMetadata } = useStoryMetadata(storyId);
@@ -345,13 +345,13 @@ export default function StoryPage({
 
   const handleTip = async () => {
     if (!isConnected) return toast.error("Please connect your wallet");
-    if (!story) return; // Removed iStoryToken check as it was not defined in original
+    if (!story) return; // Removed eStoryToken check as it was not defined in original
 
     try {
       setIsTipping(true);
-      // NOTE: Original code referenced 'iStoryToken' which wasn't in scope in provided snippet
+      // NOTE: Original code referenced 'eStoryToken' which wasn't in scope in provided snippet
       // Assuming hook handles it or it was imported. Keeping logic flow same.
-      toast.success(`Tipped ${tipAmount} $ISTORY!`);
+      toast.success(`Tipped ${tipAmount} $ESTORY!`);
       setShowTipDialog(false);
     } catch (error: any) {
       console.error("Tip error:", error);
@@ -501,7 +501,7 @@ export default function StoryPage({
       : BigInt(0);
     if (allowance < requiredAmount) {
       return {
-        text: "Approve $ISTORY",
+        text: "Approve $ESTORY",
         icon: <KeyRound className="w-4 h-4 mr-2" />,
         disabled: false,
       };
@@ -696,7 +696,7 @@ export default function StoryPage({
                       className="bg-linear-to-r from-purple-600 to-indigo-600 shadow-lg hover:scale-105 transition-transform"
                       onClick={() => setShowPaywallDialog(true)}
                     >
-                      Unlock for {story.paywallAmount} $ISTORY
+                      Unlock for {story.paywallAmount} $ESTORY
                     </Button>
                   </div>
                   <div className="absolute inset-0 -z-10 opacity-10 blur-sm p-8 select-none overflow-hidden">
@@ -875,7 +875,7 @@ export default function StoryPage({
             <Lock className="w-12 h-12 mx-auto text-emerald-500 mb-4" />
             <p>Price to Unlock</p>
             <p className="text-3xl font-bold text-emerald-600">
-              {story?.paywallAmount} $ISTORY
+              {story?.paywallAmount} $ESTORY
             </p>
           </div>
           <DialogFooter>
@@ -905,7 +905,7 @@ export default function StoryPage({
             />
           </div>
           <DialogFooter>
-            <Button onClick={handleTip}>Send {tipAmount} $ISTORY</Button>
+            <Button onClick={handleTip}>Send {tipAmount} $ESTORY</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

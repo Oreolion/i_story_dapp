@@ -1,4 +1,4 @@
-# iStory x Chainlink CRE: Verified AI Metrics for Trustless Content Commerce
+# eStory x Chainlink CRE: Verified AI Metrics for Trustless Content Commerce
 
 ![Chainlink CRE](https://img.shields.io/badge/Chainlink-CRE-375BD2?logo=chainlink)
 ![Base Sepolia](https://img.shields.io/badge/Base-Sepolia-blue?logo=ethereum)
@@ -17,7 +17,7 @@ Content marketplaces have a trust gap. When creators paywall their stories, buye
 
 ## The Solution
 
-**iStory uses Chainlink CRE to make AI-generated content metrics verifiable and trustless.**
+**eStory uses Chainlink CRE to make AI-generated content metrics verifiable and trustless.**
 
 Instead of trusting a single server, Chainlink's Decentralized Oracle Network (DON) runs the same AI analysis across multiple independent nodes. The nodes reach consensus on the results, cryptographically attest to them, and write the verified metrics directly on-chain — creating an immutable proof that buyers can independently verify before purchasing paywalled content.
 
@@ -40,9 +40,9 @@ Creator writes story
 
 ---
 
-## What is iStory?
+## What is eStory?
 
-iStory is a Web3 AI-powered voice journaling dApp built on Base (Ethereum L2). Users record personal stories via voice, get AI transcription and enhancement, then publish to a social feed where stories can be liked, tipped, paywalled, and minted as NFTs.
+eStory is a Web3 AI-powered voice journaling dApp built on Base (Ethereum L2). Users record personal stories via voice, get AI transcription and enhancement, then publish to a social feed where stories can be liked, tipped, paywalled, and minted as NFTs.
 
 **Key stack:** Next.js 15, React 19, Supabase, Wagmi/Viem, Hardhat, Google Gemini 2.0 Flash, ElevenLabs Scribe, Base Sepolia
 
@@ -56,7 +56,7 @@ iStory is a Web3 AI-powered voice journaling dApp built on Base (Ethereum L2). U
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                         iStory dApp                                 │
+│                         eStory dApp                                 │
 │                                                                     │
 │  ┌──────────┐    ┌───────────────┐    ┌──────────────────────────┐  │
 │  │  Record   │───>│ /api/journal/ │───>│ /api/cre/trigger         │  │
@@ -314,7 +314,7 @@ Created via Supabase migration with Row Level Security:
 
 ## Security Model
 
-CRE integration follows the same security patterns as the rest of iStory (34 audit findings previously addressed):
+CRE integration follows the same security patterns as the rest of eStory (34 audit findings previously addressed):
 
 | Endpoint | Auth Method | Details |
 |----------|-------------|---------|
@@ -466,7 +466,7 @@ cd cre && bun install && cd ..
 Add to `.env.local`:
 
 ```env
-# Existing iStory vars (Supabase, AI, Web3)
+# Existing eStory vars (Supabase, AI, Web3)
 # ...
 
 # CRE Integration
@@ -557,7 +557,7 @@ npm run dev
 
 ## Links
 
-- **GitHub:** [iStory Repository](https://github.com/your-repo/i_story_dapp)
+- **GitHub:** [eStory Repository](https://github.com/your-repo/i_story_dapp)
 - **CRE SDK:** [@chainlink/cre-sdk on npm](https://www.npmjs.com/package/@chainlink/cre-sdk)
 - **CRE Docs:** [docs.chain.link/cre](https://docs.chain.link/cre)
 - **Base Sepolia Explorer:** [sepolia.basescan.org](https://sepolia.basescan.org)

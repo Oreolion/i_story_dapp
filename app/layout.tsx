@@ -11,10 +11,10 @@ import { GlobalBackgroundDynamic } from "../components/three/GlobalBackgroundDyn
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://istory.vercel.app"),
+  metadataBase: new URL("https://estory.vercel.app"),
   title: {
-    default: "iStory - AI-Powered Blockchain Journaling",
-    template: "%s | iStory",
+    default: "eStory - AI-Powered Blockchain Journaling",
+    template: "%s | eStory",
   },
   description:
     "Record your life stories with AI voice transcription, store them permanently on the blockchain, discover cognitive patterns, and mint your journals as NFT books.",
@@ -30,9 +30,9 @@ export const metadata: Metadata = {
     "Base",
     "Ethereum",
     "story NFT",
-    "iStory",
+    "eStory",
   ],
-  authors: [{ name: "iStory Team" }],
+  authors: [{ name: "eStory Team" }],
   robots: {
     index: true,
     follow: true,
@@ -47,16 +47,16 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://istory.vercel.app",
-    siteName: "iStory",
-    title: "iStory - AI-Powered Blockchain Journaling",
+    url: "https://estory.vercel.app",
+    siteName: "eStory",
+    title: "eStory - AI-Powered Blockchain Journaling",
     description:
       "Record your life stories with AI voice transcription, store them permanently on the blockchain, and mint your journals as NFT books.",
     images: ["/opengraph-image"],
   },
   twitter: {
     card: "summary_large_image",
-    title: "iStory - AI-Powered Blockchain Journaling",
+    title: "eStory - AI-Powered Blockchain Journaling",
     description:
       "AI voice transcription, blockchain permanence, and NFT books for your personal stories.",
     images: ["/opengraph-image"],
@@ -73,19 +73,19 @@ const jsonLd = {
   "@graph": [
     {
       "@type": "Organization",
-      name: "iStory",
-      url: "https://istory.vercel.app",
-      logo: "https://istory.vercel.app/favicon.ico",
+      name: "eStory",
+      url: "https://estory.vercel.app",
+      logo: "https://estory.vercel.app/favicon.ico",
       description:
         "AI-powered blockchain journaling platform that transforms personal narratives into sovereign memory infrastructure.",
     },
     {
       "@type": "WebSite",
-      name: "iStory",
-      url: "https://istory.vercel.app",
+      name: "eStory",
+      url: "https://estory.vercel.app",
       potentialAction: {
         "@type": "SearchAction",
-        target: "https://istory.vercel.app/social?q={search_term_string}",
+        target: "https://estory.vercel.app/social?q={search_term_string}",
         "query-input": "required name=search_term_string",
       },
     },

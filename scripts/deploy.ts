@@ -5,13 +5,13 @@ async function main() {
 
   console.log("Deploying contracts with the account:", deployer.address);
 
-  // 1. Deploy IStoryToken
+  // 1. Deploy EStoryToken
   // Argument: Initial Admin (You)
-  const IStoryToken = await ethers.getContractFactory("IStoryToken");
-  const token = await IStoryToken.deploy(deployer.address);
+  const EStoryToken = await ethers.getContractFactory("EStoryToken");
+  const token = await EStoryToken.deploy(deployer.address);
   await token.waitForDeployment();
   const tokenAddress = await token.getAddress();
-  console.log(`IStoryToken deployed to: ${tokenAddress}`);
+  console.log(`EStoryToken deployed to: ${tokenAddress}`);
 
   // 2. Deploy StoryProtocol
   // Arguments: Token Address, Initial Admin (You)

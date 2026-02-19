@@ -9,11 +9,13 @@ import { safeCompare } from "@/lib/crypto";
 // Force dynamic to prevent build-time execution
 export const dynamic = 'force-dynamic';
 
-const adminSupabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } }
-);
+function getAdminSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } }
+  );
+}
 
 export async function GET(req: NextRequest) {
   // 1. SECURITY: Check for Vercel Cron Secret (timing-safe comparison)
@@ -40,6 +42,7 @@ export async function GET(req: NextRequest) {
     });
 
     // 3. Fetch Eligible Users (Logic: Has received likes)
+    const adminSupabase = getAdminSupabase();
     const { data: users, error } = await adminSupabase
       .from("stories")
       .select("author_wallet, likes")
@@ -67,7 +70,7 @@ export async function GET(req: NextRequest) {
         const amountToMint = parseEther(totalLikes.toString());
 
         try {
-            console.log(`Minting ${totalLikes} ISTORY to ${wallet}`);
+            console.log(`Minting ${totalLikes} ESTORY to ${wallet}`);
             
             await walletClient.writeContract({
                 address: STORY_TOKEN_ADDRESS as `0x${string}`,

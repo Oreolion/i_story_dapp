@@ -1,11 +1,11 @@
 # ==========================================================================
-# CRE WORKFLOW SETTINGS FILE — iStory Story Verification
+# CRE WORKFLOW SETTINGS FILE — eStory Story Verification
 # ==========================================================================
 
 # ==========================================================================
 staging-settings:
   user-workflow:
-    workflow-name: "istory-story-verification-staging"
+    workflow-name: "estory-story-verification-staging"
   workflow-artifacts:
     workflow-path: "./main.ts"
     config-path: "./config.staging.json"
@@ -14,7 +14,7 @@ staging-settings:
 # ==========================================================================
 production-settings:
   user-workflow:
-    workflow-name: "istory-story-verification-production"
+    workflow-name: "estory-story-verification-production"
   workflow-artifacts:
     workflow-path: "./main.ts"
     config-path: "./config.production.json"

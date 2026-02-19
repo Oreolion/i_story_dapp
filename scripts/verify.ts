@@ -7,14 +7,14 @@ dotenv.config({ path: ".env.local" });
 async function main() {
   // 1. CONFIGURATION FROM ENV
   const ADMIN_WALLET = process.env.NEXT_PUBLIC_INITIAL_ADMIN_ADDRESS;
-  const TOKEN_ADDR = process.env.NEXT_PUBLIC_ISTORY_TOKEN_ADDRESS;
+  const TOKEN_ADDR = process.env.NEXT_PUBLIC_ESTORY_TOKEN_ADDRESS;
   const PROTOCOL_ADDR = process.env.NEXT_PUBLIC_STORY_PROTOCOL_ADDRESS;
   const NFT_ADDR = process.env.NEXT_PUBLIC_STORY_NFT_ADDRESS;
 
   // Check if env vars are loaded
   if (!ADMIN_WALLET || !TOKEN_ADDR || !PROTOCOL_ADDR || !NFT_ADDR) {
     console.error("❌ Missing environment variables.");
-    console.error("Please ensure .env.local has: ADMIN_WALLET_ADDRESS, NEXT_PUBLIC_ISTORY_TOKEN_ADDRESS, NEXT_PUBLIC_STORY_PROTOCOL_ADDRESS, NEXT_PUBLIC_STORY_NFT_ADDRESS");
+    console.error("Please ensure .env.local has: ADMIN_WALLET_ADDRESS, NEXT_PUBLIC_ESTORY_TOKEN_ADDRESS, NEXT_PUBLIC_STORY_PROTOCOL_ADDRESS, NEXT_PUBLIC_STORY_NFT_ADDRESS");
     process.exit(1);
   }
 
@@ -22,7 +22,7 @@ async function main() {
   console.log(`Admin: ${ADMIN_WALLET}`);
 
   // 2. VERIFY TOKEN
-  console.log(`\nVerifying IStoryToken at ${TOKEN_ADDR}...`);
+  console.log(`\nVerifying EStoryToken at ${TOKEN_ADDR}...`);
   try {
     await run("verify:verify", {
       address: TOKEN_ADDR,

@@ -44,7 +44,7 @@ export function onHttpTrigger(
   payload: HTTPPayload
 ): string {
   runtime.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-  runtime.log("CRE Workflow: iStory Story Verification");
+  runtime.log("CRE Workflow: eStory Story Verification");
   runtime.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
   try {

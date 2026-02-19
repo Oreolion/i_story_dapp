@@ -5,7 +5,7 @@ export const STORY_TOKEN_ADDRESS = "0xf9eDD76B55F58Bf4E8Ae2A90a1D6d8d44dfA74BC";
 export const STORY_PROTOCOL_ADDRESS = "0xA51a4cA00cC4C81A5F7cB916D0BFa1a4aD6f4a71";
 export const STORY_NFT_ADDRESS = "0x6D37ebc5eAEF37ecC888689f295D114187933342";
 
-// 1. IStoryToken ABI (ERC20 + Burnable)
+// 1. EStoryToken ABI (ERC20 + Burnable)
 export const STORY_TOKEN_ABI = [
   "function balanceOf(address owner) view returns (uint256)",
   "function decimals() view returns (uint8)",

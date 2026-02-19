@@ -1,4 +1,4 @@
-# Contributing to iStory (Speak Your Story)
+# Contributing to eStory (Speak Your Story)
 
 Thank you for your interest in contributing! We welcome improvements, bug fixes, and ideas. This document explains how to contribute so your changes are easy to review and merge.
 
@@ -20,7 +20,7 @@ Thank you for your interest in contributing! We welcome improvements, bug fixes,
 2. Clone your fork locally:
 
 ```bash
-git clone https://github.com/<your-username>/web3_Ai_iStory.git
+git clone https://github.com/<your-username>/web3_Ai_eStory.git
 cd i_story_dapp
 ```
 
@@ -100,7 +100,7 @@ Before requesting review, ensure:
 
 ## Security issues
 
-If you discover a security vulnerability, please do not open a public issue. Instead email the maintainers at `security@istory.app` with details so we can triage and patch privately.
+If you discover a security vulnerability, please do not open a public issue. Instead email the maintainers at `security@estory.app` with details so we can triage and patch privately.
 
 ## Communication
 
@@ -113,4 +113,4 @@ If you discover a security vulnerability, please do not open a public issue. Ins
 - `CODE_OF_CONDUCT.md` — contributor behavior expectations
 - LICENSE — project license (MIT)
 
-Thank you for making iStory better! 🎙️📚
+Thank you for making eStory better! 🎙️📚

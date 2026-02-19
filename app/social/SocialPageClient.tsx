@@ -25,7 +25,7 @@ import { toast } from "react-hot-toast";
 // FIX: Relative paths based on app/social/ location
 import { StoryCard } from "../../components/StoryCard";
 import { StoryDataType } from "../types/index";
-import { useIStoryToken } from "../hooks/useIStoryToken";
+import { useEStoryToken } from "../hooks/useIStoryToken";
 import { useStoryProtocol } from "../hooks/useStoryProtocol";
 import { supabaseClient } from "../../app/utils/supabase/supabaseClient";
 import { useAccount } from "wagmi";
@@ -97,7 +97,7 @@ export default function SocialPage() {
   const [searchQuery, setSearchQuery] = useState("");
 
   // Hooks
-  const iStoryToken = useIStoryToken();
+  const eStoryToken = useEStoryToken();
   const { payPaywall } = useStoryProtocol();
   const supabase = supabaseClient;
 
@@ -237,7 +237,7 @@ export default function SocialPage() {
   // --- Event Handlers ---
 
   const handleUnlock = async (storyNumericId: string) => {
-    if (!isConnected || !address || !iStoryToken) {
+    if (!isConnected || !address || !eStoryToken) {
       return toast.error("Please connect your wallet to unlock stories.");
     }
 
@@ -262,7 +262,7 @@ export default function SocialPage() {
         prev.map((s) => (String(s.id) === String(story.id) ? { ...s, isPaid: true } : s))
       );
 
-      toast.success(`Unlocked! Paid ${story.paywallAmount} $ISTORY`, {
+      toast.success(`Unlocked! Paid ${story.paywallAmount} $ESTORY`, {
         id: "unlock-toast",
       });
     } catch (error: any) {
@@ -470,12 +470,12 @@ export default function SocialPage() {
             <div className="text-center space-y-2">
               <Star className="w-6 h-6 mx-auto text-[hsl(var(--story-500))]" />
               <div className="text-xl font-bold text-gray-900 dark:text-white">
-                {isConnected && iStoryToken?.balance !== undefined
-                  ? `${Number(iStoryToken.balance / BigInt(1e18)).toFixed(0)}`
+                {isConnected && eStoryToken?.balance !== undefined
+                  ? `${Number(eStoryToken.balance / BigInt(1e18)).toFixed(0)}`
                   : "0"}
               </div>
               <div className="text-sm text-gray-600 dark:text-gray-400">
-                Your $ISTORY
+                Your $ESTORY
               </div>
             </div>
           </div>
@@ -628,7 +628,7 @@ export default function SocialPage() {
                   Total Paid
                 </span>
                 <span className="font-bold text-[hsl(var(--growth-500))]">
-                  45.2K $ISTORY
+                  45.2K $ESTORY
                 </span>
               </div>
               <div className="flex justify-between items-center">

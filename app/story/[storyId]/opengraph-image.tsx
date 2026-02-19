@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 import { createSupabaseAdminClient } from "@/app/utils/supabase/supabaseAdmin";
 
 export const runtime = "edge";
-export const alt = "iStory - Story";
+export const alt = "eStory - Story";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -24,7 +24,7 @@ export default async function OGImage({
 }) {
   const { storyId } = await params;
 
-  let title = "Story on iStory";
+  let title = "Story on eStory";
   let authorName = "Anonymous";
   let mood = "neutral";
   let tags: string[] = [];
@@ -92,7 +92,7 @@ export default async function OGImage({
               color: "rgba(255,255,255,0.8)",
             }}
           >
-            iStory
+            eStory
           </div>
           {dateStr && (
             <div

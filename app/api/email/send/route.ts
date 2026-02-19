@@ -25,14 +25,14 @@ export async function POST(req: NextRequest) {
     switch (type) {
       case "welcome":
         emailComponent = WelcomeEmail({ username: username || "Storyteller" });
-        subject = "Welcome to IStory";
+        subject = "Welcome to EStory";
         break;
       default:
         return NextResponse.json({ error: "Invalid email type" }, { status: 400 });
     }
 
     const data = await resend.emails.send({
-      from: "IStory <onboarding@resend.dev>",
+      from: "EStory <onboarding@resend.dev>",
       to: [email],
       subject: subject,
       react: emailComponent,

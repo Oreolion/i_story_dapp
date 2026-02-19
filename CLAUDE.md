@@ -40,6 +40,35 @@ Phase 1.5 Complete (Security Hardening), CRE Integration Complete, SEO Overhaul 
 
 Before starting complex debugging or multi-step implementations, ask if there's a time constraint or if the user wants a checkpoint approach with testing between phases.
 
+### Completion Checklist
+Before marking any task as complete, always:
+1. Run any pending database migrations and verify they applied successfully
+2. Run the full test suite (`npx vitest run`) and fix any broken tests
+3. Check for TypeScript errors (`npx tsc --noEmit`)
+4. Run `npm run build` to verify production build passes
+Do NOT report a task as done if any of these fail.
+
+### Session Continuity
+- Proactively save progress to memory files at natural breakpoints (after completing a milestone, before starting a new phase, or when hitting a blocker)
+- When resuming from a previous session, read `MEMORY.md` and memory directory files first to restore context
+- Keep session-log.md updated with completed work, pending items, and unresolved issues
+
+---
+
+## Database
+
+- **Always run migrations after creating them.** Verify the migration was applied by checking the database schema before moving on. Never mark a migration task as complete without executing it.
+- **When fixing database constraint errors** (e.g., 409 Conflict, duplicate key), check ALL unique constraints and indexes on the affected table(s), not just the primary key. Handle each potential conflict column (id, wallet_address, email, etc.).
+- Use `docs/DATABASE_SCHEMA.md` as the source of truth for table schemas.
+
+---
+
+## Testing
+
+- **After making changes, run the full test suite before reporting completion.** Fix any broken tests before moving on to the next task.
+- If a change introduces a new validation rule or constraint, check that existing tests still pass — update test fixtures/mocks as needed.
+- Run `npx vitest run` for unit tests and `npm run build` for build verification after every significant change.
+
 ---
 
 ## Development Commands
@@ -257,6 +286,18 @@ cre workflow deploy eStory_workflow                # Deploy (requires early acce
 2. Add `route.ts` with `validateAuthOrReject` from `lib/auth.ts`
 3. Add ownership verification where applicable
 4. Use generic error messages (never `error.message`)
+5. **NEVER initialize Supabase client at module scope** — use a lazy factory/singleton pattern to avoid build-time failures when env vars are unavailable:
+```typescript
+function getSupabase() {
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+}
+let _supabase: ReturnType<typeof getSupabase> | null = null;
+function supabase() {
+  if (!_supabase) _supabase = getSupabase();
+  return _supabase;
+}
+```
+6. **Route files can only export HTTP handlers** (GET, POST, PUT, DELETE, etc.). Extract shared logic to `lib/` files.
 
 ### Add a new page
 1. Create `app/[page-name]/[PageName]PageClient.tsx` with `"use client"` (UI logic)
@@ -300,7 +341,7 @@ Create `.env.local` from `.env.example`. Key groups: Supabase, WalletConnect, AI
 
 ## Hooks Reference
 
-**Web3:** `useIStoryToken` (balance, approve), `useStoryProtocol` (tipCreator, payPaywall), `useStoryNFT` (mintBook)
+**Web3:** `useEStoryToken` (balance, approve), `useStoryProtocol` (tipCreator, payPaywall), `useStoryNFT` (mintBook)
 **CRE:** `useVerifiedMetrics` (poll for CRE-attested story metrics)
 **Supabase:** `useBrowserSupabase` (client singleton), `useNotifications` (CRUD + real-time polling)
 **Planned:** `useStoryMetadata`, `usePatterns` — see `docs/ROADMAP.md`

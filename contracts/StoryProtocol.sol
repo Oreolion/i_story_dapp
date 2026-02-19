@@ -25,7 +25,7 @@ contract StoryProtocol is ReentrancyGuard, Pausable, AccessControl {
 
     /**
      * @notice Tip a creator. 
-     * @dev User must approve this contract to spend ISTORY.
+     * @dev User must approve this contract to spend ESTORY.
      */
     function tipCreator(address creator, uint256 amount, uint256 storyId) external nonReentrant whenNotPaused {
         require(amount > 0, "Amount must be > 0");

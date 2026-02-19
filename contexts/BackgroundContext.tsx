@@ -40,7 +40,7 @@ export function BackgroundProvider({ children, defaultMode = 'home' }: Backgroun
 
     // If we have an emotional tone and we're on story page, adjust colors
     let primaryColor = defaults.primaryColor;
-    let secondaryColor = defaults.secondaryColor;
+    const secondaryColor = defaults.secondaryColor;
 
     if (emotionalTone && toneColors[emotionalTone]) {
       primaryColor = toneColors[emotionalTone];

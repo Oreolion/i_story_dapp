@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { writeContract } from '@wagmi/core';
-import  iStoryTokenABI  from '@/lib/abis/iStoryToken.json';
+import  eStoryTokenABI  from '@/lib/abis/iStoryToken.json';
 import { config } from '@/lib/wagmi.config.server';
 import { validateAuthOrReject, isAuthError } from "@/lib/auth";
 
@@ -17,8 +17,8 @@ export async function POST(req: NextRequest) {
     }
 
     const hash = await writeContract(config, {
-      address: process.env.NEXT_PUBLIC_ISTORY_TOKEN_ADDRESS as `0x${string}`,
-      abi: iStoryTokenABI.abi,
+      address: process.env.NEXT_PUBLIC_ESTORY_TOKEN_ADDRESS as `0x${string}`,
+      abi: eStoryTokenABI.abi,
       functionName: 'tipCreator',
       args: [to as `0x${string}`, BigInt(amount * 1e18), BigInt(storyId)],
     });

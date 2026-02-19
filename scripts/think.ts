@@ -99,7 +99,7 @@ if (!problem) {
 thinkDeep({
   problem: problem,
   context: `
-    iStory is a Web3 AI-powered journaling dApp.
+    eStory is a Web3 AI-powered journaling dApp.
     Tech stack: Next.js 15, React 19, Supabase, Gemini AI, Base blockchain.
     Currently implementing Phase 1.5: Validation & Hardening.
     Phase 1 (Story Metadata) is complete - we have automatic story analysis.

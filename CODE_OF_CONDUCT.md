@@ -32,11 +32,11 @@ This Code of Conduct applies both within project spaces and in public spaces whe
 
 ## Enforcement
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be reported by contacting the project team at [support@istory.app]. All complaints will be reviewed and investigated and will result in a response that is deemed necessary and appropriate to the circumstances. The maintainers are obligated to maintain confidentiality with regard to the reporter of an incident.
+Instances of abusive, harassing, or otherwise unacceptable behavior may be reported by contacting the project team at [support@estory.app]. All complaints will be reviewed and investigated and will result in a response that is deemed necessary and appropriate to the circumstances. The maintainers are obligated to maintain confidentiality with regard to the reporter of an incident.
 
 ## Enforcement Guidelines
 
-1. Reporting — If you experience or witness unacceptable behavior, please report it to the maintainers at [support@istory.app] with as much detail as possible.
+1. Reporting — If you experience or witness unacceptable behavior, please report it to the maintainers at [support@estory.app] with as much detail as possible.
 2. Response — Maintain-ers will investigate and may take action including warnings, temporary or permanent bans, or requesting a change to content or behavior.
 3. Appeals — If you are subject to enforcement action and feel it was unwarranted, contact the maintainers with an explanation and any supporting information.
 

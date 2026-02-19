@@ -471,7 +471,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             data: { session: currentSession },
           } = await supabase.auth.getSession();
 
-          if (currentSession?.user?.id === existing.id) {
+          if (currentSession?.user?.id === existing.id && currentSession) {
             // Session matches — safe to use without re-auth
             setUnifiedProfile(existing, currentSession.user);
             return;

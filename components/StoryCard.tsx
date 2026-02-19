@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "react-hot-toast";
 import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
-import iStoryTokenABI from "@/lib/abis/iStoryToken.json";
+import eStoryTokenABI from "@/lib/abis/iStoryToken.json";
 import { parseEther } from "viem";
 import Image from "next/image";
 import { Heart, MessageCircle, Share2, Calendar, Globe, Lock, Star, Headphones } from "lucide-react";
@@ -25,7 +25,7 @@ interface StoryCardProps {
   variant?: 'default' | 'compact' | 'featured';
 }
 
-const ISTORY_TOKEN_ADDRESS = "0xYouriStoryTokenAddress";
+const ESTORY_TOKEN_ADDRESS = "0xYoureStoryTokenAddress";
 const DEFAULT_AVATAR = "https://placehold.co/48x48/6366f1/ffffff?text=U";
 
 // Map emotional tone to CSS class for left border color
@@ -78,8 +78,8 @@ export function StoryCard({
   const handleTip = () => {
     setIsTipping(true);
     writeContract({
-      address: ISTORY_TOKEN_ADDRESS as `0x${string}`,
-      abi: iStoryTokenABI.abi,
+      address: ESTORY_TOKEN_ADDRESS as `0x${string}`,
+      abi: eStoryTokenABI.abi,
       functionName: "tipCreator",
       args: [
         story.author_wallet.username as `0x${string}`,
@@ -93,8 +93,8 @@ export function StoryCard({
     if (story.paywallAmount === 0) return;
     setIsPaying(true);
     payContract({
-      address: ISTORY_TOKEN_ADDRESS as `0x${string}`,
-      abi: iStoryTokenABI.abi,
+      address: ESTORY_TOKEN_ADDRESS as `0x${string}`,
+      abi: eStoryTokenABI.abi,
       functionName: "payPaywall",
       args: [
         story.author_wallet.username as `0x${string}`,

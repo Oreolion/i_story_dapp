@@ -20,7 +20,7 @@ Need users before we can serve users. Social provides discovery, engagement loop
 ## References
 
 - **Project Vision:** Research document "The Architecture of Digital Immortality"
-In a world where history has often been manipulated by conquerors, victors and dominating empires, iStory reclaims the power of authentic storytelling. Users can broadcast their unfiltered truths forever on the blockchain, ensuring tamper-proof preservation, while earning rewards through community engagement and NFT-based sales.
+In a world where history has often been manipulated by conquerors, victors and dominating empires, eStory reclaims the power of authentic storytelling. Users can broadcast their unfiltered truths forever on the blockchain, ensuring tamper-proof preservation, while earning rewards through community engagement and NFT-based sales.
 - **Competitive Analysis:** StoriedLife, Remento, Rewind.ai (capture-focused, not cognitive)
 - **Psychological Framework:** Self-Defining Memories (Singer), Self-Memory System (Conway)
 - **Technical Reference:** GraphRAG (Microsoft Research) — future consideration

@@ -51,7 +51,7 @@ scripts/verify-deployment.ts               (contract deployment verification)
 **Goal:** Verifiable AI-attested story metrics via Chainlink DON nodes.
 
 **Tasks:**
-- [x] Set up CRE CLI project structure (`cre/iStory_workflow/`)
+- [x] Set up CRE CLI project structure (`cre/eStory_workflow/`)
 - [x] Build CRE workflow: HTTP trigger → Gemini AI → DON consensus → on-chain write
 - [x] Create ReceiverTemplate interfaces (`contracts/interfaces/`)
 - [x] Rewrite VerifiedMetrics.sol to extend ReceiverTemplate
@@ -67,9 +67,9 @@ scripts/verify-deployment.ts               (contract deployment verification)
 
 **Key files created/modified:**
 ```
-cre/iStory_workflow/main.ts               (CRE workflow entry point)
-cre/iStory_workflow/gemini.ts             (Gemini AI with HTTPClient consensus)
-cre/iStory_workflow/httpCallback.ts       (Full handler: parse → analyze → sign → write)
+cre/eStory_workflow/main.ts               (CRE workflow entry point)
+cre/eStory_workflow/gemini.ts             (Gemini AI with HTTPClient consensus)
+cre/eStory_workflow/httpCallback.ts       (Full handler: parse → analyze → sign → write)
 contracts/VerifiedMetrics.sol             (ReceiverTemplate-based receiver)
 contracts/interfaces/                      (IERC165, IReceiver, ReceiverTemplate)
 app/api/cre/trigger/route.ts              (Trigger verification)

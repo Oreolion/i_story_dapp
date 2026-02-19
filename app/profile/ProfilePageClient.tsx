@@ -146,7 +146,7 @@ export default function ProfilePage() {
     if (!authInfo?.id || !address) return;
     setIsLinkingWallet(true);
     try {
-      const message = `Link wallet ${address.toLowerCase()} to iStory account ${authInfo.id}`;
+      const message = `Link wallet ${address.toLowerCase()} to eStory account ${authInfo.id}`;
       const signature = await signMessageAsync({ message });
       const res = await fetch("/api/auth/link-account", {
         method: "POST",
@@ -201,7 +201,7 @@ export default function ProfilePage() {
     setIsLinkingGoogle(true);
     try {
       // Step 1: Sign message to prove wallet ownership
-      const message = `Link Google account to iStory wallet ${address.toLowerCase()}\n\nTimestamp: ${Date.now()}`;
+      const message = `Link Google account to eStory wallet ${address.toLowerCase()}\n\nTimestamp: ${Date.now()}`;
       const signature = await signMessageAsync({ message });
 
       // Step 2: Get secure linking token from server
@@ -448,7 +448,7 @@ export default function ProfilePage() {
        const metadata = {
            name: `Daily Journal - ${dateStr}`,
            description: `A collection of ${todaysStories.length} moments captured on ${dateStr}.`,
-           external_url: "https://istory.vercel.app",
+           external_url: "https://estory.vercel.app",
            attributes: [
                { trait_type: "Author", value: authInfo.name },
                { trait_type: "Date", value: dateStr },

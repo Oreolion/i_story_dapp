@@ -1,8 +1,8 @@
-# iStory SEO Audit Report
+# eStory SEO Audit Report
 
 **Date:** January 29, 2026
-**App:** iStory - AI-Powered Blockchain Journaling dApp
-**URL:** https://istory.vercel.app
+**App:** eStory - AI-Powered Blockchain Journaling dApp
+**URL:** https://estory.vercel.app
 **Stack:** Next.js 15.5.9, React 19, Supabase, Base (Ethereum L2)
 
 ---
@@ -40,7 +40,7 @@ Story pages are client-side rendered (`"use client"`) with no `generateMetadata`
 export async function generateMetadata({ params }: { params: { storyId: string } }): Promise<Metadata> {
   const story = await fetchStoryServerSide(params.storyId);
   return {
-    title: `${story.title} | iStory`,
+    title: `${story.title} | eStory`,
     description: story.content?.slice(0, 155) + '...',
     openGraph: {
       title: story.title,
@@ -64,11 +64,11 @@ No sitemap exists. Search engines have no efficient way to discover the app's st
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const stories = await fetchAllPublicStoryIds();
   return [
-    { url: 'https://istory.vercel.app', lastModified: new Date(), priority: 1 },
-    { url: 'https://istory.vercel.app/social', priority: 0.8 },
-    { url: 'https://istory.vercel.app/record', priority: 0.7 },
+    { url: 'https://estory.vercel.app', lastModified: new Date(), priority: 1 },
+    { url: 'https://estory.vercel.app/social', priority: 0.8 },
+    { url: 'https://estory.vercel.app/record', priority: 0.7 },
     ...stories.map(s => ({
-      url: `https://istory.vercel.app/story/${s.id}`,
+      url: `https://estory.vercel.app/story/${s.id}`,
       lastModified: new Date(s.updated_at),
       priority: 0.6,
     })),
@@ -87,7 +87,7 @@ No crawl directives exist. API routes and auth pages could be indexed unnecessar
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: { userAgent: '*', allow: '/', disallow: ['/api/', '/auth/'] },
-    sitemap: 'https://istory.vercel.app/sitemap.xml',
+    sitemap: 'https://estory.vercel.app/sitemap.xml',
   };
 }
 ```
@@ -117,7 +117,7 @@ Root metadata defines OG title/description but no `image`. Social shares on Twit
 ```typescript
 // Current (missing image):
 openGraph: {
-  title: "IStory - AI-Powered Blockchain Journaling",
+  title: "EStory - AI-Powered Blockchain Journaling",
   description: "...",
   type: "website",
 }
@@ -133,7 +133,7 @@ No `twitter:card`, `twitter:site`, `twitter:creator` tags. Social shares on X/Tw
 ```typescript
 twitter: {
   card: 'summary_large_image',
-  site: '@iStoryApp',
+  site: '@eStoryApp',
   creator: '@remyOreo_',
 }
 ```
@@ -188,11 +188,11 @@ Pages like `/library`, `/record`, `/social`, `/profile`, `/tracker` all use the 
 
 | Page | Current Title | Recommended Title |
 |------|--------------|-------------------|
-| `/record` | (root default) | "Record Your Story - iStory" |
-| `/library` | (root default) | "Your Story Archive - iStory" |
-| `/social` | (root default) | "Community Stories - iStory" |
-| `/profile` | (root default) | "Your Profile - iStory" |
-| `/tracker` | (root default) | "Daily Tracker - iStory" |
+| `/record` | (root default) | "Record Your Story - eStory" |
+| `/library` | (root default) | "Your Story Archive - eStory" |
+| `/social` | (root default) | "Community Stories - eStory" |
+| `/profile` | (root default) | "Your Profile - eStory" |
+| `/tracker` | (root default) | "Daily Tracker - eStory" |
 
 ### 13. No Robots Meta Tag
 

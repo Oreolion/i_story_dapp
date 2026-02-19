@@ -9,7 +9,7 @@ async function main() {
   console.log(`\n🧪 Starting Live Test on Base Sepolia`);
   console.log(`👤 Actor: ${deployer.address}`);
 
-  const TOKEN_ADDR = process.env.NEXT_PUBLIC_ISTORY_TOKEN_ADDRESS;
+  const TOKEN_ADDR = process.env.NEXT_PUBLIC_ESTORY_TOKEN_ADDRESS;
   const PROTOCOL_ADDR = process.env.NEXT_PUBLIC_STORY_PROTOCOL_ADDRESS;
   const NFT_ADDR = process.env.NEXT_PUBLIC_STORY_NFT_ADDRESS;
 
@@ -18,22 +18,22 @@ async function main() {
   }
 
   // Attach to Contracts
-  const Token = await ethers.getContractAt("IStoryToken", TOKEN_ADDR);
+  const Token = await ethers.getContractAt("EStoryToken", TOKEN_ADDR);
   const Protocol = await ethers.getContractAt("StoryProtocol", PROTOCOL_ADDR);
   const NFT = await ethers.getContractAt("StoryNFT", NFT_ADDR);
 
   // --- TEST 1: TOKEN MINTING ---
   console.log(`\n[1] Testing Token...`);
   try {
-    const amount = ethers.parseEther("100"); // 100 $ISTORY
+    const amount = ethers.parseEther("100"); // 100 $ESTORY
     // Note: This only works if 'deployer' has MINTER_ROLE. 
     // If you are the admin, this should work.
     const tx = await Token.mint(deployer.address, amount);
     await tx.wait();
-    console.log(`✅ Minted 100 $ISTORY to self`);
+    console.log(`✅ Minted 100 $ESTORY to self`);
     
     const balance = await Token.balanceOf(deployer.address);
-    console.log(`💰 New Balance: ${ethers.formatEther(balance)} $ISTORY`);
+    console.log(`💰 New Balance: ${ethers.formatEther(balance)} $ESTORY`);
   } catch (e: any) {
     console.log(`❌ Minting failed (You might not be minter, or role setup is wrong): ${e.message}`);
   }
@@ -43,11 +43,11 @@ async function main() {
   try {
     const approveAmount = ethers.parseEther("50");
     const tx = await Token.approve(PROTOCOL_ADDR, approveAmount);
-    console.log(`⏳ Approving Protocol to spend 50 $ISTORY...`);
+    console.log(`⏳ Approving Protocol to spend 50 $ESTORY...`);
     await tx.wait();
     
     const allowance = await Token.allowance(deployer.address, PROTOCOL_ADDR);
-    console.log(`✅ Allowance set: ${ethers.formatEther(allowance)} $ISTORY`);
+    console.log(`✅ Allowance set: ${ethers.formatEther(allowance)} $ESTORY`);
   } catch (e: any) {
     console.log(`❌ Approval failed: ${e.message}`);
   }
@@ -61,7 +61,7 @@ async function main() {
     const storyId = 999; // Mock ID
 
     const tx = await Protocol.tipCreator(recipient, tipAmount, storyId);
-    console.log(`⏳ Sending Tip of 10 $ISTORY...`);
+    console.log(`⏳ Sending Tip of 10 $ESTORY...`);
     await tx.wait();
     console.log(`✅ Tip Success!`);
   } catch (e: any) {
