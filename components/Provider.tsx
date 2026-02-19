@@ -4,7 +4,8 @@ import { ThemeProvider } from "next-themes";
 import { createContext, useContext, ReactNode } from "react";
 import { WagmiProvider } from "wagmi";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { RainbowKitProvider, darkTheme } from "@rainbow-me/rainbowkit"; // RainbowKit
+import { RainbowKitProvider, darkTheme, lightTheme } from "@rainbow-me/rainbowkit";
+import { useTheme } from "next-themes";
 import { config } from "@/lib/wagmi.config";
 import { useAccount, useBalance } from "wagmi";
 import { AuthProvider } from "./AuthProvider";
@@ -68,19 +69,30 @@ function AppInner({ children }: { children: ReactNode }) {
     </AppContext.Provider>
   );
 }
+function ThemedRainbowKit({ children }: { children: ReactNode }) {
+  const { resolvedTheme } = useTheme();
+  const rainbowTheme = resolvedTheme === "light" ? lightTheme() : darkTheme();
+
+  return (
+    <RainbowKitProvider theme={rainbowTheme}>
+      {children}
+    </RainbowKitProvider>
+  );
+}
+
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider theme={darkTheme()}>
-          <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <ThemedRainbowKit>
             <BackgroundProvider>
               <AuthProvider>
                 <AppInner>{children}</AppInner>
               </AuthProvider>
             </BackgroundProvider>
-          </ThemeProvider>
-        </RainbowKitProvider>
+          </ThemedRainbowKit>
+        </ThemeProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );

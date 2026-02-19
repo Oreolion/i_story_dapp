@@ -9,14 +9,14 @@ const GlobalBackground = dynamic(
   {
     ssr: false,
     loading: () => (
-      // Static fallback while loading
+      // Static fallback while loading — uses CSS variable for automatic light/dark adaptation
       <div
         className="fixed inset-0 -z-10 pointer-events-none"
         style={{
           background: `
             radial-gradient(ellipse at 20% 30%, hsl(217 91% 50% / 0.08) 0%, transparent 50%),
             radial-gradient(ellipse at 80% 70%, hsl(258 90% 55% / 0.08) 0%, transparent 50%),
-            hsl(233 10% 4%)
+            hsl(var(--void-deep))
           `,
         }}
       />
