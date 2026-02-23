@@ -1,7 +1,7 @@
 // app/api/stories/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/app/utils/supabase/supabaseAdmin";
-import { validateAuthOrReject, isAuthError } from "@/lib/auth";
+import { validateAuthOrReject, isAuthError, resolveUserId } from "@/lib/auth";
 
 /**
  * GET /api/stories — Fetch authenticated user's own stories (bypasses RLS)
@@ -10,14 +10,15 @@ export async function GET(req: NextRequest) {
   try {
     const authResult = await validateAuthOrReject(req);
     if (isAuthError(authResult)) return authResult;
-    const authenticatedUserId = authResult;
+    // Resolve JWT user ID → users table ID (wallet users may differ)
+    const userId = await resolveUserId(authResult);
 
     const admin = createSupabaseAdminClient();
 
     const { data, error } = await admin
       .from("stories")
       .select("*")
-      .eq("author_id", authenticatedUserId)
+      .eq("author_id", userId)
       .order("story_date", { ascending: false });
 
     if (error) {
