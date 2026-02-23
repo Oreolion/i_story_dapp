@@ -41,6 +41,7 @@ import {
   Calendar as CalendarIcon, // Renamed to avoid conflict
   Lock,   // NEW: For Private icon
   Unlock, // NEW: For Public icon
+  Undo2,
 } from "lucide-react";
 
 export default function RecordPage() {
@@ -67,6 +68,7 @@ export default function RecordPage() {
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isPlayingTTS, setIsPlayingTTS] = useState(false);
+  const [preEnhanceText, setPreEnhanceText] = useState<string | null>(null);
 
   // Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -176,6 +178,7 @@ export default function RecordPage() {
   const enhanceText = async () => {
     if (!transcribedText.trim()) return;
     setIsProcessing(true);
+    setPreEnhanceText(transcribedText); // Save original for revert
 
     const authHeaders = await getAuthHeaders();
     const promise = fetch("/api/ai/enhance", {
@@ -196,10 +199,22 @@ export default function RecordPage() {
       success: (enhanced) => {
         setTranscribedText(enhanced);
         setIsProcessing(false);
-        return "Story enhanced!";
+        return "Story enhanced! You can revert if you prefer the original.";
       },
-      error: "Failed to enhance text.",
+      error: (err) => {
+        setPreEnhanceText(null); // Clear on failure
+        setIsProcessing(false);
+        return "Failed to enhance text.";
+      },
     });
+  };
+
+  const revertEnhancement = () => {
+    if (preEnhanceText) {
+      setTranscribedText(preEnhanceText);
+      setPreEnhanceText(null);
+      toast.success("Reverted to original text.");
+    }
   };
 
   // --- 4. Text-to-Speech ---
@@ -389,14 +404,14 @@ export default function RecordPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="text-center space-y-4">
+          <div className="text-center space-y-6">
             <AnimatePresence>
               {isRecording && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.5 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.5 }}
-                  className="inline-flex items-center space-x-2 bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300 px-4 py-2 rounded-full"
+                  className="inline-flex items-center space-x-2 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-300 px-4 py-2 rounded-full"
                 >
                   <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
                   <span className="font-medium">Recording</span>
@@ -407,20 +422,80 @@ export default function RecordPage() {
                 </motion.div>
               )}
             </AnimatePresence>
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <Button
-                size="lg"
-                onClick={isRecording ? stopRecording : startRecording}
-                disabled={isProcessing}
-                className={`w-32 h-32 rounded-full text-white shadow-xl transition-all ${isRecording ? "bg-[hsl(var(--tone-anxious))] hover:bg-[hsl(var(--tone-anxious))]" : "bg-gradient-to-r from-[hsl(var(--memory-600))] to-[hsl(var(--insight-600))] hover:shadow-[var(--glow-memory)]"}`}
-              >
-                {isRecording ? (
-                  <Square className="w-8 h-8" />
-                ) : (
-                  <Mic className="w-8 h-8" />
-                )}
-              </Button>
-            </motion.div>
+
+            {/* Fancy Microphone Button */}
+            <div className="relative flex items-center justify-center">
+              {/* Animated pulse rings */}
+              {isRecording && (
+                <>
+                  <motion.div
+                    className="absolute w-40 h-40 rounded-full border-2 border-red-400/30"
+                    animate={{ scale: [1, 1.4, 1], opacity: [0.6, 0, 0.6] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }}
+                  />
+                  <motion.div
+                    className="absolute w-48 h-48 rounded-full border border-red-300/20"
+                    animate={{ scale: [1, 1.5, 1], opacity: [0.4, 0, 0.4] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeOut", delay: 0.5 }}
+                  />
+                  <motion.div
+                    className="absolute w-56 h-56 rounded-full border border-red-200/10"
+                    animate={{ scale: [1, 1.6, 1], opacity: [0.3, 0, 0.3] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeOut", delay: 1 }}
+                  />
+                </>
+              )}
+
+              {/* Idle glow ring */}
+              {!isRecording && !isProcessing && (
+                <motion.div
+                  className="absolute w-36 h-36 rounded-full"
+                  style={{
+                    background: "radial-gradient(circle, hsl(var(--memory-500) / 0.15) 0%, transparent 70%)",
+                  }}
+                  animate={{ scale: [1, 1.1, 1], opacity: [0.5, 0.8, 0.5] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                />
+              )}
+
+              <motion.div whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }}>
+                <Button
+                  size="lg"
+                  onClick={isRecording ? stopRecording : startRecording}
+                  disabled={isProcessing}
+                  className={`relative w-32 h-32 rounded-full text-white shadow-2xl transition-all duration-300 ${
+                    isRecording
+                      ? "bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 shadow-red-500/25"
+                      : "bg-gradient-to-br from-[hsl(var(--memory-500))] via-[hsl(var(--memory-600))] to-[hsl(var(--insight-600))] hover:shadow-[0_0_40px_hsl(var(--memory-500)/0.4)]"
+                  }`}
+                >
+                  {/* Inner ring highlight */}
+                  <span className="absolute inset-2 rounded-full border border-white/20" />
+                  {isRecording ? (
+                    <Square className="w-8 h-8 relative z-10" />
+                  ) : (
+                    <svg
+                      className="w-10 h-10 relative z-10"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <rect x="9" y="2" width="6" height="12" rx="3" />
+                      <path d="M5 10a7 7 0 0 0 14 0" />
+                      <line x1="12" y1="17" x2="12" y2="21" />
+                      <line x1="8" y1="21" x2="16" y2="21" />
+                    </svg>
+                  )}
+                </Button>
+              </motion.div>
+            </div>
+
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {isRecording ? "Tap to stop recording" : "Tap to start recording"}
+            </p>
             <div className="flex items-center justify-center space-x-6 text-sm text-gray-600 dark:text-gray-400">
               <div className="flex items-center space-x-2">
                 <Languages className="w-4 h-4" />
@@ -428,7 +503,7 @@ export default function RecordPage() {
               </div>
               <div className="flex items-center space-x-2">
                 <Zap className="w-4 h-4" />
-                <span>Gemini AI</span>
+                <span>ElevenLabs Scribe</span>
               </div>
             </div>
           </div>
@@ -565,14 +640,24 @@ export default function RecordPage() {
                 </>
               )}
             </Button>
-            <Button
-              onClick={enhanceText}
-              disabled={!transcribedText.trim() || isProcessing}
-              variant="outline"
-              className="flex-1"
-            >
-              <Wand2 className="w-4 h-4 mr-2" /> Enhance AI
-            </Button>
+            {preEnhanceText ? (
+              <Button
+                onClick={revertEnhancement}
+                variant="outline"
+                className="flex-1 border-amber-300 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+              >
+                <Undo2 className="w-4 h-4 mr-2" /> Revert
+              </Button>
+            ) : (
+              <Button
+                onClick={enhanceText}
+                disabled={!transcribedText.trim() || isProcessing}
+                variant="outline"
+                className="flex-1"
+              >
+                <Wand2 className="w-4 h-4 mr-2" /> Enhance with AI
+              </Button>
+            )}
             <Button
               onClick={saveEntry}
               disabled={

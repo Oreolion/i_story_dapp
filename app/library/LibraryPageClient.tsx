@@ -128,22 +128,32 @@ export default function LibraryPage() {
   const [newBookDesc, setNewBookDesc] = useState("");
   const [isSavingBook, setIsSavingBook] = useState(false);
 
+  // Helper to get auth token for API calls
+  const getAuthHeaders = async (): Promise<Record<string, string>> => {
+    const { data } = await supabase!.auth.getSession();
+    const token = data?.session?.access_token;
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
   // --- 1. Fetch Data ---
   const fetchData = async () => {
     if (!authInfo?.id || !supabase) return;
     setIsLoading(true);
 
     try {
-      // Fetch Stories - Include new fields
-      const { data: storiesData, error: storiesError } = await supabase
-        .from("stories")
-        .select("*")
-        .eq("author_id", authInfo.id)
-        .order("story_date", { ascending: false }); // Sorted by memory date
+      // Fetch Stories via API route (bypasses RLS, ensures own private stories show)
+      const authHeaders = await getAuthHeaders();
+      const storiesRes = await fetch("/api/stories", {
+        headers: { ...authHeaders },
+      });
 
-      if (storiesError) throw storiesError;
+      let storiesData: any[] = [];
+      if (storiesRes.ok) {
+        const json = await storiesRes.json();
+        storiesData = json.stories || [];
+      }
 
-      // Fetch Books
+      // Fetch Books (keep direct Supabase — books don't have RLS issues)
       const { data: booksData, error: booksError } = await supabase
         .from("books")
         .select("*")

@@ -3,6 +3,35 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/app/utils/supabase/supabaseAdmin";
 import { validateAuthOrReject, isAuthError } from "@/lib/auth";
 
+/**
+ * GET /api/stories — Fetch authenticated user's own stories (bypasses RLS)
+ */
+export async function GET(req: NextRequest) {
+  try {
+    const authResult = await validateAuthOrReject(req);
+    if (isAuthError(authResult)) return authResult;
+    const authenticatedUserId = authResult;
+
+    const admin = createSupabaseAdminClient();
+
+    const { data, error } = await admin
+      .from("stories")
+      .select("*")
+      .eq("author_id", authenticatedUserId)
+      .order("story_date", { ascending: false });
+
+    if (error) {
+      console.error("[API /stories GET] fetch error:", error);
+      return NextResponse.json({ error: "Failed to fetch stories" }, { status: 500 });
+    }
+
+    return NextResponse.json({ stories: data || [] });
+  } catch (err: unknown) {
+    console.error("[API /stories GET] unexpected error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     // Auth check
