@@ -25,6 +25,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import { getEmotionClass, getDomainClass, domainLabels } from "@/lib/design-tokens";
+import { supabaseClient } from "@/app/utils/supabase/supabaseClient";
 
 interface StoryInsightsProps {
   storyId: string;
@@ -106,9 +107,14 @@ export function StoryInsights({ storyId, storyText }: StoryInsightsProps) {
       setIsAnalyzing(true);
       setFetchError(null);
 
+      const { data: sessionData } = await supabaseClient!.auth.getSession();
+      const token = sessionData?.session?.access_token;
       const res = await fetch("/api/ai/analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ storyId, storyText }),
         signal: controller.signal,
       });

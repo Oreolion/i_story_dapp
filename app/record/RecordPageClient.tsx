@@ -74,6 +74,13 @@ export default function RecordPage() {
 
   const supabase = supabaseClient;
 
+  // Helper to get auth token for API calls
+  const getAuthHeaders = async (): Promise<Record<string, string>> => {
+    const { data } = await supabase!.auth.getSession();
+    const token = data?.session?.access_token;
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
   // --- 1. Recording Logic ---
   const startRecording = async () => {
     try {
@@ -131,8 +138,10 @@ export default function RecordPage() {
     const formData = new FormData();
     formData.append("file", blob);
 
+    const authHeaders = await getAuthHeaders();
     const promise = fetch("/api/ai/transcribe", {
       method: "POST",
+      headers: { ...authHeaders },
       body: formData,
     }).then(async (res) => {
       if (!res.ok) {
@@ -168,9 +177,10 @@ export default function RecordPage() {
     if (!transcribedText.trim()) return;
     setIsProcessing(true);
 
+    const authHeaders = await getAuthHeaders();
     const promise = fetch("/api/ai/enhance", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeaders },
       body: JSON.stringify({ text: transcribedText }),
     }).then(async (res) => {
       if (!res.ok) {
@@ -290,9 +300,10 @@ export default function RecordPage() {
 
         // Trigger AI analysis in background (fire-and-forget)
         if (insertedStory?.id) {
+          const analyzeHeaders = await getAuthHeaders();
           fetch("/api/ai/analyze", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", ...analyzeHeaders },
             body: JSON.stringify({
               storyId: insertedStory.id,
               storyText: transcribedText,

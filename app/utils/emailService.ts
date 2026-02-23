@@ -1,9 +1,18 @@
+import { supabaseClient } from "./supabase/supabaseClient";
+
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const { data } = await supabaseClient!.auth.getSession();
+  const token = data?.session?.access_token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export const emailService = {
   sendWelcomeEmail: async (email: string, username: string) => {
     try {
+      const authHeaders = await getAuthHeaders();
       const response = await fetch("/api/email/send", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({
           type: "welcome",
           email,

@@ -265,9 +265,14 @@ export default function StoryPage({
         setIsSyncing(true);
         toast.loading("Verifying payment...", { id: "sync-toast" });
         try {
-          const res = await fetch("/api/sync/verify-tx", {
+          const { data: sessionData } = await supabaseClient!.auth.getSession();
+          const token = sessionData?.session?.access_token;
+          const res = await fetch("/api/sync/verify_tx", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
             body: JSON.stringify({
               txHash: payHash,
               userWallet: address,
@@ -424,9 +429,14 @@ export default function StoryPage({
     setAuthorFollowers(prevState ? Math.max(0, prevCount - 1) : prevCount + 1);
 
     try {
+      const { data: sessionData } = await supabaseClient!.auth.getSession();
+      const followToken = sessionData?.session?.access_token;
       const res = await fetch("/api/social/follow", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(followToken ? { Authorization: `Bearer ${followToken}` } : {}),
+        },
         body: JSON.stringify({
           follower_wallet: address,
           followed_wallet: story.author.wallet_address,
