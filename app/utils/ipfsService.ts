@@ -21,9 +21,14 @@ export class IPFSService {
    * Uploads JSON metadata (for NFTs/Books) to IPFS via our API route.
    */
   private async getAuthHeaders(): Promise<Record<string, string>> {
-    const { data } = await supabaseClient!.auth.getSession();
-    const token = data?.session?.access_token;
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    try {
+      if (!supabaseClient) return {};
+      const { data } = await supabaseClient.auth.getSession();
+      const token = data?.session?.access_token;
+      return token ? { Authorization: `Bearer ${token}` } : {};
+    } catch {
+      return {};
+    }
   }
 
   async uploadMetadata(data: any): Promise<IPFSUploadResult> {

@@ -107,8 +107,11 @@ export function StoryInsights({ storyId, storyText }: StoryInsightsProps) {
       setIsAnalyzing(true);
       setFetchError(null);
 
-      const { data: sessionData } = await supabaseClient!.auth.getSession();
-      const token = sessionData?.session?.access_token;
+      let token: string | undefined;
+      try {
+        const { data: sessionData } = await supabaseClient!.auth.getSession();
+        token = sessionData?.session?.access_token;
+      } catch { /* no session available */ }
       const res = await fetch("/api/ai/analyze", {
         method: "POST",
         headers: {

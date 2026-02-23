@@ -130,9 +130,14 @@ export default function LibraryPage() {
 
   // Helper to get auth token for API calls
   const getAuthHeaders = async (): Promise<Record<string, string>> => {
-    const { data } = await supabase!.auth.getSession();
-    const token = data?.session?.access_token;
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    try {
+      if (!supabase) return {};
+      const { data } = await supabase.auth.getSession();
+      const token = data?.session?.access_token;
+      return token ? { Authorization: `Bearer ${token}` } : {};
+    } catch {
+      return {};
+    }
   };
 
   // --- 1. Fetch Data ---
@@ -141,16 +146,29 @@ export default function LibraryPage() {
     setIsLoading(true);
 
     try {
-      // Fetch Stories via API route (bypasses RLS, ensures own private stories show)
-      const authHeaders = await getAuthHeaders();
-      const storiesRes = await fetch("/api/stories", {
-        headers: { ...authHeaders },
-      });
-
+      // Fetch Stories — try API route first (bypasses RLS), fallback to direct query
       let storiesData: any[] = [];
-      if (storiesRes.ok) {
-        const json = await storiesRes.json();
-        storiesData = json.stories || [];
+      try {
+        const authHeaders = await getAuthHeaders();
+        const storiesRes = await fetch("/api/stories", {
+          headers: { ...authHeaders },
+        });
+        if (storiesRes.ok) {
+          const json = await storiesRes.json();
+          storiesData = json.stories || [];
+        }
+      } catch {
+        // API route failed — ignore, try fallback below
+      }
+
+      // Fallback: direct Supabase query (works if RLS session matches)
+      if (storiesData.length === 0) {
+        const { data: directData } = await supabase
+          .from("stories")
+          .select("*")
+          .eq("author_id", authInfo.id)
+          .order("story_date", { ascending: false });
+        storiesData = directData || [];
       }
 
       // Fetch Books (keep direct Supabase — books don't have RLS issues)

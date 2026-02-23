@@ -78,9 +78,14 @@ export default function RecordPage() {
 
   // Helper to get auth token for API calls
   const getAuthHeaders = async (): Promise<Record<string, string>> => {
-    const { data } = await supabase!.auth.getSession();
-    const token = data?.session?.access_token;
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    try {
+      if (!supabase) return {};
+      const { data } = await supabase.auth.getSession();
+      const token = data?.session?.access_token;
+      return token ? { Authorization: `Bearer ${token}` } : {};
+    } catch {
+      return {};
+    }
   };
 
   // --- 1. Recording Logic ---
@@ -137,41 +142,46 @@ export default function RecordPage() {
   // --- 2. AI Transcription ---
   const handleTranscribe = async (blob: Blob) => {
     setIsProcessing(true);
-    const formData = new FormData();
-    formData.append("file", blob);
+    try {
+      const formData = new FormData();
+      formData.append("file", blob);
 
-    const authHeaders = await getAuthHeaders();
-    const promise = fetch("/api/ai/transcribe", {
-      method: "POST",
-      headers: { ...authHeaders },
-      body: formData,
-    }).then(async (res) => {
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Transcription failed");
-      }
-      const data = await res.json();
-      return data.text;
-    });
-
-    toast.promise(promise, {
-      loading: "AI is transcribing...",
-      success: (text) => {
-        setTranscribedText((prev) => (prev ? prev + " " + text : text));
-        // Use the selected date for the default title
-        if (!entryTitle) {
-          const dateObj = new Date(storyDate);
-          setEntryTitle(`Journal Entry - ${dateObj.toLocaleDateString()}`);
+      const authHeaders = await getAuthHeaders();
+      const promise = fetch("/api/ai/transcribe", {
+        method: "POST",
+        headers: { ...authHeaders },
+        body: formData,
+      }).then(async (res) => {
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || "Transcription failed");
         }
-        setIsProcessing(false);
-        return "Transcription complete!";
-      },
-      error: (err) => {
-        setIsProcessing(false);
-        console.error(err);
-        return "Failed to transcribe audio.";
-      },
-    });
+        const data = await res.json();
+        return data.text;
+      });
+
+      toast.promise(promise, {
+        loading: "AI is transcribing...",
+        success: (text) => {
+          setTranscribedText((prev) => (prev ? prev + " " + text : text));
+          if (!entryTitle) {
+            const dateObj = new Date(storyDate);
+            setEntryTitle(`Journal Entry - ${dateObj.toLocaleDateString()}`);
+          }
+          setIsProcessing(false);
+          return "Transcription complete!";
+        },
+        error: (err) => {
+          setIsProcessing(false);
+          console.error(err);
+          return "Failed to transcribe audio.";
+        },
+      });
+    } catch (err) {
+      setIsProcessing(false);
+      console.error("Transcription setup error:", err);
+      toast.error("Failed to start transcription.");
+    }
   };
 
   // --- 3. AI Enhancement ---
@@ -180,33 +190,40 @@ export default function RecordPage() {
     setIsProcessing(true);
     setPreEnhanceText(transcribedText); // Save original for revert
 
-    const authHeaders = await getAuthHeaders();
-    const promise = fetch("/api/ai/enhance", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...authHeaders },
-      body: JSON.stringify({ text: transcribedText }),
-    }).then(async (res) => {
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Enhancement failed");
-      }
-      const data = await res.json();
-      return data.text;
-    });
+    try {
+      const authHeaders = await getAuthHeaders();
+      const promise = fetch("/api/ai/enhance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        body: JSON.stringify({ text: transcribedText }),
+      }).then(async (res) => {
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || "Enhancement failed");
+        }
+        const data = await res.json();
+        return data.text;
+      });
 
-    toast.promise(promise, {
-      loading: "Polishing story...",
-      success: (enhanced) => {
-        setTranscribedText(enhanced);
-        setIsProcessing(false);
-        return "Story enhanced! You can revert if you prefer the original.";
-      },
-      error: (err) => {
-        setPreEnhanceText(null); // Clear on failure
-        setIsProcessing(false);
-        return "Failed to enhance text.";
-      },
-    });
+      toast.promise(promise, {
+        loading: "Polishing story...",
+        success: (enhanced) => {
+          setTranscribedText(enhanced);
+          setIsProcessing(false);
+          return "Story enhanced! You can revert if you prefer the original.";
+        },
+        error: (err) => {
+          setPreEnhanceText(null);
+          setIsProcessing(false);
+          return "Failed to enhance text.";
+        },
+      });
+    } catch (err) {
+      setPreEnhanceText(null);
+      setIsProcessing(false);
+      console.error("Enhancement setup error:", err);
+      toast.error("Failed to start enhancement.");
+    }
   };
 
   const revertEnhancement = () => {
