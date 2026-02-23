@@ -1,11 +1,15 @@
 {
-  "name": "i_story_dapp",
+  "name": "e_story_dapp",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3000",
-    "build": "next build",
-    "start": "next start",
+    "dev": "cd mobile && expo start",
+    "android": "cd mobile && expo start --android",
+    "ios": "cd mobile && expo start --ios",
+    "start": "cd mobile && expo start",
+    "web:dev": "next dev -p 8031",
+    "web:build": "next build",
+    "web:start": "next start",
     "lint": "eslint"
   },
   "dependencies": {

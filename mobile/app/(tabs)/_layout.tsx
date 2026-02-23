@@ -1,10 +1,12 @@
-// Tab Layout - Bottom navigation with 5 tabs
+// Tab Layout - Bottom navigation with 6 tabs
+// Order: Home | Record | Tracker | Archive | Community | Profile
 import React from "react";
 import { Tabs } from "expo-router";
-import { View, Text } from "react-native";
+import { View } from "react-native";
 import {
   Home,
   Mic,
+  CalendarCheck,
   Archive,
   Users,
   User,
@@ -58,6 +60,15 @@ export default function TabLayout() {
             >
               <Mic size={size - 4} color="#fff" />
             </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="tracker"
+        options={{
+          title: "Tracker",
+          tabBarIcon: ({ color, size }) => (
+            <CalendarCheck size={size} color={color} />
           ),
         }}
       />

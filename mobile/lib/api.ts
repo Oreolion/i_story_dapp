@@ -98,6 +98,9 @@ export const apiPut = <T>(path: string, body?: Record<string, unknown>) =>
 export const apiDelete = <T>(path: string, body?: Record<string, unknown>) =>
   api<T>(path, { method: "DELETE", body });
 
+export const apiPatch = <T>(path: string, body?: Record<string, unknown>) =>
+  api<T>(path, { method: "PATCH", body });
+
 export const apiUpload = <T>(path: string, formData: FormData) =>
   api<T>(path, { method: "POST", body: formData });
 

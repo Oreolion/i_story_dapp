@@ -226,6 +226,26 @@ export interface OnboardingData {
   email: string;
 }
 
+// === Tracker Types ===
+
+export interface Habit {
+  id: string;
+  user_id: string;
+  title: string;
+  category: string;
+  target_frequency: string;
+  created_at: string;
+}
+
+export interface DailyLog {
+  id?: string;
+  user_id: string;
+  date: string;
+  completed_habit_ids: string[];
+  mood: string;
+  notes: string;
+}
+
 // === Mobile-specific Types ===
 
 export interface PushTokenData {
