@@ -88,7 +88,7 @@ type LibraryItem = StoryEntry | BookEntry;
 
 export default function LibraryPage() {
   const { isConnected } = useApp();
-  const { profile: authInfo } = useAuth();
+  const { profile: authInfo, getAccessToken } = useAuth();
   const supabase = supabaseClient;
   const router = useRouter();
 
@@ -128,46 +128,44 @@ export default function LibraryPage() {
   const [newBookDesc, setNewBookDesc] = useState("");
   const [isSavingBook, setIsSavingBook] = useState(false);
 
-  // Helper to get auth token for API calls
-  const getAuthHeaders = async (): Promise<Record<string, string>> => {
-    try {
-      if (!supabase) return {};
-      const { data } = await supabase.auth.getSession();
-      const token = data?.session?.access_token;
-      return token ? { Authorization: `Bearer ${token}` } : {};
-    } catch {
-      return {};
-    }
-  };
-
   // --- 1. Fetch Data ---
   const fetchData = async () => {
     if (!authInfo?.id || !supabase) return;
     setIsLoading(true);
 
     try {
-      // Fetch Stories — try API route first (bypasses RLS), fallback to direct query
+      // Fetch Stories via auth-protected API route (bypasses RLS via admin client)
       let storiesData: any[] = [];
-      try {
-        const authHeaders = await getAuthHeaders();
-        const storiesRes = await fetch("/api/stories", {
-          headers: { ...authHeaders },
-        });
-        if (storiesRes.ok) {
-          const json = await storiesRes.json();
-          storiesData = json.stories || [];
+      const token = await getAccessToken();
+
+      if (token) {
+        try {
+          const storiesRes = await fetch("/api/stories", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (storiesRes.ok) {
+            const json = await storiesRes.json();
+            storiesData = json.stories || [];
+          } else {
+            console.error("[LIBRARY] /api/stories returned", storiesRes.status);
+          }
+        } catch (err) {
+          console.error("[LIBRARY] /api/stories fetch error:", err);
         }
-      } catch {
-        // API route failed — ignore, try fallback below
+      } else {
+        console.warn("[LIBRARY] No auth token available — cannot fetch stories via API");
       }
 
       // Fallback: direct Supabase query (works if RLS session matches)
-      if (storiesData.length === 0) {
-        const { data: directData } = await supabase
+      if (storiesData.length === 0 && supabase) {
+        const { data: directData, error: directErr } = await supabase
           .from("stories")
           .select("*")
           .eq("author_id", authInfo.id)
-          .order("story_date", { ascending: false });
+          .order("created_at", { ascending: false });
+        if (directErr) {
+          console.error("[LIBRARY] Direct Supabase fallback error:", directErr);
+        }
         storiesData = directData || [];
       }
 
@@ -295,7 +293,7 @@ export default function LibraryPage() {
 
       // 2. IPFS Upload
       toast.loading("Uploading Metadata...", { id: "book-toast" });
-      const ipfsResult = await ipfsService.uploadMetadata(metadata);
+      const ipfsResult = await ipfsService.uploadMetadata(metadata, await getAccessToken());
       if (!ipfsResult?.hash) throw new Error("IPFS upload failed");
       const tokenURI = `ipfs://${ipfsResult.hash}`;
 

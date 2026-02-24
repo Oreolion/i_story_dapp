@@ -101,11 +101,12 @@ export default function SocialPage() {
   const { payPaywall } = useStoryProtocol();
   const supabase = supabaseClient;
 
-  // Helper to get auth token for API calls
+  // Use centralized auth token from AuthProvider
+  const { getAccessToken } = useAuth();
+
+  // Helper to get auth headers for API calls
   const getAuthHeaders = async (): Promise<Record<string, string>> => {
-    if (!supabase) return { "Content-Type": "application/json" };
-    const { data } = await supabase.auth.getSession();
-    const token = data?.session?.access_token;
+    const token = await getAccessToken();
     return {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),

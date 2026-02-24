@@ -13,6 +13,8 @@ import type { User, Session } from "@supabase/supabase-js";
 import { supabaseClient } from "@/app/utils/supabase/supabaseClient";
 import type { OnboardingData } from "@/app/types";
 
+const WALLET_TOKEN_KEY = "estory_wallet_token";
+
 export interface UnifiedUserProfile {
   id: string;
   name: string | null;
@@ -32,6 +34,8 @@ export interface AuthContextType {
   profile: UnifiedUserProfile | null;
   isLoading: boolean;
   needsOnboarding: boolean;
+  /** Get a valid Bearer token for API calls (Supabase or wallet JWT). */
+  getAccessToken: () => Promise<string | null>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   completeOnboarding: (data: OnboardingData) => Promise<void>;
@@ -42,6 +46,7 @@ const AuthContext = createContext<AuthContextType>({
   profile: null,
   isLoading: true,
   needsOnboarding: false,
+  getAccessToken: async () => null,
   signInWithGoogle: async () => {},
   signOut: async () => {},
   completeOnboarding: async () => {},
@@ -89,7 +94,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setNeedsOnboarding(!p.is_onboarded);
   };
 
-  // Handle Google sign-in from OAuth callback
+  // ─── Centralized token accessor ──────────────────────────────────────
+  // All pages/components use this instead of their own getAuthHeaders().
+  // Priority: 1) Supabase session (Google/OAuth) → 2) stored wallet JWT
+  const getAccessToken = useCallback(async (): Promise<string | null> => {
+    // 1. Try Supabase session (Google OAuth users, or returning wallet users
+    //    who still have a valid Supabase session from earlier)
+    try {
+      if (supabase) {
+        const { data } = await supabase.auth.getSession();
+        const token = data?.session?.access_token;
+        if (token) return token;
+      }
+    } catch {
+      // Supabase session unavailable — try wallet JWT
+    }
+
+    // 2. Try stored wallet JWT
+    if (typeof window !== "undefined") {
+      const walletToken = localStorage.getItem(WALLET_TOKEN_KEY);
+      if (walletToken) return walletToken;
+    }
+
+    return null;
+  }, [supabase]);
+
+  // ─── Google OAuth handler ────────────────────────────────────────────
   const handleGoogleSignIn = useCallback(
     async (session: Session) => {
       if (!supabase) return;
@@ -98,15 +128,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       try {
         // PRIORITY 1: Check for secure linking token (wallet user initiated "Link Google")
-        const linkingToken = typeof window !== "undefined"
-          ? sessionStorage.getItem("googleLinkingToken")
-          : null;
-        const linkingUserId = typeof window !== "undefined"
-          ? sessionStorage.getItem("googleLinkingUserId")
-          : null;
+        const linkingToken =
+          typeof window !== "undefined"
+            ? sessionStorage.getItem("googleLinkingToken")
+            : null;
+        const linkingUserId =
+          typeof window !== "undefined"
+            ? sessionStorage.getItem("googleLinkingUserId")
+            : null;
 
         if (linkingToken && linkingUserId) {
-          // Clear tokens immediately to prevent reuse
           sessionStorage.removeItem("googleLinkingToken");
           sessionStorage.removeItem("googleLinkingUserId");
 
@@ -119,7 +150,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 googleId,
                 googleEmail: user.email,
                 googleAvatar: user.user_metadata?.avatar_url,
-                googleName: user.user_metadata?.full_name ?? user.user_metadata?.name,
+                googleName:
+                  user.user_metadata?.full_name ?? user.user_metadata?.name,
                 linkingToken,
               }),
             });
@@ -127,14 +159,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (res.ok) {
               const { user: updated } = await res.json();
               if (updated) {
-                console.log("[AUTH] Google linked successfully via secure token");
+                console.log(
+                  "[AUTH] Google linked successfully via secure token"
+                );
                 setUnifiedProfile(updated, user);
                 return;
               }
             } else {
               const errData = await res.json().catch(() => ({}));
               console.error("[AUTH] Secure link-google failed:", errData);
-              // Fall through to other checks
             }
           } catch (linkErr) {
             console.error("[AUTH] Secure link-google request error:", linkErr);
@@ -167,7 +200,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // PRIORITY 4: Check by email for potential auto-linking (same email)
         const userEmail = user.email;
-        if (userEmail && !userEmail.endsWith("@wallet.local")) {
+        if (userEmail) {
           const { data: emailMatch } = await supabase
             .from("users")
             .select("*")
@@ -175,17 +208,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .maybeSingle();
 
           if (emailMatch && !emailMatch.google_id) {
-            // Email matches but no Google linked yet - this is a legitimate
-            // auto-link scenario (user signed up with same email)
-            // Note: This path doesn't require linkingToken because the email match
-            // proves account ownership (user controls both the wallet and the email)
-            console.log("[AUTH] Auto-linking by email match (same email proves ownership)");
+            console.log(
+              "[AUTH] Auto-linking by email match (same email proves ownership)"
+            );
             const { data: updated, error: updateErr } = await supabase
               .from("users")
               .update({
                 google_id: googleId,
                 auth_provider: emailMatch.wallet_address ? "both" : "google",
-                avatar: emailMatch.avatar || user.user_metadata?.avatar_url || null,
+                avatar:
+                  emailMatch.avatar ||
+                  user.user_metadata?.avatar_url ||
+                  null,
               })
               .eq("id", emailMatch.id)
               .select()
@@ -229,7 +263,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (created) {
           setUnifiedProfile(created, user);
         } else {
-          // User already existed (ignoreDuplicates) — fetch existing
           const { data: existingFetch } = await supabase
             .from("users")
             .select("*")
@@ -249,7 +282,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [supabase, address, isConnected, ethBalance]
   );
 
-  // Effect: Session hydration on mount
+  // ─── Session hydration on mount ──────────────────────────────────────
   useEffect(() => {
     if (!supabase) {
       setIsLoading(false);
@@ -276,7 +309,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [supabase]);
 
-  // Effect: Auth state change listener
+  // ─── Auth state change listener ──────────────────────────────────────
   useEffect(() => {
     if (!supabase) return;
     const {
@@ -290,7 +323,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
       if (event === "SIGNED_OUT") {
-        // Only clear profile if no wallet connected
         if (!isConnected) {
           setProfile(null);
           setNeedsOnboarding(false);
@@ -304,6 +336,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [supabase, isConnected, handleGoogleSignIn]);
 
+  // ─── Supabase session handler (Google/OAuth) ─────────────────────────
   const handleSession = async (session: Session | null) => {
     if (!supabase) return;
     if (!session?.user) {
@@ -318,7 +351,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const walletLower = sessionWalletAddress?.toLowerCase?.() ?? null;
 
     try {
-      // Multi-step lookup to handle various account states
       let userProfile = null;
 
       // Step 1: Try lookup by Supabase auth id
@@ -328,7 +360,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .eq("id", session.user.id)
         .maybeSingle();
 
-      if (idErr) console.error("[AUTH] fetch profile by id error:", idErr);
+      if (idErr)
+        console.error("[AUTH] fetch profile by id error:", idErr);
 
       if (byId) {
         userProfile = byId;
@@ -340,21 +373,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .eq("wallet_address", walletLower)
           .maybeSingle();
 
-        if (walletErr) console.error("[AUTH] fetch profile by wallet error:", walletErr);
+        if (walletErr)
+          console.error("[AUTH] fetch profile by wallet error:", walletErr);
         if (byWallet) userProfile = byWallet;
       }
 
-      // Step 3: If still not found and this is a Google session, try by google_id
-      // (handles case where wallet user linked Google - their row ID differs from Google auth ID)
+      // Step 3: Google session, try by google_id
       if (!userProfile && session.user.app_metadata?.provider === "google") {
-        const googleId = session.user.identities?.[0]?.id ?? session.user.id;
+        const googleId =
+          session.user.identities?.[0]?.id ?? session.user.id;
         const { data: byGoogleId, error: googleErr } = await supabase
           .from("users")
           .select("*")
           .eq("google_id", googleId)
           .maybeSingle();
 
-        if (googleErr) console.error("[AUTH] fetch profile by google_id error:", googleErr);
+        if (googleErr)
+          console.error("[AUTH] fetch profile by google_id error:", googleErr);
         if (byGoogleId) userProfile = byGoogleId;
       }
 
@@ -375,8 +410,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const insertPayload = {
         id: session.user.id,
         wallet_address: walletLower,
-        name:
-          session.user.user_metadata?.name ?? null,
+        name: session.user.user_metadata?.name ?? null,
         email: session.user.email ?? null,
         avatar: session.user.user_metadata?.avatar_url ?? null,
         auth_provider: "wallet" as const,
@@ -391,17 +425,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (insertError) {
         if (insertError.code === "23505") {
-          // Race condition: row was created between our lookup and insert
-          // Use two-step lookup to avoid PGRST116
           let existing = null;
-          const { data: byId } = await supabase
+          const { data: byIdRetry } = await supabase
             .from("users")
             .select("*")
             .eq("id", session.user.id)
             .maybeSingle();
-
-          if (byId) {
-            existing = byId;
+          if (byIdRetry) {
+            existing = byIdRetry;
           } else if (walletLower) {
             const { data: byWallet } = await supabase
               .from("users")
@@ -410,11 +441,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               .maybeSingle();
             existing = byWallet;
           }
-
           if (existing) {
             setUnifiedProfile(existing, session.user);
           } else {
-            console.error("[AUTH] 23505 conflict but couldn't find existing user");
+            console.error(
+              "[AUTH] 23505 conflict but couldn't find existing user"
+            );
             setProfile(null);
           }
         } else {
@@ -427,7 +459,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else if (inserted) {
         setUnifiedProfile(inserted, session.user);
       } else {
-        // upsert with ignoreDuplicates returns null for existing rows — fetch it
         const { data: existing } = await supabase
           .from("users")
           .select("*")
@@ -445,55 +476,78 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Wallet connection effect — hydrate without MetaMask popup for returning users
+  // ─── Wallet connection effect ────────────────────────────────────────
+  // For returning users with a stored wallet JWT, hydrate profile immediately.
+  // For new users (or expired JWT), trigger the signature flow.
   useEffect(() => {
-    if (!supabase) return;
     if (!isConnected || !address) return;
     if (signInAttemptRef.current) return;
     if (profile) return;
 
     const run = async () => {
       try {
-        const { data: existing, error } = await supabase
-          .from("users")
-          .select("*")
-          .eq("wallet_address", address.toLowerCase())
-          .maybeSingle();
+        // Check for stored wallet JWT first (returning wallet user)
+        const storedToken =
+          typeof window !== "undefined"
+            ? localStorage.getItem(WALLET_TOKEN_KEY)
+            : null;
 
-        if (error) {
-          console.error("[AUTH] lookup by wallet_address error:", error);
-        }
+        if (storedToken && supabase) {
+          // Validate that the user still exists
+          const { data: existing } = await supabase
+            .from("users")
+            .select("*")
+            .eq("wallet_address", address.toLowerCase())
+            .maybeSingle();
 
-        if (existing) {
-          // Check if current Supabase session matches this user row.
-          // A mismatch (e.g. stale Google session) causes 403 on API calls.
-          const {
-            data: { session: currentSession },
-          } = await supabase.auth.getSession();
+          if (existing) {
+            // Try getting Supabase session for Google-linked users
+            const {
+              data: { session: currentSession },
+            } = await supabase.auth.getSession();
 
-          if (currentSession?.user?.id === existing.id && currentSession) {
-            // Session matches — safe to use without re-auth
-            setUnifiedProfile(existing, currentSession.user);
+            setUnifiedProfile(existing, currentSession?.user ?? null);
             return;
           }
-
-          // Session doesn't match or doesn't exist — need wallet sign-in
-          // to create a matching session. Clear stale session first.
-          if (currentSession) {
-            console.log(
-              "[AUTH] Session/profile mismatch, clearing stale session for wallet re-auth"
-            );
-            await supabase.auth.signOut();
-          }
-          // Fall through to signature flow below
+          // Token exists but user not found — clear stale token
+          localStorage.removeItem(WALLET_TOKEN_KEY);
         }
 
-        // No matching session or no existing user → MetaMask signature flow
+        // Check if there's a Supabase session that matches this wallet
+        if (supabase) {
+          const { data: existing } = await supabase
+            .from("users")
+            .select("*")
+            .eq("wallet_address", address.toLowerCase())
+            .maybeSingle();
+
+          if (existing) {
+            const {
+              data: { session: currentSession },
+            } = await supabase.auth.getSession();
+
+            if (currentSession?.user?.id === existing.id && currentSession) {
+              setUnifiedProfile(existing, currentSession.user);
+              return;
+            }
+
+            // Session doesn't match — clear stale session
+            if (currentSession) {
+              console.log(
+                "[AUTH] Session/profile mismatch, clearing stale session"
+              );
+              await supabase.auth.signOut();
+            }
+          }
+        }
+
+        // No stored token or session → MetaMask signature flow
         signInAttemptRef.current = true;
 
         try {
-          // Fetch server-generated nonce for replay prevention
-          const nonceRes = await fetch(`/api/auth/nonce?address=${address}`);
+          const nonceRes = await fetch(
+            `/api/auth/nonce?address=${address}`
+          );
           if (!nonceRes.ok) {
             throw new Error("Failed to get nonce");
           }
@@ -516,27 +570,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const json = await res.json();
           const userRow = json.user;
 
-          // Create a Supabase client session from the server-generated token
-          if (json.session_token && json.session_email) {
-            try {
-              const { error: otpErr } = await supabase.auth.verifyOtp({
-                email: json.session_email,
-                token: json.session_token,
-                type: "email",
-              });
-              if (otpErr) {
-                console.error("[AUTH] Session creation failed:", otpErr);
-              }
-            } catch (e) {
-              console.error("[AUTH] verifyOtp error:", e);
-            }
+          // Store the wallet JWT for API calls
+          if (json.wallet_token) {
+            localStorage.setItem(WALLET_TOKEN_KEY, json.wallet_token);
           }
 
           if (userRow) {
-            const {
-              data: { session: newSession },
-            } = await supabase.auth.getSession();
-            setUnifiedProfile(userRow, newSession?.user ?? null);
+            setUnifiedProfile(userRow, null);
           }
         } catch (err: any) {
           if (err.code !== "ACTION_REJECTED") {
@@ -555,7 +595,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     run();
   }, [supabase, isConnected, address, profile, signMessageAsync]);
 
-  // Public API functions
+  // ─── Public API ──────────────────────────────────────────────────────
   const signInWithGoogle = useCallback(async () => {
     if (!supabase) return;
     await supabase.auth.signInWithOAuth({
@@ -569,6 +609,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(async () => {
     if (!supabase) return;
     await supabase.auth.signOut();
+    // Clear wallet JWT too
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(WALLET_TOKEN_KEY);
+    }
     setProfile(null);
     setNeedsOnboarding(false);
   }, [supabase]);
@@ -577,9 +621,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (data: OnboardingData) => {
       if (!profile) throw new Error("No profile to onboard");
 
+      const token = await getAccessToken();
       const res = await fetch("/api/auth/onboarding", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ userId: profile.id, ...data }),
       });
 
@@ -591,7 +639,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { user } = await res.json();
       setUnifiedProfile(user, profile.supabaseUser);
     },
-    [profile, address, isConnected, ethBalance]
+    [profile, address, isConnected, ethBalance, getAccessToken]
   );
 
   const refreshProfile = useCallback(async () => {
@@ -610,6 +658,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     profile,
     isLoading,
     needsOnboarding,
+    getAccessToken,
     signInWithGoogle,
     signOut,
     completeOnboarding,

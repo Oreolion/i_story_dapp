@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useBrowserSupabase } from "./useBrowserSupabase";
+import { useAuth } from "@/components/AuthProvider";
 
 interface VerifiedMetrics {
   significance_score: number;
@@ -25,6 +26,7 @@ interface UseVerifiedMetricsResult {
 
 export function useVerifiedMetrics(storyId: string | null): UseVerifiedMetricsResult {
   const supabase = useBrowserSupabase();
+  const { getAccessToken } = useAuth();
   const [metrics, setMetrics] = useState<VerifiedMetrics | null>(null);
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,7 +81,7 @@ export function useVerifiedMetrics(storyId: string | null): UseVerifiedMetricsRe
       // This reads from the contract and caches to Supabase if found
       setIsPending(true);
 
-      const token = (await supabase.auth.getSession())?.data?.session?.access_token;
+      const token = await getAccessToken();
       if (!token) return;
 
       const res = await fetch("/api/cre/check", {

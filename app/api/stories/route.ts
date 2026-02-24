@@ -52,6 +52,9 @@ export async function POST(req: NextRequest) {
       tags,
       mood,
       ipfs_hash,
+      is_public,
+      created_at,
+      story_date,
     } = body ?? {};
 
     // Basic validation
@@ -62,8 +65,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Verify author_id matches authenticated user
-    if (authenticatedUserId !== author_id) {
+    // Resolve JWT user ID → users table ID (wallet users may differ)
+    const resolvedUserId = await resolveUserId(authenticatedUserId);
+
+    // Verify author_id matches authenticated user (use resolved ID)
+    if (resolvedUserId !== author_id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -86,22 +92,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Wallet mismatch" }, { status: 401 });
     }
 
+    const insertData: Record<string, unknown> = {
+      author_id,
+      author_wallet: author_wallet.toLowerCase(),
+      title,
+      content,
+      has_audio: !!has_audio,
+      audio_url: audio_url ?? null,
+      likes: 0,
+      comments_count: 0,
+      shares: 0,
+      tags: tags ?? [],
+      mood: mood ?? "neutral",
+      ipfs_hash: ipfs_hash ?? null,
+      is_public: typeof is_public === "boolean" ? is_public : false,
+    };
+
+    // Optional date fields
+    if (created_at) insertData.created_at = created_at;
+    if (story_date) insertData.story_date = story_date;
+
     const { data: inserted, error: insertError } = await admin
       .from("stories")
-      .insert({
-        author_id,
-        author_wallet: author_wallet.toLowerCase(),
-        title,
-        content,
-        has_audio: !!has_audio,
-        audio_url: audio_url ?? null,
-        likes: 0,
-        comments_count: 0,
-        shares: 0,
-        tags: tags ?? [],
-        mood: mood ?? "neutral",
-        ipfs_hash: ipfs_hash ?? null,
-      })
+      .insert(insertData)
       .select()
       .single();
 

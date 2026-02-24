@@ -67,7 +67,7 @@ export default function StoryPage({
   const router = useRouter();
   const { isConnected } = useApp();
   const { address } = useAccount();
-  const { profile: authInfo } = useAuth();
+  const { profile: authInfo, getAccessToken } = useAuth();
 
   const supabase = supabaseClient;
 
@@ -265,11 +265,7 @@ export default function StoryPage({
         setIsSyncing(true);
         toast.loading("Verifying payment...", { id: "sync-toast" });
         try {
-          let token: string | undefined;
-          try {
-            const { data: sessionData } = await supabaseClient!.auth.getSession();
-            token = sessionData?.session?.access_token;
-          } catch { /* no session */ }
+          const token = await getAccessToken();
           const res = await fetch("/api/sync/verify_tx", {
             method: "POST",
             headers: {
@@ -432,11 +428,7 @@ export default function StoryPage({
     setAuthorFollowers(prevState ? Math.max(0, prevCount - 1) : prevCount + 1);
 
     try {
-      let followToken: string | undefined;
-      try {
-        const { data: sessionData } = await supabaseClient!.auth.getSession();
-        followToken = sessionData?.session?.access_token;
-      } catch { /* no session */ }
+      const followToken = await getAccessToken();
       const res = await fetch("/api/social/follow", {
         method: "POST",
         headers: {

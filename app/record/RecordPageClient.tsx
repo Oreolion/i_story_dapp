@@ -76,16 +76,13 @@ export default function RecordPage() {
 
   const supabase = supabaseClient;
 
-  // Helper to get auth token for API calls
+  // Use centralized auth token from AuthProvider
+  const { getAccessToken } = useAuth();
+
+  // Helper to build auth headers from centralized token
   const getAuthHeaders = async (): Promise<Record<string, string>> => {
-    try {
-      if (!supabase) return {};
-      const { data } = await supabase.auth.getSession();
-      const token = data?.session?.access_token;
-      return token ? { Authorization: `Bearer ${token}` } : {};
-    } catch {
-      return {};
-    }
+    const token = await getAccessToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
   };
 
   // --- 1. Recording Logic ---
@@ -268,19 +265,20 @@ export default function RecordPage() {
       const backdatedStoryDate = new Date(storyDate).toISOString(); // User selected time
 
       try {
-        // A. Upload Audio to Supabase
-        if (audioBlob && supabase) {
-          const fileName = `${userId}/${new Date().getTime()}.webm`; // Unique name
-          const { data: uploadData, error: uploadError } =
-            await supabase.storage
-              .from("story-audio")
-              .upload(fileName, audioBlob, { contentType: "audio/webm" });
-
-          if (!uploadError && uploadData) {
-            const { data: urlData } = supabase.storage
-              .from("story-audio")
-              .getPublicUrl(uploadData.path);
-            audioUrl = urlData.publicUrl;
+        // A. Upload Audio via API route (bypasses RLS, works for wallet & OAuth users)
+        if (audioBlob) {
+          const uploadForm = new FormData();
+          uploadForm.append("file", audioBlob, "recording.webm");
+          uploadForm.append("userId", userId);
+          const uploadHeaders = await getAuthHeaders();
+          const uploadRes = await fetch("/api/audio/upload", {
+            method: "POST",
+            headers: { ...uploadHeaders },
+            body: uploadForm,
+          });
+          if (uploadRes.ok) {
+            const uploadJson = await uploadRes.json();
+            audioUrl = uploadJson.url;
           }
         }
 
@@ -297,11 +295,12 @@ export default function RecordPage() {
           app: "EStory DApp",
         };
 
-        const ipfsResult = await ipfsService.uploadMetadata(ipfsMetadata);
+        const token = await getAccessToken();
+        const ipfsResult = await ipfsService.uploadMetadata(ipfsMetadata, token);
         ipfsHash = ipfsResult.hash;
         console.log("Story pinned to IPFS:", ipfsHash);
 
-        // C. Save to Supabase DB
+        // C. Save to Supabase via API route (bypasses RLS, works for both wallet & OAuth users)
         const storyData = {
           author_id: userId,
           author_wallet: authInfo.wallet_address,
@@ -309,26 +308,27 @@ export default function RecordPage() {
           content: transcribedText,
           has_audio: !!audioBlob && !!audioUrl,
           audio_url: audioUrl,
-          likes: 0,
-          comments_count: 0,
-          shares: 0,
           tags: [],
           mood: "neutral",
           ipfs_hash: ipfsHash,
-          is_public: isPublic, // NEW: Save visibility status
-          created_at: actualCreatedDate, // NEW: Actual system creation time
-          story_date: backdatedStoryDate, // NEW: Explicit backdated field
-          // Fallback: If your legacy code relies on created_at being the story date,
-          // you might need to swap these, but storing BOTH is safest.
+          is_public: isPublic,
+          created_at: actualCreatedDate,
+          story_date: backdatedStoryDate,
         };
 
-        const { data: insertedStory, error: insertError } = await supabase!
-          .from("stories")
-          .insert([storyData])
-          .select("id")
-          .single();
+        const saveHeaders = await getAuthHeaders();
+        const saveRes = await fetch("/api/stories", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...saveHeaders },
+          body: JSON.stringify(storyData),
+        });
 
-        if (insertError) throw insertError;
+        if (!saveRes.ok) {
+          const errBody = await saveRes.json().catch(() => ({}));
+          throw new Error(errBody.error || "Failed to save story");
+        }
+
+        const { story: insertedStory } = await saveRes.json();
 
         // Trigger AI analysis in background (fire-and-forget)
         if (insertedStory?.id) {

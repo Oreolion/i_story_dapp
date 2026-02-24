@@ -1,20 +1,12 @@
-import { supabaseClient } from "./supabase/supabaseClient";
-
-async function getAuthHeaders(): Promise<Record<string, string>> {
-  try {
-    if (!supabaseClient) return {};
-    const { data } = await supabaseClient.auth.getSession();
-    const token = data?.session?.access_token;
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  } catch {
-    return {};
-  }
-}
-
+/**
+ * Email service — token should be obtained from AuthProvider's getAccessToken() by the caller.
+ */
 export const emailService = {
-  sendWelcomeEmail: async (email: string, username: string) => {
+  sendWelcomeEmail: async (email: string, username: string, accessToken?: string | null) => {
     try {
-      const authHeaders = await getAuthHeaders();
+      const authHeaders: Record<string, string> = accessToken
+        ? { Authorization: `Bearer ${accessToken}` }
+        : {};
       const response = await fetch("/api/email/send", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeaders },

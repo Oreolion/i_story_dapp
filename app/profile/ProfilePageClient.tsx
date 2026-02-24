@@ -96,7 +96,7 @@ const getHeatmapColor = (count: number) => {
 export default function ProfilePage() {
   const { user: wagmiUser, isConnected } = useApp();
   const { address } = useAccount();
-  const { profile: authInfo, signInWithGoogle, refreshProfile } = useAuth();
+  const { profile: authInfo, signInWithGoogle, refreshProfile, getAccessToken } = useAuth();
   const supabase = supabaseClient;
   const { signMessageAsync } = useSignMessage();
   const { openConnectModal } = useConnectModal();
@@ -410,7 +410,7 @@ export default function ProfilePage() {
     // Logic: If email is present AND different from what we had (or it's first setup)
     if (formData.email && formData.email !== profileData?.email && preferences.emailNotifications) {
        toast.promise(
-         emailService.sendWelcomeEmail(formData.email, formData.name || "Writer"),
+         emailService.sendWelcomeEmail(formData.email, formData.name || "Writer", await getAccessToken()),
          {
            loading: 'Sending confirmation email...',
            success: 'Profile saved & Email sent!',
@@ -458,7 +458,7 @@ export default function ProfilePage() {
        };
 
        // 2. Upload to IPFS
-       const ipfsResult = await ipfsService.uploadMetadata(metadata);
+       const ipfsResult = await ipfsService.uploadMetadata(metadata, await getAccessToken());
        if(!ipfsResult?.hash) throw new Error("IPFS upload failed");
        
        // 3. Mint

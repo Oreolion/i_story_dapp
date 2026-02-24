@@ -1,5 +1,3 @@
-import { supabaseClient } from "./supabase/supabaseClient";
-
 export interface IPFSUploadResult {
   hash: string;
   url: string;
@@ -18,26 +16,23 @@ export class IPFSService {
   }
 
   /**
-   * Uploads JSON metadata (for NFTs/Books) to IPFS via our API route.
+   * Build auth headers from token.
+   * Token should be obtained from AuthProvider's getAccessToken() by the caller.
    */
-  private async getAuthHeaders(): Promise<Record<string, string>> {
-    try {
-      if (!supabaseClient) return {};
-      const { data } = await supabaseClient.auth.getSession();
-      const token = data?.session?.access_token;
-      return token ? { Authorization: `Bearer ${token}` } : {};
-    } catch {
-      return {};
-    }
+  private buildAuthHeaders(accessToken?: string | null): Record<string, string> {
+    return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
   }
 
-  async uploadMetadata(data: any): Promise<IPFSUploadResult> {
+  /**
+   * Uploads JSON metadata (for NFTs/Books) to IPFS via our API route.
+   */
+  async uploadMetadata(data: any, accessToken?: string | null): Promise<IPFSUploadResult> {
     try {
       const formData = new FormData();
       // Send as stringified JSON
       formData.append("metadata", JSON.stringify(data));
 
-      const authHeaders = await this.getAuthHeaders();
+      const authHeaders = this.buildAuthHeaders(accessToken);
       const response = await fetch("/api/ipfs/upload", {
         method: "POST",
         headers: { ...authHeaders },
@@ -59,12 +54,12 @@ export class IPFSService {
   /**
    * Uploads a physical file (Audio/Image) to IPFS via our API route.
    */
-  async uploadFile(file: Blob): Promise<IPFSUploadResult> {
+  async uploadFile(file: Blob, accessToken?: string | null): Promise<IPFSUploadResult> {
     try {
       const formData = new FormData();
       formData.append("file", file);
 
-      const authHeaders = await this.getAuthHeaders();
+      const authHeaders = this.buildAuthHeaders(accessToken);
       const response = await fetch("/api/ipfs/upload", {
         method: "POST",
         headers: { ...authHeaders },
