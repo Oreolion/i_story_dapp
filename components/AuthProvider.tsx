@@ -479,6 +479,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ─── Wallet connection effect ────────────────────────────────────────
   // For returning users with a stored wallet JWT, hydrate profile immediately.
   // For new users (or expired JWT), trigger the signature flow.
+  // IMPORTANT: Never trigger the MetaMask signature flow when a Google
+  // session exists — the user should use the explicit "Link Wallet" button.
   useEffect(() => {
     if (!isConnected || !address) return;
     if (signInAttemptRef.current) return;
@@ -490,7 +492,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const run = async () => {
       try {
-        // Check for stored wallet JWT first (returning wallet user)
+        const addrLower = address?.toLowerCase?.();
+        if (!addrLower) {
+          console.warn("[AUTH] Wallet address is undefined, skipping");
+          return;
+        }
+
+        // ── Step 0: Check if there's an active Supabase session (Google user).
+        // If so, the Google handler will set the profile — do NOT start
+        // the MetaMask nonce→sign flow.  The user should use the
+        // explicit "Link Wallet" button on the profile page instead.
+        if (supabase) {
+          const {
+            data: { session: existingSession },
+          } = await supabase.auth.getSession();
+
+          if (existingSession?.user) {
+            console.log(
+              "[AUTH] Active Supabase session detected — skipping wallet auto-login. Use 'Link Wallet' to connect."
+            );
+            // Try to load the profile for this Google session user so the
+            // UI doesn't stay in a loading/null state.
+            const { data: sessionUser } = await supabase
+              .from("users")
+              .select("*")
+              .eq("id", existingSession.user.id)
+              .maybeSingle();
+
+            if (sessionUser) {
+              setUnifiedProfile(sessionUser, existingSession.user);
+            }
+            return;
+          }
+        }
+
+        // ── Step 1: Check for stored wallet JWT (returning wallet user)
         const storedToken =
           typeof window !== "undefined"
             ? localStorage.getItem(WALLET_TOKEN_KEY)
@@ -501,56 +537,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const { data: existing } = await supabase
             .from("users")
             .select("*")
-            .eq("wallet_address", address.toLowerCase())
+            .eq("wallet_address", addrLower)
             .maybeSingle();
 
           if (existing) {
-            // Try getting Supabase session for Google-linked users
-            const {
-              data: { session: currentSession },
-            } = await supabase.auth.getSession();
-
-            setUnifiedProfile(existing, currentSession?.user ?? null);
+            setUnifiedProfile(existing, null);
             return;
           }
           // Token exists but user not found — clear stale token
           localStorage.removeItem(WALLET_TOKEN_KEY);
         }
 
-        // Check if there's a Supabase session that matches this wallet
+        // ── Step 2: Check if there's a user row matching this wallet
         if (supabase) {
           const { data: existing } = await supabase
             .from("users")
             .select("*")
-            .eq("wallet_address", address.toLowerCase())
+            .eq("wallet_address", addrLower)
             .maybeSingle();
 
           if (existing) {
-            const {
-              data: { session: currentSession },
-            } = await supabase.auth.getSession();
-
-            if (currentSession?.user?.id === existing.id && currentSession) {
-              setUnifiedProfile(existing, currentSession.user);
-              return;
-            }
-
-            // Session doesn't match — clear stale session
-            if (currentSession) {
-              console.log(
-                "[AUTH] Session/profile mismatch, clearing stale session"
-              );
-              await supabase.auth.signOut();
-            }
+            setUnifiedProfile(existing, null);
+            return;
           }
         }
 
-        // No stored token or session → MetaMask signature flow
+        // ── Step 3: No stored token, no session, no existing user → MetaMask signature flow
         signInAttemptRef.current = true;
 
         try {
           const nonceRes = await fetch(
-            `/api/auth/nonce?address=${address}`
+            `/api/auth/nonce?address=${encodeURIComponent(addrLower)}`
           );
           if (!nonceRes.ok) {
             throw new Error("Failed to get nonce");
@@ -562,7 +579,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const res = await fetch("/api/auth/login", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ address, message, signature }),
+            body: JSON.stringify({ address: addrLower, message, signature }),
           });
 
           if (!res.ok) {

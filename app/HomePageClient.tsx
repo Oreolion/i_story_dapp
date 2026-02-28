@@ -203,7 +203,7 @@ export default function HomePage() {
           <h1 className="heading-display-lg text-4xl md:text-6xl lg:text-7xl leading-[1.1]">
             <span className="text-foreground">Your voice. Your story.</span>
             <br />
-            <span className="text-gradient-cosmic">Actually yours. Forever</span>
+            <span className="text-gradient-cosmic">Actually yours. Forever.</span>
           </h1>
 
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
@@ -511,7 +511,7 @@ export default function HomePage() {
               belong to a company — it should belong to you.We are living
               through one of the most important time in human history, People
               should write more and care more about their stories and
-              histories.&rdquo;
+              histories and how it is written.&rdquo;
             </p>
             <div className="flex items-center gap-3 pt-4 border-t border-[hsl(var(--memory-500)/0.1)]">
               <div className="w-10 h-10 rounded-full bg-[hsl(var(--memory-500)/0.15)] flex items-center justify-center text-[hsl(var(--memory-500))] font-medium text-sm">
