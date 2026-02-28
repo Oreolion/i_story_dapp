@@ -483,6 +483,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!isConnected || !address) return;
     if (signInAttemptRef.current) return;
     if (profile) return;
+    // Wait for session hydration to finish before triggering wallet login.
+    // Otherwise, we race against the Google OAuth session hydration and
+    // may start a nonce flow that the user didn't intend.
+    if (isLoading) return;
 
     const run = async () => {
       try {
@@ -593,7 +597,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     run();
-  }, [supabase, isConnected, address, profile, signMessageAsync]);
+  }, [supabase, isConnected, address, profile, isLoading, signMessageAsync]);
 
   // ─── Public API ──────────────────────────────────────────────────────
   const signInWithGoogle = useCallback(async () => {

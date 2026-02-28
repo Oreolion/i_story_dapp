@@ -149,9 +149,13 @@ export default function ProfilePage() {
     try {
       const message = `Link wallet ${address.toLowerCase()} to eStory account ${authInfo.id}`;
       const signature = await signMessageAsync({ message });
+      const token = await getAccessToken();
       const res = await fetch("/api/auth/link-account", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           userId: authInfo.id,
           walletAddress: address,
