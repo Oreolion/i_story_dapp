@@ -16,6 +16,66 @@
 
 **Storage Bucket:** `story-audio` - Audio file uploads
 
+**Client-Side Database:** `estory-vault` (IndexedDB via Dexie.js) - Encrypted local story storage
+
+## Local Vault — IndexedDB Schema (Dexie.js)
+
+The vault is a client-side encrypted database using Dexie.js (IndexedDB wrapper). It stores stories encrypted with AES-256-GCM, keyed by a user PIN. This is **not** a Supabase table — it lives entirely in the browser.
+
+**Database name:** `estory-vault` (singleton via `getVaultDb()` in `lib/vault/db.ts`)
+
+### `stories` store
+
+Encrypted story records. All text fields are base64-encoded AES-256-GCM ciphertext.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `localId` (PK) | string | UUID, primary key |
+| `userId` | string (indexed) | Owner's user ID |
+| `encrypted_title` | string | Base64 AES-GCM ciphertext |
+| `title_iv` | string | Base64 IV for title |
+| `encrypted_content` | string | Base64 AES-GCM ciphertext |
+| `content_iv` | string | Base64 IV for content |
+| `encrypted_audio` | string? | Base64 encrypted audio blob |
+| `audio_iv` | string? | Base64 IV for audio |
+| `encrypted_metadata` | string? | Base64 encrypted JSON (mood, tags) |
+| `metadata_iv` | string? | Base64 IV for metadata |
+| `checksum` | string | SHA-256 hash of plaintext for integrity |
+| `cloud_id` | string? (indexed) | Cloud story ID after sync |
+| `sync_status` | SyncStatus (indexed) | `"local"` \| `"pending"` \| `"synced"` \| `"error"` |
+| `is_public` | boolean | Whether story is public |
+| `story_date` | string | User-selected story date |
+| `created_at` | string | ISO timestamp |
+| `updated_at` | string (indexed) | ISO timestamp |
+
+### `vaultKeys` store
+
+Per-user vault key material. One record per user.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `userId` (PK) | string | Owner's user ID |
+| `salt` | string | Base64 PBKDF2 salt (16 bytes) |
+| `wrapped_dek` | string | Base64 AES-KW wrapped DEK |
+| `pin_hash` | string | SHA-256 hash of PIN+salt for quick verification |
+| `created_at` | string | ISO timestamp |
+
+### `syncQueue` store
+
+Pending cloud sync operations (future use).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` (PK) | number | Auto-incremented |
+| `storyLocalId` (indexed) | string | References stories.localId |
+| `userId` (indexed) | string | Owner's user ID |
+| `action` | string | `"upload"` \| `"update"` \| `"delete"` |
+| `status` (indexed) | string | `"pending"` \| `"processing"` \| `"failed"` |
+| `retryCount` | number | Retry attempts |
+| `lastAttempt` | string? | ISO timestamp of last attempt |
+| `error` | string? | Last error message |
+| `created_at` | string | ISO timestamp |
+
 ## Waitlist Table
 
 ```sql
@@ -142,6 +202,71 @@ When fixing database constraint errors (409 Conflict, duplicate key), check ALL 
 - `Notification` - Notification object
 
 Constants: `mockStories[]`, `featuredWriters[]`, `moodColors{}`
+
+### Vault Types (`lib/vault/db.ts`, `app/hooks/useLocalStories.ts`)
+
+```typescript
+export type SyncStatus = "local" | "pending" | "synced" | "error";
+
+export interface LocalStoryRecord {
+  localId: string;
+  userId: string;
+  encrypted_title: string;
+  title_iv: string;
+  encrypted_content: string;
+  content_iv: string;
+  encrypted_audio?: string;
+  audio_iv?: string;
+  encrypted_metadata?: string;
+  metadata_iv?: string;
+  checksum: string;
+  cloud_id?: string;
+  sync_status: SyncStatus;
+  is_public: boolean;
+  story_date: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VaultKeyRecord {
+  userId: string;
+  salt: string;
+  wrapped_dek: string;
+  pin_hash: string;
+  created_at: string;
+}
+
+export interface SyncQueueRecord {
+  id?: number;
+  storyLocalId: string;
+  userId: string;
+  action: "upload" | "update" | "delete";
+  status: "pending" | "processing" | "failed";
+  retryCount: number;
+  lastAttempt?: string;
+  error?: string;
+  created_at: string;
+}
+
+// Decrypted story for UI consumption
+export interface DecryptedStory {
+  localId: string;
+  title: string;
+  content: string;
+  metadata?: Record<string, unknown>;
+  cloud_id?: string;
+  sync_status: SyncStatus;
+  is_public: boolean;
+  story_date: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EncryptedPayload {
+  ciphertext: ArrayBuffer;
+  iv: Uint8Array;
+}
+```
 
 ### Planned Types (Phase 1)
 

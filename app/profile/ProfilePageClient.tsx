@@ -14,6 +14,7 @@ import { ipfsService } from "../utils/ipfsService";
 import { useBackgroundMode } from "@/contexts/BackgroundContext";
 import { useSignMessage } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
+import { VaultSettings } from "@/components/vault/VaultSettings";
 
 import {
   Card,
@@ -1019,6 +1020,11 @@ export default function ProfilePage() {
                           </p>
                         </div>
                       )}
+                  </div>
+
+                  {/* Local Vault Section */}
+                  <div className="space-y-4 border-t pt-6 dark:border-gray-700">
+                    <VaultSettings />
                   </div>
 
                   {/* Preferences Section */}

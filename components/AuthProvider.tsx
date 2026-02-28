@@ -613,6 +613,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== "undefined") {
       localStorage.removeItem(WALLET_TOKEN_KEY);
     }
+    // Clear vault DEKs from memory (safe to call even if no vault exists)
+    try {
+      const { clearAllKeys } = await import("@/lib/vault");
+      clearAllKeys();
+    } catch {
+      // Vault module may not be loaded — ignore
+    }
     setProfile(null);
     setNeedsOnboarding(false);
   }, [supabase]);

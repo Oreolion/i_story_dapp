@@ -28,7 +28,7 @@
 | Endpoint | Method | Auth | Description |
 |----------|--------|------|-------------|
 | `/api/journal/save` | POST | Bearer | Save story to `stories` table. Triggers AI analysis in background. Input: `{ title, content, mood, tags, hasAudio }` |
-| `/api/stories` | GET/POST | Bearer | GET: Fetch public stories feed. POST: Create story (verifies author_id matches token). |
+| `/api/stories` | GET/POST | Bearer | GET: Fetch public stories feed. POST: Create story (verifies author_id matches token). Client-side: successful POST also triggers additive vault save (non-blocking) if vault is set up and unlocked. |
 | `/api/stories/[storyId]` | GET | None | Get specific story details |
 
 ## Books — Auth Required

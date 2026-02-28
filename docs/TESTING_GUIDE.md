@@ -7,6 +7,8 @@ Setup file at `__tests__/setup.ts` mocks:
 - `next/navigation` (useRouter, useParams, usePathname)
 - `ResizeObserver` for Radix/shadcn components
 - Supabase client
+- `fake-indexeddb/auto` — IndexedDB polyfill for vault tests
+- `node:crypto` → `globalThis.crypto` — Web Crypto API polyfill for jsdom
 
 ### Test Files
 
@@ -15,8 +17,10 @@ Setup file at `__tests__/setup.ts` mocks:
 | `__tests__/api/analyze.test.ts` | 100% lines | `/api/ai/analyze` endpoint (38 tests) |
 | `__tests__/components/StoryInsights.test.tsx` | Full | StoryInsights component (41 tests) |
 | `__tests__/RecordPage.test.tsx` | Partial | Recording page tests |
+| `__tests__/vault/crypto.test.ts` | Full | Vault crypto primitives (12 tests) |
+| `__tests__/vault/keyManager.test.ts` | Full | Vault key lifecycle (15 tests) |
 
-**Total: 96 tests passing (3 test files)**
+**Total: 123 tests passing (5 test files)**
 
 ```bash
 npx vitest run                                    # Run all tests
@@ -85,6 +89,31 @@ mockSupabaseFrom.mockImplementation((table: string) => {
   if (table === "stories") return { select: mockOwnershipSelect };
   return { upsert: mockSupabaseUpsert };
 });
+```
+
+### Vault / IndexedDB Mock (for tests that import RecordPageClient or vault modules)
+
+```typescript
+// If a test renders RecordPageClient or imports from @/lib/vault,
+// mock the vault module to avoid IndexedDB operations:
+vi.mock("@/lib/vault", () => ({
+  isVaultSetup: vi.fn().mockResolvedValue(false),
+  isVaultUnlocked: vi.fn().mockReturnValue(false),
+  getDEK: vi.fn(),
+  encryptString: vi.fn(),
+  getVaultDb: vi.fn().mockReturnValue({
+    stories: { put: vi.fn(), get: vi.fn(), delete: vi.fn() },
+    vaultKeys: { get: vi.fn(), put: vi.fn(), clear: vi.fn() },
+  }),
+  clearAllKeys: vi.fn(),
+}));
+
+// For vault-specific tests, use the real modules with polyfills
+// (already configured in __tests__/setup.ts):
+//   import 'fake-indexeddb/auto';
+//   globalThis.crypto = node:crypto.webcrypto;
+//
+// Use resetVaultDb() + clearAllKeys() in beforeEach for isolation.
 ```
 
 ### Framer Motion Mock (for component tests)

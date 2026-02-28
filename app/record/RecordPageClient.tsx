@@ -11,6 +11,16 @@ import { supabaseClient } from "../../app/utils/supabase/supabaseClient";
 import { ipfsService } from "../../app/utils/ipfsService";
 import { useBackgroundMode } from "@/contexts/BackgroundContext";
 
+// Vault — local encrypted storage (optional, non-blocking)
+import {
+  isVaultSetup as checkVaultSetup,
+  isVaultUnlocked as checkVaultUnlocked,
+  getDEK,
+  encryptString,
+  getVaultDb,
+  type LocalStoryRecord,
+} from "@/lib/vault";
+
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -329,6 +339,43 @@ export default function RecordPage() {
         }
 
         const { story: insertedStory } = await saveRes.json();
+
+        // Vault save — additive, non-blocking (runs after cloud save succeeds)
+        try {
+          if (userId && await checkVaultSetup(userId) && checkVaultUnlocked(userId)) {
+            const dek = getDEK(userId);
+            const encTitle = await encryptString(entryTitle, dek);
+            const encContent = await encryptString(transcribedText, dek);
+
+            const now = new Date().toISOString();
+            const checksumData = new TextEncoder().encode(entryTitle + transcribedText);
+            const hashBuf = await crypto.subtle.digest("SHA-256", checksumData);
+            const { arrayBufferToBase64 } = await import("@/lib/vault/crypto");
+
+            const record: LocalStoryRecord = {
+              localId: crypto.randomUUID(),
+              userId,
+              encrypted_title: encTitle.ciphertext,
+              title_iv: encTitle.iv,
+              encrypted_content: encContent.ciphertext,
+              content_iv: encContent.iv,
+              checksum: arrayBufferToBase64(hashBuf),
+              cloud_id: insertedStory?.id,
+              sync_status: "synced",
+              is_public: isPublic,
+              story_date: backdatedStoryDate,
+              created_at: now,
+              updated_at: now,
+            };
+
+            const db = getVaultDb();
+            await db.stories.put(record);
+            console.log("[VAULT] Story saved locally with encryption");
+          }
+        } catch (vaultErr) {
+          // Vault failure never blocks cloud save success
+          console.warn("[VAULT] Local save failed (non-blocking):", vaultErr);
+        }
 
         // Trigger AI analysis in background (fire-and-forget)
         if (insertedStory?.id) {

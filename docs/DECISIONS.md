@@ -20,6 +20,15 @@ Need users before we can serve users. Social provides discovery, engagement loop
 ### Why privacy-preserving CRE instead of full on-chain metrics?
 The original CRE integration stored all AI analysis data on-chain: raw scores, themes like "trauma" or "addiction", word count, and the author's wallet address — all permanently public. For a personal journaling app, this causes self-censorship. Users won't write honestly if their emotional inner world is broadcast on a public blockchain. The new `PrivateVerifiedMetrics` contract stores only minimal cryptographic proofs (quality tier, threshold bool, hashes), while full metrics live in Supabase visible only to the author. The blockchain attests that verification happened; it doesn't broadcast what was found. Uses `ConfidentialHTTPClient` for encrypted Gemini API calls inside DON enclaves.
 
+### Why client-side encryption (Web Crypto API) instead of server-side for the local vault?
+The vault encrypts stories on-device using the Web Crypto API (AES-256-GCM, PBKDF2). The PIN never leaves the device. This follows the same privacy-first principle as the CRE rewrite — the server should not have access to unencrypted personal journals unless the user explicitly syncs. Client-side crypto with IndexedDB means stories exist offline and the server can only receive what the user chooses to share. The DEK is held in-memory only while unlocked; locking clears it from the `dekMap`.
+
+### Why Dexie.js for IndexedDB instead of the raw API?
+Dexie provides a Promises-based API and the `dexie-react-hooks` package provides `useLiveQuery` — a reactive query primitive that automatically re-renders components when IndexedDB data changes. This eliminates polling and makes the encrypted story list feel like a reactive Supabase query. The `resetVaultDb()` singleton-reset function makes it testable with `fake-indexeddb`.
+
+### Why dual-write (cloud-first, vault additive) in RecordPageClient?
+Vault save runs after cloud save succeeds and is explicitly non-blocking (wrapped in its own try/catch). Vault failure never surfaces to the user or blocks the cloud save confirmation. This design avoids a failure mode where a crypto error causes a story to silently disappear — the cloud copy is always the authoritative record. The vault save sets `sync_status: "synced"` since the cloud already has the data.
+
 ## References
 
 - **Project Vision:** Research document "The Architecture of Digital Immortality"

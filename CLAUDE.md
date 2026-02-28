@@ -25,6 +25,7 @@ Detailed references are in `docs/` — read them on-demand when needed.
 - **Backend:** Supabase (PostgreSQL + Auth + Storage), Pinata (IPFS)
 - **AI:** ElevenLabs Scribe (speech-to-text), Google Gemini 2.5 Flash (text enhancement + analysis), Claude SDK (thinking agent)
 - **Testing:** Vitest (unit tests), Playwright (E2E tests)
+- **Local Storage:** Dexie.js (IndexedDB), Web Crypto API (AES-256-GCM, PBKDF2, AES-KW)
 - **Email:** Resend
 - **Blockchain:** Base Sepolia (chain ID: 84532)
 
@@ -32,7 +33,7 @@ Detailed references are in `docs/` — read them on-demand when needed.
 
 ### Current Phase
 
-Phase 1.5 Complete (Security Hardening), CRE Integration Complete, SEO Overhaul Complete — Ready for Phase 2 (Patterns & Discovery). See `docs/ROADMAP.md` for details.
+Phase 1.5 Complete (Security Hardening), CRE Integration Complete, SEO Overhaul Complete, Local Vault Complete — Ready for Phase 2 (Patterns & Discovery). See `docs/ROADMAP.md` for details.
 
 ---
 
@@ -106,16 +107,17 @@ i_story_dapp/
 │   │   ├── admin/, ai/, auth/, book/, books/, cron/, email/
 │   │   ├── habits/, ipfs/, journal/, notifications/
 │   │   ├── paywall/, social/, stories/, sync/, tip/, user/
-│   ├── hooks/                    # React hooks
+│   ├── hooks/                    # React hooks (useVault, useLocalStories, useVerifiedMetrics, ...)
 │   ├── types/                    # TypeScript definitions
 │   ├── utils/                    # Utilities (Supabase clients, services)
 │   └── [pages]/                  # books, library, profile, record, social, story, tracker
 │                                   # Each page: server page.tsx (metadata) + *PageClient.tsx (UI)
-├── components/                   # React components (ui/, emails/, Provider, AuthProvider, Nav)
+├── components/                   # React components (ui/, emails/, vault/, Provider, AuthProvider, Nav)
 ├── contracts/                    # Solidity smart contracts + CRE interfaces
 ├── cre/                          # Chainlink CRE workflows (project.yaml, secrets, workflows)
 ├── skills/                       # Claude Code skills (CRE templates + patterns)
-├── lib/                          # Shared libraries (auth, crypto, contracts, wagmi, viem)
+├── lib/                          # Shared libraries (auth, crypto, contracts, wagmi, viem, vault/)
+│   └── vault/                    # Client-side encryption: crypto.ts, db.ts (Dexie), keyManager.ts
 ├── scripts/                      # Hardhat deployment & utility scripts
 ├── middleware.ts                 # API rate limiting
 ├── __tests__/                    # Unit tests (Vitest)
@@ -135,6 +137,9 @@ Layer 3: Input Validation — File size, MIME type, text length limits
 Layer 2: Bearer Token Auth — validateAuthOrReject() via lib/auth.ts
 Layer 1: Rate Limiting — middleware.ts (AI=10/min, Auth=20/min)
 Layer 0: Security Headers — CSP, X-Frame-Options, CORS via next.config
+Client: Local Vault — AES-256-GCM encryption at rest in IndexedDB (lib/vault/)
+        PIN → PBKDF2 (100K iterations) → KEK → AES-KW wraps DEK
+        DEK held in-memory only while unlocked. clearAllKeys() on sign-out.
 ```
 
 **Key Security Files:**
@@ -194,6 +199,8 @@ return NextResponse.json({ error: "Internal server error" }, { status: 500 });
 
 ### Provider Stack (components/Provider.tsx)
 WagmiProvider → QueryClientProvider → RainbowKitProvider → ThemeProvider → AuthProvider → AppContext
+
+AuthProvider sign-out calls `clearAllKeys()` (lib/vault) to wipe DEKs from memory before clearing the session.
 
 ### Smart Contracts (Base Sepolia)
 
@@ -320,6 +327,13 @@ function supabase() {
 1. Create in `app/hooks/`, import ABI from `lib/contracts.ts`
 2. Use Wagmi hooks (useReadContract, useWriteContract)
 
+### Add vault-encrypted storage to a page
+1. Wrap content with `<VaultGuard>` from `components/vault/` (handles locked/not-set-up states)
+2. Use `useLocalStories()` for reactive CRUD — decrypts automatically when vault is unlocked
+3. Import from `@/lib/vault` for direct crypto ops (`getDEK`, `encryptString`, `decryptString`)
+4. Never call `crypto.subtle` directly — always go through `lib/vault/crypto.ts` helpers
+5. Vault ops are browser-only (`window.crypto.subtle`) — never import in API routes or server components
+
 ### Update contracts after deployment
 1. Deploy: `npx hardhat run scripts/deploy.ts --network baseSepolia`
 2. Update `lib/contracts.ts` and `.env.local`
@@ -353,5 +367,6 @@ Create `.env.local` from `.env.example`. Key groups: Supabase, WalletConnect, AI
 
 **Web3:** `useEStoryToken` (balance, approve), `useStoryProtocol` (tipCreator, payPaywall), `useStoryNFT` (mintBook)
 **CRE:** `useVerifiedMetrics` (poll for CRE-attested story metrics)
+**Vault:** `useVault` (setup/unlock/lock/changePin, isSetup, isUnlocked), `useLocalStories` (encrypted CRUD via IndexedDB, reactive via useLiveQuery)
 **Supabase:** `useBrowserSupabase` (client singleton), `useNotifications` (CRUD + real-time polling)
 **Planned:** `useStoryMetadata`, `usePatterns` — see `docs/ROADMAP.md`
