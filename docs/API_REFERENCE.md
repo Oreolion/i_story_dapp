@@ -63,12 +63,19 @@
 
 Notification types: `like`, `comment`, `tip`, `follow`, `book_published`, `story_mentioned`
 
-## CRE Verification (`/api/cre/*`) — Auth Required
+## CRE Verification (`/api/cre/*`)
 
 | Endpoint | Method | Auth | Description |
 |----------|--------|------|-------------|
 | `/api/cre/trigger` | POST | Bearer + ownership | Trigger CRE story verification. Fetches story from DB, validates ownership, sends to CRE workflow. Input: `{ storyId }`. Output: `{ success, workflowRunId }` |
-| `/api/cre/check` | POST | Bearer | Check verification status. Reads from VerifiedMetrics contract on-chain, caches to Supabase. Input: `{ storyId }`. Output: `{ verified, metrics }` |
+| `/api/cre/check` | POST | Bearer | Check verification status. Dual-source: Supabase cache + on-chain fallback. Author gets full metrics + proof; non-author gets proof only (qualityTier, meetsThreshold). Legacy contract fallback for backward compat. Input: `{ storyId }`. Output: `{ verified, isAuthor, metrics?, proof }` |
+| `/api/cre/callback` | POST | X-CRE-Callback-Secret | DON callback receiver. Stores full metrics in Supabase. Idempotent (upsert on story_id). Always returns `{ success: true }` for DON consensus. Rate limit: 30/min. |
+
+## Waitlist — Public
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/waitlist` | POST | None | Pre-launch email capture. Validates email format, upserts to `waitlist` table, sends confirmation email via Resend (best-effort). Rate limit: 10/min per IP. Input: `{ email }`. Output: `{ success: true }` |
 
 ## Infrastructure — Special Auth
 

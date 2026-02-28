@@ -49,11 +49,17 @@ function checkRateLimit(key: string, maxRequests: number): { allowed: boolean; r
 // ============================================================================
 
 function getRateLimit(pathname: string): number {
+  // CRE callback: higher limit (multiple DON nodes call per verification)
+  if (pathname === "/api/cre/callback") return 30;
+
   // AI endpoints: stricter limits (expensive API calls)
   if (pathname.startsWith("/api/ai/")) return 10;
 
   // Auth endpoints: prevent brute force
   if (pathname.startsWith("/api/auth/")) return 20;
+
+  // Public waitlist: prevent abuse (no auth required)
+  if (pathname === "/api/waitlist") return 10;
 
   // Email endpoint: prevent spam
   if (pathname === "/api/email/send") return 5;

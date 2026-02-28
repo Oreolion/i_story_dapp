@@ -1,16 +1,19 @@
 /**
- * CRE AI Analysis — Gemini Flash with HTTPClient consensus
+ * CRE AI Analysis — Gemini Flash with ConfidentialHTTPClient
  *
- * Uses the HTTPClient sugar pattern for node-mode HTTP calls
- * with consensusIdenticalAggregation across CRE DON nodes.
+ * Uses ConfidentialHTTPClient so the Gemini API call (which contains
+ * the user's private story content) runs inside the encrypted enclave.
+ * Story content never leaves the enclave unencrypted.
+ *
+ * API key is injected via Vault DON template syntax, not runtime.getSecret().
  */
 
 import {
-  cre,
-  ok,
+  ConfidentialHTTPClient,
   consensusIdenticalAggregation,
+  ok,
   type Runtime,
-  type HTTPSendRequester,
+  type ConfidentialHTTPSendRequester,
 } from "@chainlink/cre-sdk";
 import type { Config } from "./main";
 
@@ -50,22 +53,22 @@ interface GeminiResult {
 }
 
 /**
- * Analyze story content using Gemini via CRE HTTPClient
+ * Analyze story content using Gemini via CRE ConfidentialHTTPClient.
+ * Story content stays encrypted inside the DON enclave.
  */
 export function askGemini(
   runtime: Runtime<Config>,
   title: string,
   content: string
 ): StoryMetrics {
-  runtime.log("[Gemini] Querying AI for story analysis...");
+  runtime.log("[Gemini] Querying AI for story analysis (confidential)...");
 
-  const geminiApiKey = runtime.getSecret({ id: "GEMINI_API_KEY" }).result();
-  const httpClient = new cre.capabilities.HTTPClient();
+  const confClient = new ConfidentialHTTPClient();
 
-  const result = httpClient
+  const result = confClient
     .sendRequest(
       runtime,
-      buildGeminiRequest(title, content, geminiApiKey.value),
+      buildGeminiRequest(title, content),
       consensusIdenticalAggregation<GeminiResult>()
     )(runtime.config)
     .result();
@@ -77,12 +80,19 @@ export function askGemini(
 }
 
 /**
- * Build the Gemini request function for HTTPClient sugar pattern.
+ * Build the Gemini request function for ConfidentialHTTPClient.
  * Returns a curried function: (sendRequester, config) => GeminiResult
+ *
+ * Key differences from HTTPClient:
+ * - Uses ConfidentialHTTPSendRequester instead of HTTPSendRequester
+ * - API key via Vault DON template: {{.geminiApiKey}}
+ * - multiHeaders instead of headers
+ * - vaultDonSecrets to reference Vault DON secrets
+ * - Request body (story content) encrypted inside enclave
  */
 const buildGeminiRequest =
-  (title: string, content: string, apiKey: string) =>
-  (sendRequester: HTTPSendRequester, config: Config): GeminiResult => {
+  (title: string, content: string) =>
+  (sendRequester: ConfidentialHTTPSendRequester, config: Config): GeminiResult => {
     const userPrompt = `Title: "${title}"
 
 Content:
@@ -107,17 +117,19 @@ ${content}
 
     const resp = sendRequester
       .sendRequest({
-        url: `https://generativelanguage.googleapis.com/v1beta/models/${config.geminiModel}:generateContent`,
-        method: "POST" as const,
-        body,
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey,
+        request: {
+          url: `https://generativelanguage.googleapis.com/v1beta/models/${config.geminiModel}:generateContent`,
+          method: "POST" as const,
+          body,
+          multiHeaders: {
+            "Content-Type": { values: ["application/json"] },
+            "x-goog-api-key": { values: ["{{.geminiApiKey}}"] },
+          },
         },
-        cacheSettings: {
-          store: true,
-          maxAge: "60s",
-        },
+        vaultDonSecrets: [
+          { key: "geminiApiKey", owner: config.owner },
+        ],
+        // encryptOutput not used — we need to parse the response in-workflow
       })
       .result();
 

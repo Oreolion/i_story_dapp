@@ -202,44 +202,54 @@ WagmiProvider → QueryClientProvider → RainbowKitProvider → ThemeProvider �
 | **eStoryToken** | `0xf9eDD76B...` | ERC20 $STORY token, MAX_SUPPLY 100M |
 | **StoryProtocol** | `0xA51a4cA0...` | Tips & paywall |
 | **StoryNFT** | `0x6D37ebc5...` | ERC721 story books, mintFee 0.001 ETH |
-| **VerifiedMetrics** | `0x052B52A4...` | CRE-attested story metrics (ReceiverTemplate) |
+| **PrivateVerifiedMetrics** | `0x158e08BC...` | Privacy-preserving CRE metrics (minimal on-chain proofs) |
+| **VerifiedMetrics (legacy)** | `0x052B52A4...` | Old CRE metrics contract (full data on-chain, backward compat) |
 
 - Addresses in `lib/contracts.ts`
 - VerifiedMetrics uses Chainlink KeystoneForwarder (`0x82300bd7...`) for CRE report delivery
 
-### Chainlink CRE Integration
+### Chainlink CRE Integration (Privacy-Preserving)
 
-CRE (Compute Runtime Environment) provides verifiable AI analysis with on-chain attestation.
+CRE (Compute Runtime Environment) provides verifiable AI analysis with privacy-preserving on-chain attestation.
 
-**Architecture:**
+**Architecture (Dual-Write):**
 ```
-POST /api/cre/trigger → CRE Workflow (Chainlink DON)
+POST /api/cre/trigger → CRE Workflow (Chainlink DON, ConfidentialHTTPClient)
                               ↓
-                         Gemini AI Analysis + DON Consensus
+                    Gemini AI Analysis (encrypted enclave) + DON Consensus
                               ↓
-                         Signed Report → KeystoneForwarder → VerifiedMetrics.onReport()
+              ┌───────────────┴───────────────┐
+              ↓                               ↓
+  [On-Chain] KeystoneForwarder         [Off-Chain] /api/cre/callback
+  → PrivateVerifiedMetrics.sol         → Supabase (full metrics, author-only)
+  (tier, threshold, hashes only)       (scores, themes, word count)
+              ↓                               ↓
+              └───────────────┬───────────────┘
                               ↓
-POST /api/cre/check ← Read from contract ← useVerifiedMetrics hook (polls)
+POST /api/cre/check (author-based filtering) ← useVerifiedMetrics hook
+  Author: full metrics + proof | Public: proof only (tier, threshold)
 ```
 
 **Key files:**
 | File | Purpose |
 |------|---------|
-| `cre/eStory_workflow/main.ts` | Workflow entry: HTTPCapability + Runner |
-| `cre/eStory_workflow/gemini.ts` | Gemini AI via HTTPClient consensus |
-| `cre/eStory_workflow/httpCallback.ts` | Handler: parse → analyze → encode → sign → write |
-| `contracts/VerifiedMetrics.sol` | ReceiverTemplate receiver, decodes CRE reports |
+| `cre/iStory_workflow/main.ts` | Workflow entry: HTTPCapability + Runner |
+| `cre/iStory_workflow/gemini.ts` | Gemini AI via ConfidentialHTTPClient |
+| `cre/iStory_workflow/httpCallback.ts` | 8-step handler with privacy fields + callback |
+| `contracts/PrivateVerifiedMetrics.sol` | Privacy-preserving on-chain storage |
+| `contracts/legacy/VerifiedMetrics.sol` | Old contract (backward compat) |
 | `contracts/interfaces/` | IERC165, IReceiver, ReceiverTemplate |
 | `app/api/cre/trigger/route.ts` | Triggers CRE workflow |
-| `app/api/cre/check/route.ts` | Reads verified metrics from contract |
-| `app/hooks/useVerifiedMetrics.ts` | Frontend polling hook |
+| `app/api/cre/callback/route.ts` | Receives full metrics from DON nodes |
+| `app/api/cre/check/route.ts` | Author-filtered metrics reading |
+| `app/hooks/useVerifiedMetrics.ts` | Frontend hook (metrics + proof) |
 | `skills/cre/SKILL.md` | CRE SDK patterns reference |
 
 **CRE Commands (run from `cre/` directory):**
 ```bash
-cre workflow simulate eStory_workflow              # Local test
-cre workflow simulate eStory_workflow --broadcast  # Test with on-chain write
-cre workflow deploy eStory_workflow                # Deploy (requires early access)
+cre workflow simulate iStory_workflow              # Local test
+cre workflow simulate iStory_workflow --broadcast  # Test with on-chain write
+cre workflow deploy iStory_workflow                # Deploy (requires early access)
 ```
 
 **CRITICAL SDK patterns** — see `skills/cre/SKILL.md` for correct vs wrong patterns.

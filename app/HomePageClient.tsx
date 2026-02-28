@@ -1,216 +1,361 @@
-'use client';
+"use client";
 
-import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { useApp } from '../components/Provider';
-import { useConnectModal } from '@rainbow-me/rainbowkit';
-import { Button } from '../components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import { useApp } from "../components/Provider";
+import { Button } from "../components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
 import {
   Mic,
   BookOpen,
   Users,
-  Coins,
-  TrendingUp,
-  Award,
-  Shield,
-  Globe,
   Brain,
   Quote,
   ArrowRight,
-  Sparkles
-} from 'lucide-react';
+  Lock,
+  ShieldCheck,
+//   Eye,
+  EyeOff,
+//   Waves,
+  Fingerprint,
+  BotOff,
+  ServerOff,
+  Heart,
+  Mail,
+  Check,
+  Lightbulb,
+} from "lucide-react";
 
-const CONTRACTS = {
-  NFT: "0xF61E9D022Df3835FdFbDD97069F293a39783635B",
-};
-
-// Features - simplified, no individual gradients
+// ============================================================
+// FEATURES — reframed as human benefits, not tech specs
+// ============================================================
 const features = [
   {
     icon: Mic,
-    title: 'Voice Capture',
-    description: 'Record your stories naturally with advanced AI transcription supporting multiple languages.',
-  },
-  {
-    icon: Shield,
-    title: 'Blockchain Permanence',
-    description: 'Store entries on-chain for permanent, secure ownership that outlasts any platform.',
-  },
-  {
-    icon: BookOpen,
-    title: 'Digital Books',
-    description: 'Compile your entries into beautiful digital books and mint them as collectible NFTs.',
-  },
-  {
-    icon: Coins,
-    title: 'Earn Rewards',
-    description: 'Get $STORY tokens based on likes and community engagement with your stories.',
-  },
-  {
-    icon: Users,
-    title: 'Community',
-    description: 'Share public stories, follow other journalers, and build your storytelling reputation.',
+    title: "Just talk",
+    description:
+      "Hit record and speak. About your day, a realization, a memory. AI transcribes perfectly. No typing required.",
   },
   {
     icon: Brain,
-    title: 'Cognitive Insights',
-    description: 'AI reveals patterns, emotions, and life themes across your stories over time.',
+    title: "See your patterns",
+    description:
+      "AI finds the themes, emotions, and arcs across your entries. The patterns in your life you couldn't see alone.",
+  },
+  {
+    icon: Lock,
+    title: "Yours forever",
+    description:
+      "Your stories are encrypted and stored permanently. No platform shutdown, no acquisition, no server failure can touch them.",
+  },
+  {
+    icon: BookOpen,
+    title: "Curate your story",
+    description:
+      "Compile entries into collections — a year of growth, a chapter of your life. Keep them private or share on your terms.",
+  },
+  {
+    icon: Users,
+    title: "Real stories, real people",
+    description:
+      "Read and share authentic human experiences. No algorithms, no feeds — just a library of real voices.",
+  },
+  {
+    icon: Heart,
+    title: "Your story has value",
+    description:
+      "The community recognizes meaningful stories. Earn recognition for the experiences that resonate.",
   },
 ];
 
-const stats = [
-  { label: 'Stories Created', value: '12.5K', icon: BookOpen },
-  { label: 'Active Users', value: '2.8K', icon: Users },
-  { label: '$STORY Earned', value: '45.2K', icon: Coins },
-  { label: 'Books Minted', value: '892', icon: Award },
+// ============================================================
+// "WHY NOW" — the cultural moment that makes eStory necessary
+// ============================================================
+const whyNowCards = [
+  {
+    icon: BotOff,
+    stat: "74%",
+    statLabel: "of new web content is AI-generated",
+    description:
+      "The internet is flooding with synthetic content. Your authentic voice — the hesitations, the emotion, the unscripted truth — is becoming the rarest signal online.",
+  },
+  {
+    icon: ServerOff,
+    stat: "100%",
+    statLabel: "of journaling apps store your data on their servers",
+    description:
+      "Your most private thoughts live on infrastructure you don't control. If they get acquired, shut down, or breached — your stories go with them.",
+  },
+  {
+    icon: Fingerprint,
+    stat: "51%",
+    statLabel: "of web traffic is now bots",
+    description:
+      "In a world where half the internet isn't even human, your voice, your story — recorded, timestamped, irreplaceably yours — is proof that you were here.",
+  },
+];
+
+// ============================================================
+// HOW IT WORKS — 3 steps, not 4. Simpler.
+// ============================================================
+const steps = [
+  {
+    step: 1,
+    icon: Mic,
+    title: "Talk",
+    description:
+      "Hit record and speak. About your day, a realization, whatever's on your mind. No prompts needed.",
+  },
+  {
+    step: 2,
+    icon: Lightbulb,
+    title: "Understand",
+    description:
+      "AI extracts themes, emotions, and patterns across your entries. See the arcs of your life over time.",
+  },
+  {
+    step: 3,
+    icon: ShieldCheck,
+    title: "Own",
+    description:
+      "Your stories are encrypted and stored permanently. No platform can delete them. No company can sell them. They're yours.",
+  },
 ];
 
 export default function HomePage() {
   const { user, isConnected } = useApp();
-  const { openConnectModal } = useConnectModal();
   const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [waitlistSubmitted, setWaitlistSubmitted] = useState(false);
+  const [waitlistLoading, setWaitlistLoading] = useState(false);
+  const [waitlistError, setWaitlistError] = useState("");
+
+  // Pre-launch: handle waitlist email capture
+  const handleWaitlistSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = email.trim();
+    if (!trimmed) return;
+
+    setWaitlistLoading(true);
+    setWaitlistError("");
+
+    try {
+      const res = await fetch("/api/waitlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmed }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        if (res.status === 400) {
+          setWaitlistError(data?.error || "Please enter a valid email.");
+        } else if (res.status === 429) {
+          setWaitlistError("Too many requests. Please try again later.");
+        } else {
+          setWaitlistError("Something went wrong. Please try again.");
+        }
+        return;
+      }
+
+      setWaitlistSubmitted(true);
+      setEmail("");
+    } catch {
+      setWaitlistError("Network error. Please check your connection.");
+    } finally {
+      setWaitlistLoading(false);
+    }
+  };
 
   return (
-    <div className="space-y-24">
-      {/* Hero Section - Single orchestrated entrance animation */}
+    <div className="space-y-24 md:space-y-32">
+      {/* ============================================================
+          HERO SECTION
+          Job: Stop the scroll. Create emotional resonance. Get the click.
+          ============================================================ */}
       <motion.section
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        className="text-center space-y-8 pt-8 md:pt-16"
+        className="text-center space-y-8 pt-8 md:pt-20"
       >
-        <div className="space-y-6">
-          {/* Subtle badges - no animations, no gradients */}
+        <div className="space-y-6 max-w-3xl mx-auto">
+          {/* Trust signals — benefit-oriented, not tech-oriented */}
           <div className="flex flex-wrap justify-center gap-3">
             <span className="badge-subtle inline-flex items-center gap-2">
-              <Sparkles className="w-3.5 h-3.5" />
-              Powered by AI & Blockchain
+              <Lock className="w-3.5 h-3.5" />
+              Private by default
             </span>
-            <a
-              href={`https://sepolia.basescan.org/address/${CONTRACTS.NFT}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="badge-subtle inline-flex items-center gap-2 hover:border-[hsl(var(--memory-500)/0.3)] transition-colors"
-            >
-              <Shield className="w-3.5 h-3.5" />
-              Verified on Base
-            </a>
+            <span className="badge-subtle inline-flex items-center gap-2">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              Your data, your ownership
+            </span>
           </div>
 
-          {/* Main heading with display font */}
-          <h1 className="heading-display-lg text-4xl md:text-6xl lg:text-7xl">
-            <span className="text-gradient-cosmic">
-              Your Life Stories,
-            </span>
+          {/* Main heading — voice-first, ownership second */}
+          <h1 className="heading-display-lg text-4xl md:text-6xl lg:text-7xl leading-[1.1]">
+            <span className="text-foreground">Your voice. Your story.</span>
             <br />
-            <span className="text-foreground">
-              Immortalized Forever
-            </span>
+            <span className="text-gradient-cosmic">Actually yours. Forever</span>
           </h1>
 
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-            Record your experiences with AI transcription, store them permanently on the blockchain,
-            and discover patterns in your own narrative over time.
+            The voice journal that listens, learns your patterns, and belongs to
+            you — not us, not our servers, not any platform. Just talk.
           </p>
         </div>
 
-        {/* CTA Buttons - ONE gradient button only (primary CTA) */}
+        {/* CTAs — Google OAuth primary, Explore secondary */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
           {isConnected ? (
             <Button
               size="lg"
-              onClick={() => router.push('/record')}
-              className="bg-gradient-to-r from-[hsl(var(--memory-600))] to-[hsl(var(--insight-600))] hover:from-[hsl(var(--memory-500))] hover:to-[hsl(var(--insight-500))] text-white text-lg px-8 h-12"
+              onClick={() => router.push("/record")}
+              className="bg-linear-to-r from-[hsl(var(--memory-600))] to-[hsl(var(--insight-600))] hover:from-[hsl(var(--memory-500))] hover:to-[hsl(var(--insight-500))] text-white text-lg px-8 h-12"
             >
               <Mic className="w-5 h-5 mr-2" />
-              Start Recording
+              Record a Story
             </Button>
           ) : (
             <Button
               size="lg"
-              onClick={() => openConnectModal?.()}
-              className="bg-gradient-to-r from-[hsl(var(--memory-600))] to-[hsl(var(--insight-600))] hover:from-[hsl(var(--memory-500))] hover:to-[hsl(var(--insight-500))] text-white text-lg px-8 h-12"
+              onClick={() => router.push("/api/auth/callback")}
+              className="bg-linear-to-r from-[hsl(var(--memory-600))] to-[hsl(var(--insight-600))] hover:from-[hsl(var(--memory-500))] hover:to-[hsl(var(--insight-500))] text-white text-lg px-8 h-12"
             >
-              Connect Wallet to Start
+              Start Journaling — Free
             </Button>
           )}
 
           <Button
             variant="outline"
             size="lg"
-            onClick={() => router.push('/social')}
+            onClick={() => {
+              document
+                .getElementById("how-it-works")
+                ?.scrollIntoView({ behavior: "smooth" });
+            }}
             className="text-lg px-8 h-12 border-[hsl(var(--memory-500)/0.2)] hover:border-[hsl(var(--memory-500)/0.4)] hover:bg-[hsl(var(--memory-500)/0.05)]"
           >
-            <Globe className="w-5 h-5 mr-2" />
-            Explore Stories
+            See How It Works
           </Button>
         </div>
       </motion.section>
 
-      {/* Stats Section - Static, no staggered animations */}
-      <section>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-          {stats.map((stat, index) => {
-            const Icon = stat.icon;
-            const colors = [
-              'text-[hsl(var(--memory-500))]',
-              'text-[hsl(var(--insight-500))]',
-              'text-[hsl(var(--story-500))]',
-              'text-[hsl(var(--growth-500))]',
-            ][index];
-            return (
-              <Card key={stat.label} className="card-elevated text-center hover-shadow-subtle">
-                <CardContent className="pt-6">
-                  <Icon className={`w-7 h-7 mx-auto mb-2 ${colors}`} />
-                  <div className="text-2xl font-semibold text-foreground">{stat.value}</div>
-                  <div className="text-sm text-muted-foreground">{stat.label}</div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* User Dashboard - Only shown when connected */}
+      {/* ============================================================
+          WELCOME BACK — Only shown when connected (kept from original)
+          ============================================================ */}
       {isConnected && user && (
         <section>
-          <Card className="card-canonical border-[hsl(var(--story-500)/0.3)]">
+          <Card className="card-canonical border-[hsl(var(--story-500)/0.3)] overflow-hidden">
             <CardHeader>
               <div className="flex items-center justify-between flex-wrap gap-4">
-                <div>
-                  <CardTitle className="heading-section text-2xl text-gradient-story">Welcome back</CardTitle>
-                  <CardDescription>Ready to capture your next story?</CardDescription>
+                <div className="flex items-center gap-4">
+                  <motion.div
+                    initial={{ y: 0 }}
+                    animate={{ y: [0, -6, 0] }}
+                    transition={{ duration: 3, repeat: Infinity }}
+                    className="w-14 h-14 rounded-full bg-linear-to-br from-[hsl(var(--story-500)/0.12)] to-[hsl(var(--memory-500)/0.08)] flex items-center justify-center"
+                  >
+                    <svg
+                      width="40"
+                      height="40"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="opacity-95"
+                    >
+                      <path
+                        d="M2 12c3-6 9-6 14-2 4 3 6 8 6 8"
+                        stroke="currentColor"
+                        strokeWidth="1.2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="text-[hsl(var(--story-500))]"
+                      />
+                      <circle
+                        cx="6"
+                        cy="15"
+                        r="1.5"
+                        fill="currentColor"
+                        className="text-[hsl(var(--memory-500))]"
+                      />
+                    </svg>
+                  </motion.div>
+
+                  <div>
+                    <CardTitle className="heading-section text-2xl text-gradient-story">
+                      Welcome back
+                    </CardTitle>
+                    <CardDescription>
+                      Ready to capture your next story?
+                    </CardDescription>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  {user.badges.map((badge) => (
-                    <Badge key={badge} variant="secondary" className="badge-subtle">
-                      <Award className="w-3 h-3 mr-1" />
-                      {badge}
-                    </Badge>
-                  ))}
+
+                <div className="flex items-center gap-3">
+                  <div className="text-sm text-muted-foreground text-right">
+                    <div className="font-medium text-foreground">
+                      {user.addressDisplay}
+                    </div>
+                    <div>
+                      {user.storyTokens} story tokens • {user.badges.length}{" "}
+                      badges
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardHeader>
+
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="text-center">
-                  <div className="text-3xl font-semibold text-[hsl(var(--growth-500))]">{user.storyTokens}</div>
-                  <div className="text-sm text-muted-foreground">$STORY Tokens</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-semibold text-[hsl(var(--memory-500))]">{user.balance} ETH</div>
-                  <div className="text-sm text-muted-foreground">Wallet Balance</div>
-                </div>
-                <div className="flex items-center justify-center">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                <div className="md:col-span-2 flex flex-col sm:flex-row gap-3">
                   <Button
-                    onClick={() => router.push('/record')}
-                    className="btn-solid-memory"
+                    onClick={() => router.push("/record")}
+                    className="btn-solid-memory flex-1 flex items-center justify-center"
+                    size="lg"
                   >
                     <Mic className="w-4 h-4 mr-2" />
                     Record New Story
                   </Button>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => router.push("/library")}
+                    className="flex-1"
+                    size="lg"
+                  >
+                    <BookOpen className="w-4 h-4 mr-2" />
+                    View Library
+                  </Button>
+                </div>
+
+                <div className="md:col-span-1">
+                  <div className="rounded-lg bg-[hsl(var(--memory-500)/0.03)] p-3 text-sm">
+                    <div className="font-medium text-foreground">
+                      Quick Insights
+                    </div>
+                    <div className="text-muted-foreground text-xs mt-2">
+                      We analyzed your recent entries and found emerging themes
+                      — try recording a reflection.
+                    </div>
+                    <div className="flex items-center gap-2 mt-3">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => router.push("/insights")}
+                      >
+                        <Brain className="w-4 h-4 mr-2" />
+                        View Insights
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -218,14 +363,61 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* Features Grid - Static, typography-led */}
+      {/* ============================================================
+          HOW IT WORKS — 3 steps, clarity over cleverness
+          ============================================================ */}
+      <section id="how-it-works" className="space-y-12 scroll-mt-20">
+        <div className="text-center space-y-4">
+          <h2 className="heading-section text-3xl md:text-4xl text-foreground">
+            How <span className="text-gradient-insight">eStory</span> works
+          </h2>
+          <p className="text-muted-foreground max-w-lg mx-auto">
+            Three steps. No typing required.
+          </p>
+        </div>
+
+        <div className="relative">
+          {/* Connection line */}
+          <div className="hidden md:block absolute top-12 left-[15%] right-[15%] h-px bg-[hsl(var(--memory-500)/0.2)]" />
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12">
+            {steps.map((item) => {
+              const Icon = item.icon;
+              return (
+                <div key={item.step} className="text-center">
+                  <div className="relative inline-flex flex-col items-center">
+                    <div className="w-10 h-10 rounded-full bg-[hsl(var(--void-surface))] border border-[hsl(var(--memory-500)/0.3)] flex items-center justify-center text-sm font-medium text-[hsl(var(--memory-500))] mb-4">
+                      {item.step}
+                    </div>
+                    <div className="w-12 h-12 rounded-xl bg-[hsl(var(--memory-500)/0.1)] flex items-center justify-center mb-4">
+                      <Icon className="w-6 h-6 text-[hsl(var(--memory-500))]" />
+                    </div>
+                    <h3 className="font-semibold text-foreground text-lg mb-2">
+                      {item.title}
+                    </h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed max-w-[250px]">
+                      {item.description}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* ============================================================
+          FEATURES — human benefits, not tech specs
+          ============================================================ */}
       <section className="space-y-12">
         <div className="text-center space-y-4">
           <h2 className="heading-section text-3xl md:text-4xl text-foreground">
-            Built for <span className="text-gradient-memory">Modern Storytelling</span>
+            Built for people who{" "}
+            <span className="text-gradient-memory">think deeply</span>
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            AI-powered capture, blockchain permanence, and cognitive insights that help you understand your own narrative.
+            A journaling experience designed for reflection, not engagement
+            metrics.
           </p>
         </div>
 
@@ -233,7 +425,10 @@ export default function HomePage() {
           {features.map((feature) => {
             const Icon = feature.icon;
             return (
-              <Card key={feature.title} className="card-elevated hover-shadow-subtle">
+              <Card
+                key={feature.title}
+                className="card-elevated hover-shadow-subtle"
+              >
                 <CardHeader>
                   <div className="w-10 h-10 rounded-lg bg-[hsl(var(--memory-500)/0.1)] flex items-center justify-center mb-3">
                     <Icon className="w-5 h-5 text-[hsl(var(--memory-500))]" />
@@ -251,128 +446,223 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* How It Works - Static timeline */}
+      {/* ============================================================
+          WHY NOW — the cultural moment (NEW section)
+          ============================================================ */}
       <section className="space-y-12">
         <div className="text-center space-y-4">
           <h2 className="heading-section text-3xl md:text-4xl text-foreground">
-            How It <span className="text-gradient-insight">Works</span>
+            Why your voice matters{" "}
+            <span className="text-gradient-story">more than ever</span>
           </h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            From voice to blockchain in four simple steps
-          </p>
-        </div>
-
-        <div className="relative">
-          {/* Connection line */}
-          <div className="hidden md:block absolute top-12 left-[10%] right-[10%] h-px bg-[hsl(var(--memory-500)/0.2)]" />
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            {[
-              { step: 1, icon: Mic, title: 'Record', description: 'Speak your story naturally' },
-              { step: 2, icon: Brain, title: 'Analyze', description: 'AI extracts insights' },
-              { step: 3, icon: Shield, title: 'Own', description: 'Store on blockchain' },
-              { step: 4, icon: TrendingUp, title: 'Grow', description: 'Discover patterns' },
-            ].map((item) => {
-              const Icon = item.icon;
-              return (
-                <div key={item.step} className="text-center">
-                  <div className="relative inline-flex flex-col items-center">
-                    <div className="w-10 h-10 rounded-full bg-[hsl(var(--void-surface))] border border-[hsl(var(--memory-500)/0.3)] flex items-center justify-center text-sm font-medium text-[hsl(var(--memory-500))] mb-4">
-                      {item.step}
-                    </div>
-                    <div className="w-12 h-12 rounded-xl bg-[hsl(var(--memory-500)/0.1)] flex items-center justify-center mb-4">
-                      <Icon className="w-6 h-6 text-[hsl(var(--memory-500))]" />
-                    </div>
-                    <h3 className="font-semibold text-foreground mb-1">{item.title}</h3>
-                    <p className="text-sm text-muted-foreground">{item.description}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials - Static cards */}
-      <section className="space-y-12">
-        <div className="text-center space-y-4">
-          <h2 className="heading-section text-3xl md:text-4xl text-foreground">
-            From Our <span className="text-gradient-story">Community</span>
-          </h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            Hear how eStory is helping people preserve and understand their memories
-          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {[
-            {
-              quote: "The AI insights revealed patterns in my journaling I never noticed. It's like having a mirror for my thoughts.",
-              name: "Sarah Chen",
-              role: "Daily Journaler",
-              initials: "SC",
-            },
-            {
-              quote: "Finally, my stories are mine forever. No platform can delete them, no company can shut down. True ownership.",
-              name: "Marcus Johnson",
-              role: "Web3 Creator",
-              initials: "MJ",
-            },
-            {
-              quote: "I've minted my travel journals as NFT books. My grandchildren will inherit these memories on the blockchain.",
-              name: "Elena Rodriguez",
-              role: "Travel Writer",
-              initials: "ER",
-            },
-          ].map((testimonial) => (
-            <Card key={testimonial.name} className="card-elevated hover-shadow-subtle">
-              <CardContent className="pt-6 space-y-4">
-                <Quote className="w-6 h-6 text-[hsl(var(--memory-500)/0.3)]" />
-                <p className="text-muted-foreground italic leading-relaxed">
-                  &ldquo;{testimonial.quote}&rdquo;
-                </p>
-                <div className="flex items-center gap-3 pt-4 border-t border-[hsl(var(--memory-500)/0.1)]">
-                  <div className="w-10 h-10 rounded-full bg-[hsl(var(--memory-500)/0.15)] flex items-center justify-center text-[hsl(var(--memory-500))] font-medium text-sm">
-                    {testimonial.initials}
+          {whyNowCards.map((card) => {
+            const Icon = card.icon;
+            return (
+              <Card
+                key={card.statLabel}
+                className="card-elevated hover-shadow-subtle"
+              >
+                <CardContent className="pt-6 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-[hsl(var(--story-500)/0.1)] flex items-center justify-center">
+                      <Icon className="w-5 h-5 text-[hsl(var(--story-500))]" />
+                    </div>
+                    <div>
+                      <span className="text-2xl font-semibold text-foreground">
+                        {card.stat}
+                      </span>
+                      <span className="text-sm text-muted-foreground ml-1.5">
+                        {card.statLabel}
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <div className="font-medium text-foreground">{testimonial.name}</div>
-                    <div className="text-sm text-muted-foreground">{testimonial.role}</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  <p className="text-muted-foreground leading-relaxed text-[15px]">
+                    {card.description}
+                  </p>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </section>
 
-      {/* Final CTA - Subtle, not overwhelming */}
+      {/* ============================================================
+          TRUST — Founder promise + guarantees (replaces fake testimonials)
+          ============================================================ */}
+      <section className="space-y-12">
+        <div className="text-center space-y-4">
+          <h2 className="heading-section text-3xl md:text-4xl text-foreground">
+            The <span className="text-gradient-memory">eStory</span> promise
+          </h2>
+        </div>
+
+        {/* Founder quote */}
+        <Card className="card-elevated max-w-2xl mx-auto">
+          <CardContent className="pt-6 space-y-4">
+            <Quote className="w-6 h-6 text-[hsl(var(--memory-500)/0.3)]" />
+            <p className="text-muted-foreground italic leading-relaxed text-lg">
+              &ldquo;I built eStory because I needed it — I wanted something
+              with less friction. Other platforms force you to type, which makes
+              journaling harder, and my most important thoughts became trapped
+              on services I didn&apos;t control. Your journal shouldn&apos;t
+              belong to a company — it should belong to you.We are living
+              through one of the most important time in human history, People
+              should write more and care more about their stories and
+              histories.&rdquo;
+            </p>
+            <div className="flex items-center gap-3 pt-4 border-t border-[hsl(var(--memory-500)/0.1)]">
+              <div className="w-10 h-10 rounded-full bg-[hsl(var(--memory-500)/0.15)] flex items-center justify-center text-[hsl(var(--memory-500))] font-medium text-sm">
+                RA
+              </div>
+              <div>
+                <div className="font-medium text-foreground">Remi</div>
+                <div className="text-sm text-muted-foreground">
+                  Founder, eStory
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Trust guarantees */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-3xl mx-auto">
+          {[
+            {
+              icon: EyeOff,
+              title: "We don't read your journal",
+              description:
+                "Your entries are encrypted. We couldn't read them even if we wanted to.",
+            },
+            {
+              icon: Lock,
+              title: "No ads, no data mining",
+              description:
+                "We don't sell your data. We don't profile you. We don't run ads. Ever.",
+            },
+            {
+              icon: ShieldCheck,
+              title: "You leave, you keep everything",
+              description:
+                "If you ever leave eStory, your stories go with you. They're your files.",
+            },
+          ].map((guarantee) => {
+            const Icon = guarantee.icon;
+            return (
+              <div key={guarantee.title} className="text-center space-y-3">
+                <div className="w-12 h-12 rounded-xl bg-[hsl(var(--memory-500)/0.1)] flex items-center justify-center mx-auto">
+                  <Icon className="w-6 h-6 text-[hsl(var(--memory-500))]" />
+                </div>
+                <h3 className="font-semibold text-foreground">
+                  {guarantee.title}
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {guarantee.description}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ============================================================
+          FINAL CTA — Convert anyone who scrolled this far
+          ============================================================ */}
       <section className="text-center space-y-8 py-16 px-6 bg-[hsl(var(--void-light))] dark:bg-[hsl(var(--void-medium))] rounded-2xl border border-[hsl(var(--memory-500)/0.1)]">
         <h2 className="heading-section text-3xl md:text-4xl text-foreground">
-          Start Your Story Today
+          Your story starts here
         </h2>
         <p className="text-muted-foreground max-w-xl mx-auto">
-          Join a community that values authentic storytelling and permanent memory preservation.
+          Free to start. Your voice. Your memories. Actually yours.
         </p>
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Button
-            size="lg"
-            onClick={() => router.push('/social')}
-            className="bg-gradient-to-r from-[hsl(var(--memory-600))] to-[hsl(var(--insight-600))] hover:from-[hsl(var(--memory-500))] hover:to-[hsl(var(--insight-500))] text-white px-8 h-12"
-          >
-            <ArrowRight className="w-5 h-5 mr-2" />
-            Explore Community
-          </Button>
 
-          <Button
-            variant="outline"
-            size="lg"
-            onClick={() => router.push('/library')}
-            className="px-8 h-12 border-[hsl(var(--memory-500)/0.2)] hover:border-[hsl(var(--memory-500)/0.4)] hover:bg-[hsl(var(--memory-500)/0.05)]"
-          >
-            <BookOpen className="w-5 h-5 mr-2" />
-            View Library
-          </Button>
+        <div className="flex flex-col gap-6 items-center">
+          {/* Primary: Start or Waitlist */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            {isConnected ? (
+              <Button
+                size="lg"
+                onClick={() => router.push("/record")}
+                className="bg-linear-to-r from-[hsl(var(--memory-600))] to-[hsl(var(--insight-600))] hover:from-[hsl(var(--memory-500))] hover:to-[hsl(var(--insight-500))] text-white px-8 h-12"
+              >
+                <Mic className="w-5 h-5 mr-2" />
+                Record a Story
+              </Button>
+            ) : (
+              <Button
+                size="lg"
+                onClick={() => router.push("/api/auth/callback")}
+                className="bg-linear-to-r from-[hsl(var(--memory-600))] to-[hsl(var(--insight-600))] hover:from-[hsl(var(--memory-500))] hover:to-[hsl(var(--insight-500))] text-white px-8 h-12"
+              >
+                <ArrowRight className="w-5 h-5 mr-2" />
+                Start Journaling — Free
+              </Button>
+            )}
+
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => router.push("/social")}
+              className="px-8 h-12 border-[hsl(var(--memory-500)/0.2)] hover:border-[hsl(var(--memory-500)/0.4)] hover:bg-[hsl(var(--memory-500)/0.05)]"
+            >
+              <BookOpen className="w-5 h-5 mr-2" />
+              Read Real Stories
+            </Button>
+          </div>
+
+          {/* Email waitlist — pre-launch capture */}
+          <div className="w-full max-w-md">
+            <p className="text-sm text-muted-foreground mb-3">
+              Want to be first when we launch the mobile app?
+            </p>
+            {waitlistSubmitted ? (
+              <div className="flex items-center justify-center gap-2 text-[hsl(var(--growth-500))] py-3">
+                <Check className="w-5 h-5" />
+                <span className="font-medium">
+                  You&apos;re on the list. We&apos;ll be in touch.
+                </span>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <form onSubmit={handleWaitlistSubmit} className="flex gap-2">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="your@email.com"
+                    required
+                    disabled={waitlistLoading}
+                    className="flex-1 h-11 rounded-lg border border-[hsl(var(--memory-500)/0.2)] bg-[hsl(var(--void-surface))] px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[hsl(var(--memory-500)/0.3)] focus:border-transparent transition-all disabled:opacity-50"
+                  />
+                  <Button
+                    type="submit"
+                    variant="outline"
+                    disabled={waitlistLoading}
+                    className="h-11 px-5 border-[hsl(var(--memory-500)/0.3)] hover:bg-[hsl(var(--memory-500)/0.1)]"
+                  >
+                    {waitlistLoading ? (
+                      <span className="flex items-center gap-2">
+                        <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        Joining...
+                      </span>
+                    ) : (
+                      <>
+                        <Mail className="w-4 h-4 mr-2" />
+                        Join Waitlist
+                      </>
+                    )}
+                  </Button>
+                </form>
+                {waitlistError && (
+                  <p className="text-sm text-red-500 text-center">
+                    {waitlistError}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </section>
     </div>

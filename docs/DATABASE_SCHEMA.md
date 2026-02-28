@@ -10,8 +10,65 @@
 | `comments` | Story comments |
 | `saved_stories` | Bookmarks |
 | `likes` | Like records |
+| `waitlist` | Pre-launch email capture |
+| `verified_metrics` | CRE-verified story metrics (full data, author-only access) |
+| `verification_logs` | CRE verification request audit log |
 
 **Storage Bucket:** `story-audio` - Audio file uploads
+
+## Waitlist Table
+
+```sql
+CREATE TABLE waitlist (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email TEXT NOT NULL,
+  source TEXT DEFAULT 'web_homepage',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(email)
+);
+
+CREATE INDEX idx_waitlist_email ON waitlist(email);
+CREATE INDEX idx_waitlist_created ON waitlist(created_at DESC);
+```
+
+## CRE Verified Metrics Tables
+
+```sql
+-- Full metrics from CRE callback (author-only access via API)
+CREATE TABLE verified_metrics (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  story_id UUID NOT NULL REFERENCES stories(id) ON DELETE CASCADE,
+  significance_score INTEGER DEFAULT 0,      -- 0-100
+  emotional_depth INTEGER DEFAULT 1,          -- 1-5
+  quality_score INTEGER DEFAULT 0,            -- 0-100
+  word_count INTEGER DEFAULT 0,
+  verified_themes TEXT[] DEFAULT '{}',
+  metrics_hash TEXT,                          -- keccak256 of all metrics + salt
+  quality_tier INTEGER DEFAULT 1,             -- 1-5 derived from quality_score
+  meets_quality_threshold BOOLEAN DEFAULT FALSE,
+  cre_attestation_id TEXT,
+  on_chain_tx_hash TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(story_id)
+);
+
+CREATE INDEX idx_verified_metrics_story ON verified_metrics(story_id);
+
+-- Audit log for CRE verification requests
+CREATE TABLE verification_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  story_id UUID NOT NULL REFERENCES stories(id) ON DELETE CASCADE,
+  status TEXT NOT NULL DEFAULT 'pending',  -- 'pending', 'completed', 'failed'
+  triggered_by UUID,                       -- user who triggered verification
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_verification_logs_story ON verification_logs(story_id);
+CREATE INDEX idx_verification_logs_status ON verification_logs(status);
+```
 
 ## Planned Tables (Phase 1-3)
 

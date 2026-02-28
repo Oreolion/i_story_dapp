@@ -77,7 +77,7 @@ export default function StoryPage({
   // Metadata hook for canonical status
   const { metadata: storyMetadata } = useStoryMetadata(storyId);
   // CRE verified metrics hook
-  const { metrics: verifiedMetrics, isPending: isVerifyPending, isVerified } = useVerifiedMetrics(storyId);
+  const { metrics: verifiedMetrics, proof: verifiedProof, isPending: isVerifyPending, isVerified, isAuthor: isVerifyAuthor } = useVerifiedMetrics(storyId);
   const {
     payPaywall,
     isPending: isPayingProtocol,
@@ -615,6 +615,7 @@ export default function StoryPage({
                     <VerifiedBadge
                       status={isVerified ? "verified" : isVerifyPending ? "pending" : "unverified"}
                       txHash={verifiedMetrics?.on_chain_tx_hash}
+                      qualityTier={verifiedProof?.qualityTier}
                     />
                   </div>
                 </div>
@@ -714,7 +715,9 @@ export default function StoryPage({
                 {/* Verified metrics card for paywalled content - shows buyers what they're getting */}
                 <VerifiedMetricsCard
                   metrics={verifiedMetrics}
+                  proof={verifiedProof}
                   isPending={isVerifyPending}
+                  isAuthor={isVerifyAuthor}
                 />
               </div>
             ) : (
@@ -805,7 +808,9 @@ export default function StoryPage({
       {(isVerified || isVerifyPending) && !isPaywalled && (
         <VerifiedMetricsCard
           metrics={verifiedMetrics}
+          proof={verifiedProof}
           isPending={isVerifyPending}
+          isAuthor={isVerifyAuthor}
         />
       )}
 

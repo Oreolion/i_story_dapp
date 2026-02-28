@@ -1,25 +1,36 @@
 /**
- * HTTP Trigger Handler — Story Verification
+ * HTTP Trigger Handler — Privacy-Preserving Story Verification
  *
  * Flow:
  * 1. Decode the HTTP trigger payload (story content)
- * 2. Query Gemini AI for analysis (via HTTPClient consensus)
- * 3. Encode metrics for on-chain storage
- * 4. Generate a signed CRE report
- * 5. Write the report to the VerifiedMetrics contract
+ * 2. Query Gemini AI for analysis (via ConfidentialHTTPClient)
+ * 3. Derive privacy fields (metricsHash, authorCommitment, qualityTier)
+ * 4. Set up EVM network and client
+ * 5. Encode minimal data for on-chain storage
+ * 6. Generate a signed CRE report
+ * 7. Write the report to the PrivateVerifiedMetrics contract
+ * 8. Callback full metrics to eStory API (confidential HTTP)
  */
 
 import {
   cre,
+  ConfidentialHTTPClient,
   type Runtime,
   type HTTPPayload,
+  type ConfidentialHTTPSendRequester,
   getNetwork,
   hexToBase64,
   TxStatus,
   bytesToHex,
   decodeJson,
+  consensusIdenticalAggregation,
 } from "@chainlink/cre-sdk";
-import { encodeAbiParameters, parseAbiParameters } from "viem";
+import {
+  encodeAbiParameters,
+  parseAbiParameters,
+  keccak256,
+  encodePacked,
+} from "viem";
 import { askGemini } from "./gemini";
 import type { Config } from "./main";
 
@@ -31,10 +42,22 @@ interface TriggerInput {
   authorWallet: string;
 }
 
-// ABI parameters matching VerifiedMetrics.storeVerifiedMetrics
+// ABI parameters matching PrivateVerifiedMetrics._processReport
 const STORE_METRICS_PARAMS = parseAbiParameters(
-  "bytes32 storyId, address author, uint8 significanceScore, uint8 emotionalDepth, uint8 qualityScore, uint32 wordCount, string[] themes, bytes32 attestationId"
+  "bytes32 storyId, bytes32 authorCommitment, bool meetsQualityThreshold, uint8 qualityTier, bytes32 metricsHash, bytes32 attestationId"
 );
+
+/**
+ * Convert a quality score (0-100) to a tier (1-5).
+ * Ranges: 0-20=1, 21-40=2, 41-60=3, 61-80=4, 81-100=5
+ */
+function scoreToTier(score: number): number {
+  if (score <= 20) return 1;
+  if (score <= 40) return 2;
+  if (score <= 60) return 3;
+  if (score <= 80) return 4;
+  return 5;
+}
 
 /**
  * Main HTTP trigger handler
@@ -44,7 +67,7 @@ export function onHttpTrigger(
   payload: HTTPPayload
 ): string {
   runtime.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-  runtime.log("CRE Workflow: eStory Story Verification");
+  runtime.log("CRE Workflow: eStory Privacy-Preserving Verification");
   runtime.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
   try {
@@ -65,9 +88,9 @@ export function onHttpTrigger(
     }
 
     // ─────────────────────────────────────────────────────────────
-    // Step 2: AI Analysis via Gemini
+    // Step 2: AI Analysis via Gemini (Confidential HTTP)
     // ─────────────────────────────────────────────────────────────
-    runtime.log("[Step 2] Querying Gemini AI for story analysis...");
+    runtime.log("[Step 2] Querying Gemini AI (confidential enclave)...");
 
     let metrics;
     try {
@@ -84,7 +107,54 @@ export function onHttpTrigger(
     runtime.log(`[Step 2] Themes: ${metrics.themes.join(", ")}`);
 
     // ─────────────────────────────────────────────────────────────
-    // Step 3: Get network and create EVM client
+    // Step 3: Derive privacy fields
+    // ─────────────────────────────────────────────────────────────
+    runtime.log("[Step 3] Deriving privacy-preserving fields...");
+
+    // Convert UUID to bytes32 (remove dashes, pad to 64 hex chars)
+    const storyIdBytes32 = `0x${input.storyId
+      .replace(/-/g, "")
+      .padEnd(64, "0")}` as `0x${string}`;
+
+    const qualityTier = scoreToTier(metrics.qualityScore);
+    const meetsQualityThreshold = metrics.qualityScore >= 70;
+
+    // Salt = keccak256(storyIdBytes32) — deterministic per story
+    const salt = keccak256(storyIdBytes32);
+
+    // metricsHash = keccak256(abi.encode(all scores + themes + salt))
+    const metricsHash = keccak256(
+      encodeAbiParameters(
+        parseAbiParameters(
+          "uint8 significanceScore, uint8 emotionalDepth, uint8 qualityScore, uint32 wordCount, string[] themes, bytes32 salt"
+        ),
+        [
+          metrics.significanceScore,
+          metrics.emotionalDepth,
+          metrics.qualityScore,
+          metrics.wordCount,
+          metrics.themes,
+          salt,
+        ]
+      )
+    );
+
+    // authorCommitment = keccak256(encodePacked(authorWallet, storyIdBytes32))
+    const authorCommitment = keccak256(
+      encodePacked(
+        ["address", "bytes32"],
+        [input.authorWallet as `0x${string}`, storyIdBytes32]
+      )
+    );
+
+    runtime.log(
+      `[Step 3] qualityTier=${qualityTier}, meetsThreshold=${meetsQualityThreshold}`
+    );
+    runtime.log(`[Step 3] metricsHash=${metricsHash.slice(0, 18)}...`);
+    runtime.log(`[Step 3] authorCommitment=${authorCommitment.slice(0, 18)}...`);
+
+    // ─────────────────────────────────────────────────────────────
+    // Step 4: Get network and create EVM client
     // ─────────────────────────────────────────────────────────────
     const evmConfig = runtime.config.evms[0];
 
@@ -98,38 +168,31 @@ export function onHttpTrigger(
       throw new Error(`Unknown chain: ${evmConfig.chainSelectorName}`);
     }
 
-    runtime.log(`[Step 3] Target chain: ${evmConfig.chainSelectorName}`);
-    runtime.log(`[Step 3] Contract: ${evmConfig.verifiedMetricsAddress}`);
+    runtime.log(`[Step 4] Target chain: ${evmConfig.chainSelectorName}`);
+    runtime.log(`[Step 4] Contract: ${evmConfig.verifiedMetricsAddress}`);
 
     const evmClient = new cre.capabilities.EVMClient(
       network.chainSelector.selector
     );
 
     // ─────────────────────────────────────────────────────────────
-    // Step 4: Encode metrics for on-chain storage
+    // Step 5: Encode minimal data for on-chain storage
     // ─────────────────────────────────────────────────────────────
-    runtime.log("[Step 4] Encoding metrics data...");
-
-    // Convert UUID to bytes32 (remove dashes, pad to 64 hex chars)
-    const storyIdBytes32 = `0x${input.storyId
-      .replace(/-/g, "")
-      .padEnd(64, "0")}` as `0x${string}`;
+    runtime.log("[Step 5] Encoding minimal privacy-preserving data...");
 
     const reportData = encodeAbiParameters(STORE_METRICS_PARAMS, [
       storyIdBytes32,
-      input.authorWallet as `0x${string}`,
-      metrics.significanceScore,
-      metrics.emotionalDepth,
-      metrics.qualityScore,
-      metrics.wordCount,
-      metrics.themes,
+      authorCommitment,
+      meetsQualityThreshold,
+      qualityTier,
+      metricsHash,
       storyIdBytes32, // attestation ID
     ]);
 
     // ─────────────────────────────────────────────────────────────
-    // Step 5: Generate signed CRE report
+    // Step 6: Generate signed CRE report
     // ─────────────────────────────────────────────────────────────
-    runtime.log("[Step 5] Generating CRE report...");
+    runtime.log("[Step 6] Generating CRE report...");
 
     const reportResponse = runtime
       .report({
@@ -141,10 +204,10 @@ export function onHttpTrigger(
       .result();
 
     // ─────────────────────────────────────────────────────────────
-    // Step 6: Write the report to the smart contract
+    // Step 7: Write the report to the smart contract
     // ─────────────────────────────────────────────────────────────
     runtime.log(
-      `[Step 6] Writing to contract: ${evmConfig.verifiedMetricsAddress}`
+      `[Step 7] Writing to contract: ${evmConfig.verifiedMetricsAddress}`
     );
 
     const writeResult = evmClient
@@ -157,19 +220,61 @@ export function onHttpTrigger(
       })
       .result();
 
-    // ─────────────────────────────────────────────────────────────
-    // Step 7: Check result and return
-    // ─────────────────────────────────────────────────────────────
+    let txHash = "0x";
     if (writeResult.txStatus === TxStatus.SUCCESS) {
-      const txHash = bytesToHex(writeResult.txHash || new Uint8Array(32));
-      runtime.log(`[Step 7] Verification successful: ${txHash}`);
-      runtime.log(
-        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-      );
-      return txHash;
+      txHash = bytesToHex(writeResult.txHash || new Uint8Array(32));
+      runtime.log(`[Step 7] On-chain write successful: ${txHash}`);
+    } else {
+      throw new Error(`Transaction failed with status: ${writeResult.txStatus}`);
     }
 
-    throw new Error(`Transaction failed with status: ${writeResult.txStatus}`);
+    // ─────────────────────────────────────────────────────────────
+    // Step 8: Callback full metrics to eStory API (confidential)
+    // ─────────────────────────────────────────────────────────────
+    runtime.log("[Step 8] Sending full metrics via confidential callback...");
+
+    if (runtime.config.callbackUrl) {
+      try {
+        const confClient = new ConfidentialHTTPClient();
+
+        const callbackPayload = {
+          storyId: input.storyId,
+          authorWallet: input.authorWallet,
+          metricsHash,
+          txHash,
+          significanceScore: metrics.significanceScore,
+          emotionalDepth: metrics.emotionalDepth,
+          qualityScore: metrics.qualityScore,
+          wordCount: metrics.wordCount,
+          themes: metrics.themes,
+          qualityTier,
+          meetsQualityThreshold,
+        };
+
+        const callbackBody = Buffer.from(
+          new TextEncoder().encode(JSON.stringify(callbackPayload))
+        ).toString("base64");
+
+        confClient
+          .sendRequest(
+            runtime,
+            buildCallbackRequest(callbackBody),
+            consensusIdenticalAggregation<{ success: boolean }>()
+          )(runtime.config)
+          .result();
+
+        runtime.log("[Step 8] Callback sent successfully");
+      } catch (err) {
+        // Callback failure is non-critical — on-chain proof exists
+        const msg = err instanceof Error ? err.message : String(err);
+        runtime.log(`[Step 8] Callback failed (non-critical): ${msg}`);
+      }
+    } else {
+      runtime.log("[Step 8] No callbackUrl configured, skipping");
+    }
+
+    runtime.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    return txHash;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     runtime.log(`[ERROR] ${msg}`);
@@ -179,3 +284,30 @@ export function onHttpTrigger(
     throw err;
   }
 }
+
+/**
+ * Build the confidential callback request.
+ * Full metrics payload stays encrypted in transit via ConfidentialHTTPClient.
+ */
+const buildCallbackRequest =
+  (body: string) =>
+  (sendRequester: ConfidentialHTTPSendRequester, config: Config): { success: boolean } => {
+    sendRequester
+      .sendRequest({
+        request: {
+          url: config.callbackUrl,
+          method: "POST" as const,
+          body,
+          multiHeaders: {
+            "Content-Type": { values: ["application/json"] },
+            "X-CRE-Callback-Secret": { values: ["{{.callbackSecret}}"] },
+          },
+        },
+        vaultDonSecrets: [
+          { key: "callbackSecret", owner: config.owner },
+        ],
+      })
+      .result();
+
+    return { success: true };
+  };

@@ -48,7 +48,7 @@ export function AuthButton() {
 
   // Wallet connected but no profile yet (loading or first-time)
   if (isConnected && !profile) {
-    return <ConnectButton showBalance={false} />;
+    return <ConnectButton showBalance={false} chainStatus="none" />;
   }
 
   // Needs onboarding (first-time wallet user)
@@ -69,7 +69,7 @@ export function AuthButton() {
 
   // Authenticated via wallet — use RainbowKit's custom button
   if (profile?.auth_provider !== "google") {
-    return <ConnectButton showBalance={false} />;
+    return <ConnectButton showBalance={false} chainStatus="none" />;
   }
 
   // Authenticated via Google only — custom dropdown

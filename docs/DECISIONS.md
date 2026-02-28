@@ -17,6 +17,9 @@ Already used for enhancement, keeps the stack simple. Fast and cost-effective fo
 ### Why keep social features for now?
 Need users before we can serve users. Social provides discovery, engagement loops, and monetization validation. Will rebalance hierarchy after cognitive features are validated.
 
+### Why privacy-preserving CRE instead of full on-chain metrics?
+The original CRE integration stored all AI analysis data on-chain: raw scores, themes like "trauma" or "addiction", word count, and the author's wallet address — all permanently public. For a personal journaling app, this causes self-censorship. Users won't write honestly if their emotional inner world is broadcast on a public blockchain. The new `PrivateVerifiedMetrics` contract stores only minimal cryptographic proofs (quality tier, threshold bool, hashes), while full metrics live in Supabase visible only to the author. The blockchain attests that verification happened; it doesn't broadcast what was found. Uses `ConfidentialHTTPClient` for encrypted Gemini API calls inside DON enclaves.
+
 ## References
 
 - **Project Vision:** Research document "The Architecture of Digital Immortality"

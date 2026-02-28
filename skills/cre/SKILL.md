@@ -5,7 +5,7 @@ Templates and patterns for building Chainlink CRE (Compute Runtime Environment) 
 CRE enables verifiable off-chain computation with on-chain attestation via Chainlink DON nodes.
 
 ## SDK
-- Package: `@chainlink/cre-sdk` (v1.0.1+)
+- Package: `@chainlink/cre-sdk` (v1.0.9+)
 - Runtime: Bun (compiles TypeScript → WASM)
 - CLI: `cre` command (v1.0.5+) for simulation and deployment
 - Chain encoding: `viem` for ABI parameter encoding
@@ -104,6 +104,62 @@ contract MyReceiver is ReceiverTemplate {
 ```
 **KeystoneForwarder (Base Sepolia)**: `0x82300bd7c3958625581cc2f77bc6464dcecdf3e5`
 
+## Confidential HTTP Patterns
+
+For API calls containing sensitive data (user content, private keys), use `ConfidentialHTTPClient` instead of `HTTPClient`. This encrypts the request inside the DON enclave.
+
+### ConfidentialHTTPClient (privacy-preserving)
+```typescript
+import { ConfidentialHTTPClient, consensusIdenticalAggregation, type ConfidentialHTTPSendRequester } from "@chainlink/cre-sdk";
+
+const confClient = new ConfidentialHTTPClient();
+const result = confClient
+  .sendRequest(runtime, buildFn, consensusIdenticalAggregation<T>())
+  (runtime.config).result();
+
+// Inside buildFn:
+const buildFn = (sendRequester: ConfidentialHTTPSendRequester, config: Config) => {
+  const resp = sendRequester.sendRequest({
+    request: {
+      url: "https://api.example.com/endpoint",
+      method: "POST",
+      body,  // base64-encoded — encrypted in enclave
+      multiHeaders: {
+        "Content-Type": { values: ["application/json"] },
+        "x-api-key": { values: ["{{.apiKeySecretName}}"] },  // Vault DON template
+      },
+    },
+    vaultDonSecrets: [
+      { key: "apiKeySecretName", owner: config.owner },
+    ],
+    // encryptOutput: true  // Optional: AES-GCM encrypt response
+  }).result();
+  // ... parse response
+};
+```
+
+### Migration Guide: Public → Confidential
+
+| Old (Public HTTP) | New (Confidential HTTP) |
+|---|---|
+| `import { HTTPClient, HTTPSendRequester }` | `import { ConfidentialHTTPClient, ConfidentialHTTPSendRequester }` |
+| `new cre.capabilities.HTTPClient()` | `new ConfidentialHTTPClient()` |
+| `headers: { "key": value }` | `multiHeaders: { "key": { values: ["{{.secretName}}"] } }` |
+| `runtime.getSecret({ id: "KEY" })` | `vaultDonSecrets: [{ key: "secretName", owner: config.owner }]` |
+| Body visible to node operators | Body encrypted inside enclave |
+| N/A | `encryptOutput: true` for AES-GCM response encryption |
+
+### secrets.yaml for Vault DON
+```yaml
+secretsNames:
+  geminiApiKey:
+    - GEMINI_API_KEY_ALL
+  callbackSecret:
+    - CRE_CALLBACK_SECRET
+```
+
+Note: Secret names use camelCase (matching Vault DON convention), env vars use UPPER_SNAKE_CASE with `_ALL` suffix.
+
 ## WRONG Patterns (will fail)
 
 | Wrong | Correct |
@@ -117,6 +173,9 @@ contract MyReceiver is ReceiverTemplate {
 | `bun x cre-compile` | `cre workflow simulate` (CLI handles compilation) |
 | `onlyCRE` modifier in contract | `ReceiverTemplate` with `_processReport()` |
 | `storeVerifiedData()` direct call | `onReport()` via KeystoneForwarder |
+| Using `HTTPClient` for sensitive API calls | Use `ConfidentialHTTPClient` for API calls with private data |
+| `headers: { "x-goog-api-key": apiKey }` | `multiHeaders: { "x-goog-api-key": { values: ["{{.geminiApiKey}}"] } }` |
+| `runtime.getSecret()` with ConfidentialHTTP | `vaultDonSecrets: [{ key: "name", owner: config.owner }]` |
 
 ## Templates
 
@@ -202,22 +261,28 @@ GEMINI_API_KEY_ALL=AIza...
 - Secrets encrypted at rest via `secrets.yaml` + `.env`, only available to DON nodes
 - Results attested by multiple nodes (consensus)
 - On-chain writes go through KeystoneForwarder → ReceiverTemplate (forwarder validation)
-- Never hardcode API keys in workflow code — use `runtime.getSecret()`
+- Never hardcode API keys in workflow code — use `vaultDonSecrets` with Vault DON templates
 - Receiver contracts validate `msg.sender == forwarder` automatically
+- Use `ConfidentialHTTPClient` for API calls containing user private data
+- Only store minimal cryptographic proofs on-chain (hashes, tiers, booleans)
+- Full metrics stored off-chain (Supabase) with author-only access
 
-## Architecture
+## Architecture (Privacy-Preserving Dual-Write)
 ```
 Frontend → POST /api/cre/trigger → CRE Workflow (DON nodes)
                                         ↓
-                                   Gemini AI Analysis
+                              Gemini AI Analysis (ConfidentialHTTPClient)
                                         ↓
-                                   DON Consensus (all nodes agree)
+                              DON Consensus (all nodes agree)
                                         ↓
-                                   Signed CRE Report
-                                        ↓
-                                   KeystoneForwarder → Contract.onReport()
-                                        ↓
-                                   _processReport() → Store on-chain
-                                        ↓
-Frontend ← POST /api/cre/check ← Read from contract
+                    ┌───────────────────┴───────────────────┐
+                    ↓                                       ↓
+  [On-Chain] KeystoneForwarder              [Off-Chain] /api/cre/callback
+  → PrivateVerifiedMetrics.sol              → Supabase verified_metrics
+  (tier, threshold, hashes)                 (full scores, themes, tx hash)
+                    ↓                                       ↓
+                    └───────────────┬───────────────────────┘
+                                    ↓
+Frontend ← POST /api/cre/check (author-based filtering)
+  Author: full metrics + proof | Public: proof only
 ```

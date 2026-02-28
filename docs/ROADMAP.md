@@ -82,6 +82,47 @@ scripts/deployVerifiedMetrics.ts          (Deployment script)
 skills/cre/                               (CRE skill templates + SKILL.md)
 ```
 
+## Phase 1.6.1: Privacy-Preserving CRE -- COMPLETE
+
+**Goal:** Rewrite CRE pipeline to protect user privacy. Full metrics visible only to author; blockchain stores only cryptographic proofs.
+
+**Tasks:**
+- [x] Create `PrivateVerifiedMetrics.sol` — minimal on-chain struct (tier, threshold, hashes)
+- [x] Move old contract to `contracts/legacy/VerifiedMetrics.sol`
+- [x] Create deployment script `scripts/deployPrivateVerifiedMetrics.ts`
+- [x] Rewrite `gemini.ts` to use `ConfidentialHTTPClient` (encrypted enclave)
+- [x] Rewrite `httpCallback.ts` — 8-step flow with privacy fields + confidential callback
+- [x] Add `callbackUrl` and `owner` to Config type
+- [x] Create `/api/cre/callback` route (DON callback receiver with secret auth)
+- [x] Rewrite `/api/cre/check` with author-based response filtering + legacy fallback
+- [x] Update `lib/contracts.ts` with new ABI
+- [x] Rewrite `useVerifiedMetrics` hook (metrics + proof separation)
+- [x] Rewrite `VerifiedMetricsCard` (dual author/public view)
+- [x] Update `VerifiedBadge` with quality tier label
+- [x] Update `StoryPageClient` and `StoryCard` component props
+- [x] Update middleware rate limits for callback endpoint
+- [x] Update all documentation
+- [ ] Pending: Deploy new contract (requires funded wallet)
+- [ ] Pending: Update CRE workflow secrets for Vault DON
+
+**Key files created/modified:**
+```
+contracts/PrivateVerifiedMetrics.sol          (new — privacy-preserving contract)
+contracts/legacy/VerifiedMetrics.sol          (moved — backward compat)
+scripts/deployPrivateVerifiedMetrics.ts       (new — deployment script)
+cre/iStory_workflow/gemini.ts                (rewritten — ConfidentialHTTPClient)
+cre/iStory_workflow/httpCallback.ts          (rewritten — 8-step privacy flow)
+cre/iStory_workflow/main.ts                  (modified — Config type)
+cre/iStory_workflow/config.staging.json      (modified — callbackUrl, owner)
+app/api/cre/callback/route.ts                (new — DON callback receiver)
+app/api/cre/check/route.ts                  (rewritten — author-based filtering)
+app/hooks/useVerifiedMetrics.ts              (rewritten — metrics + proof)
+components/VerifiedMetricsCard.tsx           (rewritten — dual view)
+components/VerifiedBadge.tsx                 (modified — tier label)
+lib/contracts.ts                             (modified — new ABI)
+middleware.ts                                (modified — callback rate limit)
+```
+
 ## Phase 2: Patterns & Discovery (Next Up)
 
 **Goal:** Users can see patterns across their stories.

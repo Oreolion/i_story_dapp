@@ -12,23 +12,17 @@ import {
   FileText,
   ExternalLink,
   Loader2,
+  CheckCircle2,
 } from "lucide-react";
+import type { VerifiedMetrics, VerifiedMetricsProof } from "@/app/hooks/useVerifiedMetrics";
 
 const BLOCK_EXPLORER = process.env.NEXT_PUBLIC_BLOCK_EXPLORER || "https://sepolia.basescan.org";
 
-interface VerifiedMetrics {
-  significance_score: number;
-  emotional_depth: number;
-  quality_score: number;
-  word_count: number;
-  verified_themes: string[];
-  on_chain_tx_hash?: string | null;
-  cre_attestation_id?: string | null;
-}
-
 interface VerifiedMetricsCardProps {
   metrics: VerifiedMetrics | null;
+  proof: VerifiedMetricsProof | null;
   isPending: boolean;
+  isAuthor: boolean;
   className?: string;
 }
 
@@ -40,13 +34,23 @@ const emotionalDepthLabels: Record<number, string> = {
   5: "Profound",
 };
 
+const qualityTierLabels: Record<number, string> = {
+  1: "Developing",
+  2: "Fair",
+  3: "Good",
+  4: "High Quality",
+  5: "Exceptional",
+};
+
 export function VerifiedMetricsCard({
   metrics,
+  proof,
   isPending,
+  isAuthor,
   className = "",
 }: VerifiedMetricsCardProps) {
   // Pending state
-  if (isPending && !metrics) {
+  if (isPending && !proof) {
     return (
       <Card className={`rounded-xl border-yellow-400/30 bg-yellow-50/50 dark:bg-yellow-900/10 ${className}`}>
         <CardContent className="py-8 text-center space-y-3">
@@ -62,11 +66,30 @@ export function VerifiedMetricsCard({
     );
   }
 
-  // No metrics
-  if (!metrics) {
+  // No proof at all — not verified
+  if (!proof) {
     return null;
   }
 
+  // Author view — full metrics available
+  if (isAuthor && metrics) {
+    return <AuthorView metrics={metrics} className={className} />;
+  }
+
+  // Public view — proof only
+  return <PublicView proof={proof} className={className} />;
+}
+
+/**
+ * Author view: full progress bars, emotional depth, themes, word count
+ */
+function AuthorView({
+  metrics,
+  className,
+}: {
+  metrics: VerifiedMetrics;
+  className: string;
+}) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -74,7 +97,6 @@ export function VerifiedMetricsCard({
       transition={{ duration: 0.3 }}
     >
       <Card className={`rounded-xl border-emerald-400/30 overflow-hidden ${className}`}>
-        {/* Green gradient top border */}
         <div className="h-1 bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-500" />
 
         <CardHeader className="pb-3">
@@ -164,6 +186,83 @@ export function VerifiedMetricsCard({
                   {theme}
                 </Badge>
               ))}
+            </div>
+          )}
+
+          {/* Footer */}
+          <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+            <p className="text-xs text-gray-400 flex items-center gap-1">
+              <ShieldCheck className="w-3 h-3" />
+              Verified by Chainlink CRE
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}
+
+/**
+ * Public view: quality tier as star rating, threshold checkmark, CRE shield.
+ * No specific scores, no themes — privacy preserved.
+ */
+function PublicView({
+  proof,
+  className,
+}: {
+  proof: VerifiedMetricsProof;
+  className: string;
+}) {
+  const tierLabel = qualityTierLabels[proof.qualityTier] || "Verified";
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      <Card className={`rounded-xl border-emerald-400/30 overflow-hidden ${className}`}>
+        <div className="h-1 bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-500" />
+
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <ShieldCheck className="w-5 h-5 text-emerald-500" />
+            <span className="text-emerald-700 dark:text-emerald-400">
+              CRE Verified
+            </span>
+          </CardTitle>
+        </CardHeader>
+
+        <CardContent className="space-y-4">
+          {/* Quality tier as stars */}
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-600 dark:text-gray-400">Quality Tier</span>
+            <div className="flex items-center gap-2">
+              <div className="flex gap-0.5">
+                {Array.from({ length: 5 }, (_, i) => (
+                  <Star
+                    key={i}
+                    className={`w-4 h-4 ${
+                      i < proof.qualityTier
+                        ? "text-amber-400 fill-amber-400"
+                        : "text-gray-300 dark:text-gray-600"
+                    }`}
+                  />
+                ))}
+              </div>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {tierLabel}
+              </span>
+            </div>
+          </div>
+
+          {/* Quality threshold */}
+          {proof.meetsQualityThreshold && (
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+              <span className="text-sm text-emerald-600 dark:text-emerald-400">
+                Meets Quality Threshold
+              </span>
             </div>
           )}
 

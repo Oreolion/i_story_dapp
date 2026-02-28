@@ -57,7 +57,7 @@ export function StoryCard({
   const [tipAmount, setTipAmount] = useState(5);
   const [isPaying, setIsPaying] = useState(false);
   const [isTipping, setIsTipping] = useState(false);
-  const { metrics: verifiedMetrics, isPending: isVerifyPending, isVerified } = useVerifiedMetrics(story.id?.toString() || null);
+  const { metrics: verifiedMetrics, proof: verifiedProof, isPending: isVerifyPending, isVerified, isAuthor: isVerifyAuthor } = useVerifiedMetrics(story.id?.toString() || null);
   const { writeContract, data: tipHash } = useWriteContract();
   const { writeContract: payContract, data: payHash } = useWriteContract();
 
@@ -253,6 +253,7 @@ export function StoryCard({
             <VerifiedBadge
               status={isVerified ? "verified" : isVerifyPending ? "pending" : "unverified"}
               txHash={verifiedMetrics?.on_chain_tx_hash}
+              qualityTier={verifiedProof?.qualityTier}
             />
             {isCanonical && (
               <div className="flex items-center gap-1 text-[hsl(var(--story-500))]" title="Key Moment">
@@ -281,7 +282,9 @@ export function StoryCard({
             {/* Show verified metrics preview for paywalled content */}
             <VerifiedMetricsCard
               metrics={verifiedMetrics}
+              proof={verifiedProof}
               isPending={isVerifyPending}
+              isAuthor={isVerifyAuthor}
             />
           </div>
         ) : (

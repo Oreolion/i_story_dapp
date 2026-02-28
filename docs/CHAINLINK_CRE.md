@@ -8,12 +8,38 @@ Chainlink CRE (Compute Runtime Environment) solves this by making the AI analysi
 
 | Without Chainlink | With Chainlink CRE |
 |---|---|
-| AI runs on your server — you could fake results | AI runs on multiple independent DON nodes with consensus |
-| Metrics stored in your database — you could edit them | Metrics stored on-chain — immutable, publicly auditable |
+| AI runs on your server — you could fake results | AI runs inside encrypted DON enclaves with consensus |
+| Metrics stored in your database — you could edit them | Cryptographic proofs stored on-chain — immutable, publicly auditable |
 | Users must trust you | Users can verify on-chain themselves |
-| "Trust me, the AI said 95/100" | "Here's the on-chain proof, verified by Chainlink's DON" |
+| Story content visible to node operators | Story content encrypted via ConfidentialHTTPClient |
 
-The key insight: **Chainlink doesn't replace your AI — it makes your AI trustworthy** by running it in a decentralized, consensus-based environment and recording the results immutably on-chain.
+The key insight: **Chainlink doesn't replace your AI — it makes your AI trustworthy** by running it in a privacy-preserving, consensus-based environment and recording cryptographic proofs immutably on-chain.
+
+---
+
+## Privacy Architecture
+
+eStory is a personal journaling app. Users self-censor when their emotional inner world is broadcast on a public blockchain. The privacy-preserving CRE integration solves this with a **dual-write model**:
+
+### What's Public (On-Chain)
+- Quality tier (1-5): "High Quality" — not the exact score
+- Meets quality threshold (bool): yes/no
+- Metrics hash: keccak256 of all scores + themes + salt — provable but not reversible
+- Author commitment: keccak256(walletAddress, storyId) — proves ownership without exposing address
+
+### What's Private (Supabase, Author-Only)
+- Exact scores (significance 0-100, emotional depth 1-5, quality 0-100)
+- Themes (e.g., "trauma", "addiction", "family")
+- Word count
+- Full analysis details
+
+### How It Works
+```
+On-chain (public):  "Verified, High Quality (Tier 4), meets threshold"
+Off-chain (author): "Significance: 78, Emotional Depth: 4/5, Quality: 72, Themes: growth, resilience"
+```
+
+Anyone can verify that a story was analyzed and meets quality standards. Only the author sees the intimate details.
 
 ---
 
@@ -21,27 +47,7 @@ The key insight: **Chainlink doesn't replace your AI — it makes your AI trustw
 
 **It is triggered automatically when a user saves a journal entry.** There is no "Verify" button the user clicks.
 
-In `app/api/journal/save/route.ts` (around line 81-97), after the story is successfully saved to Supabase, the API fires off a background request:
-
-```typescript
-// Trigger CRE verification in the background (fire and forget)
-fetch(`${appUrl}/api/cre/trigger`, {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    Authorization: authHeader,
-  },
-  body: JSON.stringify({ storyId: story.id }),
-}).catch(err => console.error("[JOURNAL/SAVE] CRE trigger failed:", err));
-```
-
-This is a **fire-and-forget** call — meaning:
-- The save response returns immediately to the user (they don't wait for verification)
-- The CRE workflow runs asynchronously in the background
-- If it fails, the error is logged but the save still succeeds
-- The comment in code says: *"Non-critical: verification can be triggered manually later"*
-
-The `useVerifiedMetrics` hook on the story page then **polls every 10 seconds** until the on-chain result appears, at which point it displays the verified metrics.
+In `app/api/journal/save/route.ts`, after the story is successfully saved to Supabase, the API fires off a background request to `/api/cre/trigger`. This is **fire-and-forget** — the save succeeds immediately, and CRE runs asynchronously.
 
 ---
 
@@ -61,20 +67,28 @@ User records/writes a story and hits Save
        |  POSTs story content to Chainlink CRE workflow URL
        v
   Chainlink DON (Decentralized Oracle Network)
+       |  ConfidentialHTTPClient: story content encrypted inside enclave
        |  Multiple independent nodes ALL run the same Gemini call
        |  They must ALL agree on the result (consensus)
        v
-  KeystoneForwarder (0x82300bd7...)
-       |  Verifies DON signatures, forwards the signed report
+  DUAL WRITE:
+       |
+       |──> [On-Chain] KeystoneForwarder → PrivateVerifiedMetrics.sol
+       |         Stores: qualityTier, meetsThreshold, metricsHash,
+       |                 authorCommitment, attestationId
+       |         Emits: MetricsVerified(storyId, authorCommitment, tier, threshold)
+       |
+       |──> [Off-Chain] ConfidentialHTTPClient → /api/cre/callback
+       |         Stores: full scores, themes, word count, tx hash
+       |         (Supabase verified_metrics table, author-only access)
        v
-  VerifiedMetrics.sol (smart contract on Base Sepolia)
-       |  Decodes report, validates score ranges, stores permanently
-       |  Emits MetricsVerified event
+  /api/cre/check (author-based response filtering)
+       |  Author: full metrics + proof
+       |  Public: proof only (tier, threshold)
        v
-  useVerifiedMetrics hook (polls every 10s)
-       |  Calls /api/cre/check → reads contract → caches to Supabase
-       v
-  Story page shows verified metrics with on-chain proof
+  useVerifiedMetrics hook → VerifiedMetricsCard
+       |  Author view: progress bars, themes, scores
+       |  Public view: star rating, quality tier label
 ```
 
 ---
@@ -91,129 +105,101 @@ When called (automatically from journal save, or manually):
 - Creates a `verification_logs` entry with status `"pending"`
 - POSTs story content (id, title, content, author wallet) to `CRE_WORKFLOW_URL`
 
-**Error cases:**
-- 400: Missing storyId, story not found, empty content, no author wallet
-- 403: User does not own the story
-- 409: Already verified or verification in progress
-
 ### 2. The CRE Workflow (runs on Chainlink DON nodes)
 
 **Files:** `cre/iStory_workflow/`
 
-Three files define the workflow:
-
 #### `main.ts` — Entry Point
 - Sets up an HTTP trigger using `@chainlink/cre-sdk`
-- Reads config from `config.staging.json` (chain details, contract address, gas limit)
-- Routes incoming POST requests to the handler
+- Config includes `callbackUrl` and `owner` for Vault DON secrets
 
-#### `gemini.ts` — AI Analysis
-- Calls Google Gemini API to analyze the story
-- The critical difference from a normal API call: **every DON node independently makes the same Gemini call**
-- Uses `consensusIdenticalAggregation` — all nodes must return the exact same result
-- If even one node gets a different answer, the workflow fails (prevents tampering)
+#### `gemini.ts` — Confidential AI Analysis
+- Uses **`ConfidentialHTTPClient`** instead of `HTTPClient`
+- Story content stays encrypted inside the DON enclave
+- API key injected via Vault DON template: `{{.geminiApiKey}}`
+- Uses `multiHeaders` and `vaultDonSecrets` (not `runtime.getSecret()`)
+- `consensusIdenticalAggregation` — all nodes must return the same result
 
-**Analysis prompt asks Gemini to return:**
-```json
-{
-  "significanceScore": 0-100,
-  "emotionalDepth": 1-5,
-  "qualityScore": 0-100,
-  "wordCount": 450,
-  "themes": ["growth", "resilience"]
-}
-```
-
-#### `httpCallback.ts` — Orchestrator (7 steps)
+#### `httpCallback.ts` — 8-Step Orchestrator
 1. **Parse & validate** — Decode JSON payload, check required fields
-2. **AI analysis** — Call `askGemini()` with DON consensus
-3. **Network setup** — Get chain config, create EVMClient for Base Sepolia
-4. **Encode data** — Convert metrics to ABI-encoded bytes (storyId → bytes32, scores → uint8, etc.)
-5. **Generate CRE report** — Call `runtime.report()` with `signingAlgo: "ecdsa"`, `hashingAlgo: "keccak256"`
-6. **Write on-chain** — Call `evmClient.writeReport()` to KeystoneForwarder → VerifiedMetrics contract
-7. **Return result** — Success returns transaction hash
+2. **AI analysis** — Call `askGemini()` via ConfidentialHTTPClient
+3. **Derive privacy fields** — Compute qualityTier, meetsThreshold, metricsHash, authorCommitment
+4. **Network setup** — Get chain config, create EVMClient for Base Sepolia
+5. **Encode minimal data** — ABI-encode only: storyId, authorCommitment, meetsThreshold, qualityTier, metricsHash, attestationId
+6. **Generate CRE report** — `runtime.report()` with ECDSA signing
+7. **Write on-chain** — `evmClient.writeReport()` to PrivateVerifiedMetrics contract
+8. **Callback full metrics** — ConfidentialHTTPClient POST to `/api/cre/callback` with all scores, themes, etc.
 
-### 3. The Smart Contract (`VerifiedMetrics.sol`)
+### 3. The Smart Contract (`PrivateVerifiedMetrics.sol`)
 
-**File:** `contracts/VerifiedMetrics.sol`
+**File:** `contracts/PrivateVerifiedMetrics.sol`
 
-Inherits from Chainlink's `ReceiverTemplate`, which enforces:
-- **Only the KeystoneForwarder** can call `onReport()` — no one else can write fake metrics
-- Optional workflow identity verification (workflow ID, author address)
+Inherits from Chainlink's `ReceiverTemplate`. Stores **minimal cryptographic proofs**:
 
-When a signed report arrives via `onReport()`:
-1. `ReceiverTemplate` validates `msg.sender == forwarderAddress`
-2. `_processReport()` decodes the ABI-encoded bytes into storyId, author, scores, themes
-3. Validates ranges: significance 0-100, emotional depth 1-5, quality 0-100
-4. Stores in `mapping(bytes32 storyId => Metrics)` — permanent, immutable
-5. Emits `MetricsVerified` event
-
-**Stored metrics struct:**
 ```solidity
-struct Metrics {
-    uint8 significanceScore;   // 0-100
-    uint8 emotionalDepth;      // 1-5
-    uint8 qualityScore;        // 0-100
-    uint32 wordCount;
-    string[] themes;
-    bytes32 attestationId;     // CRE report ID
-    uint256 verifiedAt;        // block timestamp
+struct MinimalMetrics {
+    bool meetsQualityThreshold;  // qualityScore >= 70
+    uint8 qualityTier;           // 1-5
+    bytes32 metricsHash;         // keccak256(all scores + themes + salt)
+    bytes32 authorCommitment;    // keccak256(walletAddress, storyId)
+    bytes32 attestationId;
+    uint256 verifiedAt;
     bool exists;
 }
 ```
 
-**Read functions (public, anyone can call):**
-- `getMetrics(bytes32 storyId)` — full metrics
-- `isVerified(bytes32 storyId)` — boolean check
-- `getAttestationId(bytes32 storyId)` — CRE report ID
+**Privacy verification helpers:**
+- `verifyAuthor(storyId, address)` — Proves ownership by recomputing commitment
+- `verifyMetricsHash(storyId, hash)` — Proves full metrics integrity
 
-### 4. Reading Results (`/api/cre/check` + `useVerifiedMetrics`)
+**Legacy contract:** `contracts/legacy/VerifiedMetrics.sol` — Old contract that stored full scores on-chain. Kept for backward compatibility with already-verified stories.
+
+### 4. The Callback (`/api/cre/callback`)
+
+**File:** `app/api/cre/callback/route.ts`
+
+Receives full metrics from CRE DON nodes via ConfidentialHTTPClient:
+- **Not user-authenticated** — uses `X-CRE-Callback-Secret` header with `safeCompare()`
+- Upserts to `verified_metrics` Supabase table (idempotent for multiple DON nodes)
+- Updates `verification_logs` status to "completed"
+- Always returns `{ success: true }` for DON consensus
+
+### 5. Reading Results (`/api/cre/check` + `useVerifiedMetrics`)
 
 **File:** `app/api/cre/check/route.ts`
 
-Called by the frontend hook to read on-chain results:
-1. Converts story UUID to bytes32 (remove dashes, pad to 64 hex)
-2. Calls `isVerified(storyId)` on the contract via Base Sepolia RPC
-3. If verified, reads `getMetrics(storyId)` for full data
-4. Caches result to `verified_metrics` table in Supabase
-5. Updates `verification_logs` status to `"completed"`
+Dual-source reading with author-based filtering:
+1. Check Supabase cache (full data from callback)
+2. If caller is author → return full metrics + proof
+3. If caller is NOT author → return proof only (tier, threshold)
+4. If cache miss → read minimal on-chain data from contract
+5. Legacy fallback → check old contract for backward compat
 
 **File:** `app/hooks/useVerifiedMetrics.ts`
 
-React hook that polls for results:
-1. **Check Supabase cache first** (fast) — if found, done
-2. **Check if pending** — query `verification_logs` for `status = "pending"`
-3. **Poll on-chain** — call `/api/cre/check` every 10 seconds until verified
-
+Returns separated `metrics` (author-only) and `proof` (always available):
 ```typescript
-const { metrics, isPending, isVerified, error, refetch } = useVerifiedMetrics(storyId);
+const { metrics, proof, isPending, isVerified, isAuthor, refetch } = useVerifiedMetrics(storyId);
 ```
+
+### 6. Frontend Display
+
+**Author view** (full metrics): Progress bars, emotional depth, themes, word count — same rich display as before, but only the author sees it.
+
+**Public view** (proof only): Quality tier as 1-5 star rating with labels ("Developing" / "Fair" / "Good" / "High Quality" / "Exceptional"), "CRE Verified" shield, "Meets Quality Threshold" checkmark.
 
 ---
 
 ## Security Layers
 
 1. **API Auth:** All endpoints require Bearer token via `validateAuthOrReject`
-2. **Ownership:** `/api/cre/trigger` verifies user owns the story before triggering
-3. **DON Consensus:** Multiple independent nodes must agree on the Gemini result
-4. **Forwarder Validation:** `ReceiverTemplate` checks `msg.sender == forwarderAddress`
-5. **Workflow Identity:** Optional verification of workflow ID/author address
-6. **On-chain Immutability:** Once written, metrics cannot be modified or deleted
-
----
-
-## Practical Example
-
-A user writes a story about overcoming a challenge:
-
-1. They hit **Save** — the journal save API stores the story and kicks off CRE verification in the background
-2. 3+ Chainlink DON nodes each independently call Gemini with the story text
-3. All nodes agree: `{ significanceScore: 78, emotionalDepth: 4, qualityScore: 72, themes: ["resilience", "growth"] }`
-4. The DON signs this result and writes it to the `VerifiedMetrics` contract on Base Sepolia
-5. The story page's `useVerifiedMetrics` hook picks up the result on its next poll
-6. The page displays a verification badge with the on-chain attestation
-
-Anyone can call `getMetrics(storyId)` on Base Sepolia and see the exact same scores — no one can change them. This is particularly valuable for token rewards based on story quality or marketplace features — the metrics are provably fair.
+2. **Callback Auth:** CRE callback uses `X-CRE-Callback-Secret` with timing-safe comparison
+3. **Ownership:** `/api/cre/trigger` verifies user owns the story before triggering
+4. **Confidential HTTP:** Story content encrypted inside DON enclave via `ConfidentialHTTPClient`
+5. **DON Consensus:** Multiple independent nodes must agree on the Gemini result
+6. **Forwarder Validation:** `ReceiverTemplate` checks `msg.sender == forwarderAddress`
+7. **On-chain Privacy:** No raw scores, themes, or wallet addresses stored on-chain
+8. **Author-based Filtering:** `/api/cre/check` returns full metrics only to the story author
 
 ---
 
@@ -221,7 +207,8 @@ Anyone can call `getMetrics(storyId)` on Base Sepolia and see the exact same sco
 
 | Contract | Address | Chain |
 |----------|---------|-------|
-| VerifiedMetrics | `NEXT_PUBLIC_VERIFIED_METRICS_ADDRESS` (env var) | Base Sepolia (84532) |
+| PrivateVerifiedMetrics | `NEXT_PUBLIC_VERIFIED_METRICS_ADDRESS` (env var) | Base Sepolia (84532) |
+| Legacy VerifiedMetrics | `NEXT_PUBLIC_LEGACY_VERIFIED_METRICS_ADDRESS` (env var) | Base Sepolia (84532) |
 | KeystoneForwarder | `0x82300bd7c3958625581cc2f77bc6464dcecdf3e5` | Base Sepolia |
 
 ## Environment Variables
@@ -230,8 +217,10 @@ Anyone can call `getMetrics(storyId)` on Base Sepolia and see the exact same sco
 |-----|---------|---------|
 | `CRE_WORKFLOW_URL` | `/api/cre/trigger` | Chainlink CRE HTTP endpoint |
 | `CRE_API_KEY` | `/api/cre/trigger` | Auth token for CRE workflow |
-| `NEXT_PUBLIC_VERIFIED_METRICS_ADDRESS` | `/api/cre/check` | Contract address to read metrics |
-| `GEMINI_API_KEY_ALL` | CRE workflow | Google Gemini API key (stored as CRE secret) |
+| `NEXT_PUBLIC_VERIFIED_METRICS_ADDRESS` | `/api/cre/check` | New contract address |
+| `NEXT_PUBLIC_LEGACY_VERIFIED_METRICS_ADDRESS` | `/api/cre/check` | Old contract (backward compat) |
+| `CRE_CALLBACK_SECRET` | `/api/cre/callback` | Secret for DON callback auth |
+| `GEMINI_API_KEY_ALL` | CRE workflow | Google Gemini API key (Vault DON secret) |
 
 ## CRE CLI Commands
 
@@ -252,12 +241,77 @@ cre workflow deploy iStory_workflow
 
 | File | Purpose |
 |------|---------|
-| `app/api/journal/save/route.ts` | Saves story + auto-triggers CRE (line ~82) |
 | `app/api/cre/trigger/route.ts` | Validates ownership, creates log, POSTs to CRE |
-| `app/api/cre/check/route.ts` | Reads verified metrics from contract |
-| `app/hooks/useVerifiedMetrics.ts` | Frontend polling hook |
+| `app/api/cre/callback/route.ts` | Receives full metrics from DON nodes |
+| `app/api/cre/check/route.ts` | Author-filtered metrics reading |
+| `app/hooks/useVerifiedMetrics.ts` | Frontend hook (metrics + proof) |
+| `components/VerifiedMetricsCard.tsx` | Dual author/public display |
+| `components/VerifiedBadge.tsx` | Badge with quality tier label |
 | `cre/iStory_workflow/main.ts` | CRE workflow entry point |
-| `cre/iStory_workflow/gemini.ts` | AI analysis with DON consensus |
-| `cre/iStory_workflow/httpCallback.ts` | Full orchestration (7-step flow) |
-| `contracts/VerifiedMetrics.sol` | On-chain metrics storage |
+| `cre/iStory_workflow/gemini.ts` | Confidential AI analysis |
+| `cre/iStory_workflow/httpCallback.ts` | 8-step orchestration |
+| `contracts/PrivateVerifiedMetrics.sol` | Privacy-preserving on-chain storage |
+| `contracts/legacy/VerifiedMetrics.sol` | Old contract (full data on-chain) |
 | `contracts/interfaces/ReceiverTemplate.sol` | Chainlink receiver base contract |
+
+---
+
+## Hackathon Demo
+
+### Prerequisites
+1. **CRE CLI installed** — `cre version`
+2. **CRE account** — `cre login`
+3. **Funded wallet** — Base Sepolia ETH in `cre/.env`
+4. **API keys** — `GEMINI_API_KEY_ALL` in `cre/.env`
+5. **Callback secret** — `CRE_CALLBACK_SECRET` matching the app's env var
+
+### Running the Demo
+
+```bash
+cd cre
+
+# Create input
+cat > demo-input.json << 'EOF'
+{
+  "storyId": "YOUR-STORY-UUID",
+  "title": "Overcoming Challenges",
+  "content": "Today I faced a significant challenge...",
+  "authorWallet": "0xYourWalletAddress"
+}
+EOF
+
+# Dry run (local only)
+cat demo-input.json | cre workflow simulate iStory_workflow
+
+# Real on-chain write
+cat demo-input.json | cre workflow simulate iStory_workflow --broadcast
+```
+
+### Expected Output (8 Steps)
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CRE Workflow: eStory Privacy-Preserving Verification
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[Step 1] Processing story: ...
+[Step 2] Querying Gemini AI (confidential enclave)...
+[Step 3] Deriving privacy-preserving fields...
+[Step 3] qualityTier=4, meetsThreshold=true
+[Step 4] Target chain: ethereum-testnet-sepolia-base-1
+[Step 5] Encoding minimal privacy-preserving data...
+[Step 6] Generating CRE report...
+[Step 7] On-chain write successful: 0x1a2b3c4d...
+[Step 8] Sending full metrics via confidential callback...
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+### Verify Privacy On-Chain
+```bash
+# Read from contract — only minimal data visible
+cast call $CONTRACT_ADDRESS \
+  "getMetrics(bytes32)(bool,uint8,bytes32,bytes32,bytes32,uint256)" \
+  $STORY_BYTES32 \
+  --rpc-url https://sepolia.base.org
+
+# Returns: (true, 4, 0xabc...hash, 0xdef...commitment, 0x123...attestation, 1709123456)
+# NO scores, NO themes, NO wallet address visible
+```

@@ -1,85 +1,52 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useBrowserSupabase } from "./useBrowserSupabase";
 import { useAuth } from "@/components/AuthProvider";
 
-interface VerifiedMetrics {
+// Full metrics — only available to the story author
+export interface VerifiedMetrics {
   significance_score: number;
   emotional_depth: number;
   quality_score: number;
   word_count: number;
   verified_themes: string[];
   cre_attestation_id: string | null;
-  cre_workflow_run_id: string | null;
   on_chain_tx_hash: string | null;
-  on_chain_block_number: number | null;
 }
 
-interface UseVerifiedMetricsResult {
-  metrics: VerifiedMetrics | null;
+// Minimal proof — available to everyone
+export interface VerifiedMetricsProof {
+  qualityTier: number; // 1-5
+  meetsQualityThreshold: boolean;
+  metricsHash?: string;
+  attestationId?: string;
+  verifiedAt?: number;
+}
+
+export interface UseVerifiedMetricsResult {
+  metrics: VerifiedMetrics | null;     // Full data, author only
+  proof: VerifiedMetricsProof | null;  // Minimal proof, always available
   isPending: boolean;
   isVerified: boolean;
+  isAuthor: boolean;
   error: string | null;
   refetch: () => void;
 }
 
 export function useVerifiedMetrics(storyId: string | null): UseVerifiedMetricsResult {
-  const supabase = useBrowserSupabase();
   const { getAccessToken } = useAuth();
   const [metrics, setMetrics] = useState<VerifiedMetrics | null>(null);
+  const [proof, setProof] = useState<VerifiedMetricsProof | null>(null);
   const [isPending, setIsPending] = useState(false);
+  const [isAuthor, setIsAuthor] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchMetrics = useCallback(async () => {
-    if (!supabase || !storyId) return;
+    if (!storyId) return;
 
     try {
       setError(null);
-
-      // Step 1: Check Supabase cache first (fast)
-      const { data: metricsData, error: metricsError } = await supabase
-        .from("verified_metrics")
-        .select("*")
-        .eq("story_id", storyId)
-        .maybeSingle();
-
-      if (metricsError) {
-        console.error("[useVerifiedMetrics] Metrics fetch error:", metricsError);
-        setError("Failed to load metrics");
-        return;
-      }
-
-      if (metricsData) {
-        setMetrics(metricsData);
-        setIsPending(false);
-        // Stop polling — we have results
-        if (pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current);
-          pollIntervalRef.current = null;
-        }
-        return;
-      }
-
-      // Step 2: Check if verification is pending
-      const { data: logData } = await supabase
-        .from("verification_logs")
-        .select("status")
-        .eq("story_id", storyId)
-        .eq("status", "pending")
-        .maybeSingle();
-
-      if (!logData) {
-        // Not pending, not verified — nothing to do
-        setIsPending(false);
-        setMetrics(null);
-        return;
-      }
-
-      // Step 3: Pending — check on-chain via /api/cre/check
-      // This reads from the contract and caches to Supabase if found
-      setIsPending(true);
 
       const token = await getAccessToken();
       if (!token) return;
@@ -93,34 +60,60 @@ export function useVerifiedMetrics(storyId: string | null): UseVerifiedMetricsRe
         body: JSON.stringify({ storyId }),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data.verified && data.metrics) {
-          // Chain read found data — it's now cached in Supabase too
+      if (!res.ok) {
+        if (res.status !== 401) {
+          setError("Failed to load verification status");
+        }
+        return;
+      }
+
+      const data = await res.json();
+
+      if (data.verified) {
+        setIsAuthor(!!data.isAuthor);
+
+        // Set proof (always available when verified)
+        if (data.proof) {
+          setProof({
+            qualityTier: data.proof.qualityTier,
+            meetsQualityThreshold: data.proof.meetsQualityThreshold,
+            metricsHash: data.proof.metricsHash,
+            attestationId: data.proof.attestationId,
+            verifiedAt: data.proof.verifiedAt,
+          });
+        }
+
+        // Set full metrics (only for author)
+        if (data.metrics) {
           setMetrics({
             significance_score: data.metrics.significance_score,
             emotional_depth: data.metrics.emotional_depth,
             quality_score: data.metrics.quality_score,
             word_count: data.metrics.word_count,
-            verified_themes: data.metrics.verified_themes,
+            verified_themes: data.metrics.verified_themes || [],
             cre_attestation_id: data.metrics.cre_attestation_id || null,
-            cre_workflow_run_id: null,
-            on_chain_tx_hash: null,
-            on_chain_block_number: null,
+            on_chain_tx_hash: data.metrics.on_chain_tx_hash || null,
           });
-          setIsPending(false);
-          if (pollIntervalRef.current) {
-            clearInterval(pollIntervalRef.current);
-            pollIntervalRef.current = null;
-          }
         }
-        // If not verified yet, keep polling
+
+        setIsPending(false);
+        // Stop polling — we have results
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+      } else {
+        // Not verified — check if pending by looking for a pending state
+        // The trigger route sets this, so if not verified, poll a few times
+        setIsPending(false);
+        setMetrics(null);
+        setProof(null);
       }
     } catch (err) {
       console.error("[useVerifiedMetrics] Error:", err);
       setError("Failed to load verification status");
     }
-  }, [supabase, storyId]);
+  }, [storyId, getAccessToken]);
 
   // Initial fetch
   useEffect(() => {
@@ -141,11 +134,21 @@ export function useVerifiedMetrics(storyId: string | null): UseVerifiedMetricsRe
     };
   }, [isPending, fetchMetrics]);
 
+  // Expose a startPolling function for when trigger is called
+  const startPolling = useCallback(() => {
+    setIsPending(true);
+  }, []);
+
   return {
     metrics,
+    proof,
     isPending,
-    isVerified: !!metrics,
+    isVerified: !!proof,
+    isAuthor,
     error,
-    refetch: fetchMetrics,
+    refetch: () => {
+      startPolling();
+      fetchMetrics();
+    },
   };
 }

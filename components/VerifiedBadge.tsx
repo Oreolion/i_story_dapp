@@ -6,12 +6,21 @@ import { Badge } from "@/components/ui/badge";
 interface VerifiedBadgeProps {
   status: "verified" | "pending" | "unverified";
   txHash?: string | null;
+  qualityTier?: number; // 1-5
   className?: string;
 }
 
 const BLOCK_EXPLORER = process.env.NEXT_PUBLIC_BLOCK_EXPLORER || "https://sepolia.basescan.org";
 
-export function VerifiedBadge({ status, txHash, className = "" }: VerifiedBadgeProps) {
+const tierLabels: Record<number, string> = {
+  1: "Developing",
+  2: "Fair",
+  3: "Good",
+  4: "High Quality",
+  5: "Exceptional",
+};
+
+export function VerifiedBadge({ status, txHash, qualityTier, className = "" }: VerifiedBadgeProps) {
   if (status === "unverified") {
     return null;
   }
@@ -28,14 +37,16 @@ export function VerifiedBadge({ status, txHash, className = "" }: VerifiedBadgeP
     );
   }
 
-  // Verified
+  // Verified — show tier label if available
+  const tierLabel = qualityTier ? tierLabels[qualityTier] : null;
+
   const badge = (
     <Badge
       variant="outline"
       className={`border-emerald-400/50 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 ${className}`}
     >
       <CheckCircle2 className="w-3 h-3 mr-1" />
-      Verified
+      Verified{tierLabel ? ` - ${tierLabel}` : ""}
       {txHash && <ExternalLink className="w-3 h-3 ml-1" />}
     </Badge>
   );
