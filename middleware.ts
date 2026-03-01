@@ -72,20 +72,61 @@ function getRateLimit(pathname: string): number {
 }
 
 // ============================================================================
+// CORS Configuration
+// ============================================================================
+
+// Origins allowed to make cross-origin API requests (mobile app dev + production)
+const ALLOWED_ORIGINS = [
+  "http://localhost:8081",  // Expo web dev server
+  "http://localhost:19006", // Expo web (alternate port)
+  "http://localhost:3000",  // Next.js dev server
+  "https://e-story-dapp.vercel.app",
+  "https://istory.vercel.app",
+];
+
+function getCorsHeaders(origin: string | null): Record<string, string> {
+  const headers: Record<string, string> = {
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Max-Age": "86400",
+  };
+
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    headers["Access-Control-Allow-Origin"] = origin;
+  }
+
+  return headers;
+}
+
+// ============================================================================
 // Middleware
 // ============================================================================
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Only rate-limit API routes
+  // Only handle API routes
   if (!pathname.startsWith("/api/")) {
     return NextResponse.next();
   }
 
+  const origin = request.headers.get("origin");
+
+  // Handle CORS preflight (OPTIONS) requests
+  if (request.method === "OPTIONS") {
+    return new NextResponse(null, {
+      status: 204,
+      headers: getCorsHeaders(origin),
+    });
+  }
+
   const maxRequests = getRateLimit(pathname);
   if (maxRequests === 0) {
-    return NextResponse.next();
+    const response = NextResponse.next();
+    for (const [key, value] of Object.entries(getCorsHeaders(origin))) {
+      response.headers.set(key, value);
+    }
+    return response;
   }
 
   // Use IP + path prefix as rate limit key
@@ -109,15 +150,19 @@ export function middleware(request: NextRequest) {
           "Retry-After": "60",
           "X-RateLimit-Limit": String(maxRequests),
           "X-RateLimit-Remaining": "0",
+          ...getCorsHeaders(origin),
         },
       }
     );
   }
 
-  // Continue with rate limit headers
+  // Continue with rate limit + CORS headers
   const response = NextResponse.next();
   response.headers.set("X-RateLimit-Limit", String(maxRequests));
   response.headers.set("X-RateLimit-Remaining", String(remaining));
+  for (const [key, value] of Object.entries(getCorsHeaders(origin))) {
+    response.headers.set(key, value);
+  }
 
   return response;
 }
