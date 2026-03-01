@@ -1,7 +1,37 @@
 // app/api/stories/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/app/utils/supabase/supabaseAdmin";
-import { validateAuthOrReject, isAuthError } from "@/lib/auth";
+import { validateAuthOrReject, isAuthError, resolveUserId } from "@/lib/auth";
+
+/**
+ * GET /api/stories — Fetch authenticated user's own stories (bypasses RLS)
+ */
+export async function GET(req: NextRequest) {
+  try {
+    const authResult = await validateAuthOrReject(req);
+    if (isAuthError(authResult)) return authResult;
+    // Resolve JWT user ID → users table ID (wallet users may differ)
+    const userId = await resolveUserId(authResult);
+
+    const admin = createSupabaseAdminClient();
+
+    const { data, error } = await admin
+      .from("stories")
+      .select("*")
+      .eq("author_id", userId)
+      .order("story_date", { ascending: false });
+
+    if (error) {
+      console.error("[API /stories GET] fetch error:", error);
+      return NextResponse.json({ error: "Failed to fetch stories" }, { status: 500 });
+    }
+
+    return NextResponse.json({ stories: data || [] });
+  } catch (err: unknown) {
+    console.error("[API /stories GET] unexpected error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,6 +52,9 @@ export async function POST(req: NextRequest) {
       tags,
       mood,
       ipfs_hash,
+      is_public,
+      created_at,
+      story_date,
     } = body ?? {};
 
     // Basic validation
@@ -32,8 +65,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Verify author_id matches authenticated user
-    if (authenticatedUserId !== author_id) {
+    // Resolve JWT user ID → users table ID (wallet users may differ)
+    const resolvedUserId = await resolveUserId(authenticatedUserId);
+
+    // Verify author_id matches authenticated user (use resolved ID)
+    if (resolvedUserId !== author_id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -56,22 +92,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Wallet mismatch" }, { status: 401 });
     }
 
+    const insertData: Record<string, unknown> = {
+      author_id,
+      author_wallet: author_wallet.toLowerCase(),
+      title,
+      content,
+      has_audio: !!has_audio,
+      audio_url: audio_url ?? null,
+      likes: 0,
+      comments_count: 0,
+      shares: 0,
+      tags: tags ?? [],
+      mood: mood ?? "neutral",
+      ipfs_hash: ipfs_hash ?? null,
+      is_public: typeof is_public === "boolean" ? is_public : false,
+    };
+
+    // Optional date fields
+    if (created_at) insertData.created_at = created_at;
+    if (story_date) insertData.story_date = story_date;
+
     const { data: inserted, error: insertError } = await admin
       .from("stories")
-      .insert({
-        author_id,
-        author_wallet: author_wallet.toLowerCase(),
-        title,
-        content,
-        has_audio: !!has_audio,
-        audio_url: audio_url ?? null,
-        likes: 0,
-        comments_count: 0,
-        shares: 0,
-        tags: tags ?? [],
-        mood: mood ?? "neutral",
-        ipfs_hash: ipfs_hash ?? null,
-      })
+      .insert(insertData)
       .select()
       .single();
 

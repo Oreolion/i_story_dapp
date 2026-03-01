@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { verifyWalletToken } from "./jwt";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -12,6 +13,11 @@ function getAdminClient() {
 
 /**
  * Validate Bearer token from request and return user ID if valid.
+ *
+ * Accepts two token types:
+ *   1. Supabase session JWT (Google/OAuth users)
+ *   2. Custom wallet JWT (wallet-authenticated users, signed by our server)
+ *
  * Returns null if token is missing or invalid.
  */
 export async function validateAuth(
@@ -24,17 +30,29 @@ export async function validateAuth(
     }
 
     const token = authHeader.substring(7);
-    const supabase = getAdminClient();
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser(token);
 
-    if (error || !user) {
-      return null;
+    // 1. Try Supabase session token (Google/OAuth users)
+    try {
+      const supabase = getAdminClient();
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser(token);
+
+      if (!error && user) {
+        return user.id;
+      }
+    } catch {
+      // Not a valid Supabase token — try custom wallet JWT next
     }
 
-    return user.id;
+    // 2. Try custom wallet JWT (wallet-authenticated users)
+    const walletPayload = await verifyWalletToken(token);
+    if (walletPayload) {
+      return walletPayload.userId;
+    }
+
+    return null;
   } catch {
     return null;
   }
@@ -79,16 +97,19 @@ export async function validateWalletOwnership(
 }
 
 /**
- * Resolve the effective users-table ID from the JWT-authenticated user ID.
- * Handles session/profile ID mismatch by falling back to wallet_address lookup
- * via Supabase auth user metadata.
+ * Resolve the effective users-table ID from the authenticated user ID.
+ *
+ * For wallet JWT users, the ID already points at the users table row
+ * (no Supabase auth user indirection). For Supabase OAuth users,
+ * the auth uid usually matches the users table ID directly.
+ * Falls back to wallet_address lookup if there's an ID mismatch.
  */
 export async function resolveUserId(
   authenticatedUserId: string
 ): Promise<string> {
   const supabase = getAdminClient();
 
-  // Fast path: JWT user ID directly matches a users row
+  // Fast path: ID directly matches a users row
   const { data: directUser } = await supabase
     .from("users")
     .select("id")
@@ -97,7 +118,7 @@ export async function resolveUserId(
 
   if (directUser) return directUser.id;
 
-  // Slow path: look up via wallet_address from auth user metadata
+  // Slow path: look up via wallet_address from Supabase auth user metadata
   try {
     const {
       data: { user: authUser },

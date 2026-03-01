@@ -101,11 +101,12 @@ export default function SocialPage() {
   const { payPaywall } = useStoryProtocol();
   const supabase = supabaseClient;
 
-  // Helper to get auth token for API calls
+  // Use centralized auth token from AuthProvider
+  const { getAccessToken } = useAuth();
+
+  // Helper to get auth headers for API calls
   const getAuthHeaders = async (): Promise<Record<string, string>> => {
-    if (!supabase) return { "Content-Type": "application/json" };
-    const { data } = await supabase.auth.getSession();
-    const token = data?.session?.access_token;
+    const token = await getAccessToken();
     return {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -114,31 +115,41 @@ export default function SocialPage() {
 
   // --- Fetch Data ---
   useEffect(() => {
-    if (!supabase) {
-      setIsLoading(false);
-      return;
-    }
-
     const fetchSupabaseData = async () => {
       setIsLoading(true);
       try {
-        // 1. Fetch ALL stories (public feed)
-        const { data, error } = await supabase
-          .from("stories")
-          .select(
+        // 1. Fetch ALL stories via API route (bypasses RLS, uses admin client)
+        let data: any[] = [];
+        try {
+          const res = await fetch("/api/stories/feed");
+          if (res.ok) {
+            const json = await res.json();
+            data = json.stories || [];
+          }
+        } catch {
+          // API route failed — try direct Supabase as fallback
+        }
+
+        // Fallback: direct Supabase query (may fail for wallet users due to RLS)
+        if (data.length === 0 && supabase) {
+          const { data: directData, error } = await supabase
+            .from("stories")
+            .select(
+              `
+              id, numeric_id, title, content, created_at, likes, comments_count, shares, has_audio, audio_url, mood, tags, paywall_amount, teaser,
+              author:users!stories_author_wallet_fkey (
+                id, name, username, avatar, wallet_address, followers_count, badges
+              )
             `
-            id, numeric_id, title, content, created_at, likes, comments_count, shares, has_audio, audio_url, mood, tags, paywall_amount, teaser,
-            author:users!stories_author_wallet_fkey (
-              id, name, username, avatar, wallet_address, followers_count, badges
             )
-          `
-          )
-          .order("created_at", { ascending: false });
+            .order("created_at", { ascending: false });
 
-        if (error) throw error;
+          if (error) throw error;
+          data = directData || [];
+        }
 
-        // 2. Filter out stories with missing authors (data integrity)
-        const validStories = (data?.filter((s) => s.author) as any[]) || [];
+        // 2. Filter out stories with missing authors (data integrity) and non-public
+        const validStories = (data?.filter((s: any) => s.author) as any[]) || [];
 
         // 3. Collect unique author wallet addresses for follow status check
         const authorWallets = [
@@ -232,7 +243,7 @@ export default function SocialPage() {
     };
 
     fetchSupabaseData();
-  }, [supabase, address]);
+  }, [address]);
 
   // --- Event Handlers ---
 

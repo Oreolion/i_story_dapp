@@ -22,6 +22,7 @@ const eslintConfig = [
       "typechain-types/**",
       "skills/**",
       "cre/**",
+      "mobile/**",
     ],
   },
   {

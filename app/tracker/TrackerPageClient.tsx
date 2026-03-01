@@ -34,22 +34,20 @@ const MOODS = [
 ];
 
 export default function TasksPage() {
-  const { profile: authInfo } = useAuth();
+  const { profile: authInfo, getAccessToken } = useAuth();
   const supabase = useBrowserSupabase();
 
   // Set background mode for this page
   useBackgroundMode('tracker');
 
-  // Helper to get auth token for API calls
+  // Helper to get auth headers for API calls
   const getAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
-    if (!supabase) return { "Content-Type": "application/json" };
-    const { data } = await supabase.auth.getSession();
-    const token = data?.session?.access_token;
+    const token = await getAccessToken();
     return {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
-  }, [supabase]);
+  }, [getAccessToken]);
 
   // Data State
   const [habits, setHabits] = useState<any[]>([]);

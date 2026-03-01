@@ -25,6 +25,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import { getEmotionClass, getDomainClass, domainLabels } from "@/lib/design-tokens";
+import { useAuth } from "@/components/AuthProvider";
 
 interface StoryInsightsProps {
   storyId: string;
@@ -32,6 +33,7 @@ interface StoryInsightsProps {
 }
 
 export function StoryInsights({ storyId, storyText }: StoryInsightsProps) {
+  const { getAccessToken } = useAuth();
   const [metadata, setMetadata] = useState<StoryMetadata | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -106,9 +108,13 @@ export function StoryInsights({ storyId, storyText }: StoryInsightsProps) {
       setIsAnalyzing(true);
       setFetchError(null);
 
+      const token = await getAccessToken();
       const res = await fetch("/api/ai/analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ storyId, storyText }),
         signal: controller.signal,
       });

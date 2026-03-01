@@ -16,16 +16,26 @@ export class IPFSService {
   }
 
   /**
+   * Build auth headers from token.
+   * Token should be obtained from AuthProvider's getAccessToken() by the caller.
+   */
+  private buildAuthHeaders(accessToken?: string | null): Record<string, string> {
+    return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+  }
+
+  /**
    * Uploads JSON metadata (for NFTs/Books) to IPFS via our API route.
    */
-  async uploadMetadata(data: any): Promise<IPFSUploadResult> {
+  async uploadMetadata(data: any, accessToken?: string | null): Promise<IPFSUploadResult> {
     try {
       const formData = new FormData();
       // Send as stringified JSON
       formData.append("metadata", JSON.stringify(data));
 
+      const authHeaders = this.buildAuthHeaders(accessToken);
       const response = await fetch("/api/ipfs/upload", {
         method: "POST",
+        headers: { ...authHeaders },
         body: formData,
       });
 
@@ -44,13 +54,15 @@ export class IPFSService {
   /**
    * Uploads a physical file (Audio/Image) to IPFS via our API route.
    */
-  async uploadFile(file: Blob): Promise<IPFSUploadResult> {
+  async uploadFile(file: Blob, accessToken?: string | null): Promise<IPFSUploadResult> {
     try {
       const formData = new FormData();
       formData.append("file", file);
 
+      const authHeaders = this.buildAuthHeaders(accessToken);
       const response = await fetch("/api/ipfs/upload", {
         method: "POST",
+        headers: { ...authHeaders },
         body: formData,
       });
 

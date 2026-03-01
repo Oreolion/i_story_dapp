@@ -50,6 +50,17 @@ are involved? What could go wrong if this races with another auth flow? Any conc
 I should know about before you start coding?
 ```
 
+### Vault Encryption Debugging
+```
+Debug a vault encryption issue. Work autonomously:
+1) Check if the vault is set up (isVaultSetup) and unlocked (isVaultUnlocked) for the user
+2) Verify the IndexedDB schema matches lib/vault/db.ts (3 stores: stories, vaultKeys, syncQueue)
+3) Check if window.crypto.subtle is available (requires HTTPS or localhost)
+4) Test encrypt/decrypt round-trip using encryptString/decryptString
+5) Verify DEK is in memory (getDEK should not throw)
+6) Check for Dexie version conflicts or IndexedDB quota errors
+```
+
 ### Phased Task Breakdown
 ```
 I need to fix [X]. Before starting, break this into 2-3 phases where each phase
@@ -75,7 +86,13 @@ claude -p "List all Supabase migrations and verify story_metadata table exists" 
 
 # Quick security review
 claude -p "Review app/api/auth/ for security vulnerabilities" --allowedTools "Read,Grep" --max-turns 5
+
+# Run vault tests
+claude -p "run vault-related tests in __tests__/vault/ and report results" \
+  --allowedTools "Bash,Read" --max-turns 5
 ```
+
+> **Note:** `window.crypto.subtle` is only available in secure contexts (HTTPS or localhost). Vault features will not work on plain HTTP deployments.
 
 ### Database Operations
 ```bash

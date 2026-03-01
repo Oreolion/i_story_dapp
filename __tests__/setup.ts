@@ -1,5 +1,15 @@
 import '@testing-library/jest-dom';
+import 'fake-indexeddb/auto';
 import { vi } from 'vitest';
+import { webcrypto } from 'node:crypto';
+
+// Polyfill Web Crypto API for jsdom (vault encryption tests)
+if (!globalThis.crypto?.subtle) {
+  Object.defineProperty(globalThis, 'crypto', {
+    value: webcrypto,
+    writable: true,
+  });
+}
 
 // 1. Mock ResizeObserver (Required for Radix/Shadcn UI)
 global.ResizeObserver = class ResizeObserver {

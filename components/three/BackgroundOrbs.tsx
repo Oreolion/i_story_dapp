@@ -13,6 +13,7 @@ interface BackgroundOrbsProps {
   primaryColor: string;
   secondaryColor: string;
   mousePosition?: { x: number; y: number };
+  isLightMode?: boolean;
 }
 
 export function BackgroundOrbs({
@@ -20,6 +21,7 @@ export function BackgroundOrbs({
   size,
   primaryColor,
   secondaryColor,
+  isLightMode = false,
 }: BackgroundOrbsProps) {
   const groupRef = useRef<THREE.Group>(null);
   const meshRefs = useRef<(THREE.Mesh | null)[]>([]);
@@ -95,8 +97,8 @@ export function BackgroundOrbs({
           <meshBasicMaterial
             color={config.useSecondary ? secondaryColor : primaryColor}
             transparent
-            opacity={0.15}
-            blending={THREE.AdditiveBlending}
+            opacity={isLightMode ? 0.1 : 0.15}
+            blending={isLightMode ? THREE.NormalBlending : THREE.AdditiveBlending}
           />
         </mesh>
       ))}

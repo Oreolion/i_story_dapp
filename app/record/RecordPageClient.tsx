@@ -11,6 +11,16 @@ import { supabaseClient } from "../../app/utils/supabase/supabaseClient";
 import { ipfsService } from "../../app/utils/ipfsService";
 import { useBackgroundMode } from "@/contexts/BackgroundContext";
 
+// Vault — local encrypted storage (optional, non-blocking)
+import {
+  isVaultSetup as checkVaultSetup,
+  isVaultUnlocked as checkVaultUnlocked,
+  getDEK,
+  encryptString,
+  getVaultDb,
+  type LocalStoryRecord,
+} from "@/lib/vault";
+
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -41,6 +51,7 @@ import {
   Calendar as CalendarIcon, // Renamed to avoid conflict
   Lock,   // NEW: For Private icon
   Unlock, // NEW: For Public icon
+  Undo2,
 } from "lucide-react";
 
 export default function RecordPage() {
@@ -67,12 +78,22 @@ export default function RecordPage() {
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isPlayingTTS, setIsPlayingTTS] = useState(false);
+  const [preEnhanceText, setPreEnhanceText] = useState<string | null>(null);
 
   // Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const supabase = supabaseClient;
+
+  // Use centralized auth token from AuthProvider
+  const { getAccessToken } = useAuth();
+
+  // Helper to build auth headers from centralized token
+  const getAuthHeaders = async (): Promise<Record<string, string>> => {
+    const token = await getAccessToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
 
   // --- 1. Recording Logic ---
   const startRecording = async () => {
@@ -128,68 +149,96 @@ export default function RecordPage() {
   // --- 2. AI Transcription ---
   const handleTranscribe = async (blob: Blob) => {
     setIsProcessing(true);
-    const formData = new FormData();
-    formData.append("file", blob);
+    try {
+      const formData = new FormData();
+      formData.append("file", blob);
 
-    const promise = fetch("/api/ai/transcribe", {
-      method: "POST",
-      body: formData,
-    }).then(async (res) => {
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Transcription failed");
-      }
-      const data = await res.json();
-      return data.text;
-    });
-
-    toast.promise(promise, {
-      loading: "AI is transcribing...",
-      success: (text) => {
-        setTranscribedText((prev) => (prev ? prev + " " + text : text));
-        // Use the selected date for the default title
-        if (!entryTitle) {
-          const dateObj = new Date(storyDate);
-          setEntryTitle(`Journal Entry - ${dateObj.toLocaleDateString()}`);
+      const authHeaders = await getAuthHeaders();
+      const promise = fetch("/api/ai/transcribe", {
+        method: "POST",
+        headers: { ...authHeaders },
+        body: formData,
+      }).then(async (res) => {
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || "Transcription failed");
         }
-        setIsProcessing(false);
-        return "Transcription complete!";
-      },
-      error: (err) => {
-        setIsProcessing(false);
-        console.error(err);
-        return "Failed to transcribe audio.";
-      },
-    });
+        const data = await res.json();
+        return data.text;
+      });
+
+      toast.promise(promise, {
+        loading: "AI is transcribing...",
+        success: (text) => {
+          setTranscribedText((prev) => (prev ? prev + " " + text : text));
+          if (!entryTitle) {
+            const dateObj = new Date(storyDate);
+            setEntryTitle(`Journal Entry - ${dateObj.toLocaleDateString()}`);
+          }
+          setIsProcessing(false);
+          return "Transcription complete!";
+        },
+        error: (err) => {
+          setIsProcessing(false);
+          console.error(err);
+          return "Failed to transcribe audio.";
+        },
+      });
+    } catch (err) {
+      setIsProcessing(false);
+      console.error("Transcription setup error:", err);
+      toast.error("Failed to start transcription.");
+    }
   };
 
   // --- 3. AI Enhancement ---
   const enhanceText = async () => {
     if (!transcribedText.trim()) return;
     setIsProcessing(true);
+    setPreEnhanceText(transcribedText); // Save original for revert
 
-    const promise = fetch("/api/ai/enhance", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: transcribedText }),
-    }).then(async (res) => {
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Enhancement failed");
-      }
-      const data = await res.json();
-      return data.text;
-    });
+    try {
+      const authHeaders = await getAuthHeaders();
+      const promise = fetch("/api/ai/enhance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        body: JSON.stringify({ text: transcribedText }),
+      }).then(async (res) => {
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || "Enhancement failed");
+        }
+        const data = await res.json();
+        return data.text;
+      });
 
-    toast.promise(promise, {
-      loading: "Polishing story...",
-      success: (enhanced) => {
-        setTranscribedText(enhanced);
-        setIsProcessing(false);
-        return "Story enhanced!";
-      },
-      error: "Failed to enhance text.",
-    });
+      toast.promise(promise, {
+        loading: "Polishing story...",
+        success: (enhanced) => {
+          setTranscribedText(enhanced);
+          setIsProcessing(false);
+          return "Story enhanced! You can revert if you prefer the original.";
+        },
+        error: (err) => {
+          setPreEnhanceText(null);
+          setIsProcessing(false);
+          return "Failed to enhance text.";
+        },
+      });
+    } catch (err) {
+      setPreEnhanceText(null);
+      setIsProcessing(false);
+      console.error("Enhancement setup error:", err);
+      toast.error("Failed to start enhancement.");
+    }
+  };
+
+  const revertEnhancement = () => {
+    if (preEnhanceText) {
+      setTranscribedText(preEnhanceText);
+      setPreEnhanceText(null);
+      toast.success("Reverted to original text.");
+    }
   };
 
   // --- 4. Text-to-Speech ---
@@ -226,19 +275,20 @@ export default function RecordPage() {
       const backdatedStoryDate = new Date(storyDate).toISOString(); // User selected time
 
       try {
-        // A. Upload Audio to Supabase
-        if (audioBlob && supabase) {
-          const fileName = `${userId}/${new Date().getTime()}.webm`; // Unique name
-          const { data: uploadData, error: uploadError } =
-            await supabase.storage
-              .from("story-audio")
-              .upload(fileName, audioBlob, { contentType: "audio/webm" });
-
-          if (!uploadError && uploadData) {
-            const { data: urlData } = supabase.storage
-              .from("story-audio")
-              .getPublicUrl(uploadData.path);
-            audioUrl = urlData.publicUrl;
+        // A. Upload Audio via API route (bypasses RLS, works for wallet & OAuth users)
+        if (audioBlob) {
+          const uploadForm = new FormData();
+          uploadForm.append("file", audioBlob, "recording.webm");
+          uploadForm.append("userId", userId);
+          const uploadHeaders = await getAuthHeaders();
+          const uploadRes = await fetch("/api/audio/upload", {
+            method: "POST",
+            headers: { ...uploadHeaders },
+            body: uploadForm,
+          });
+          if (uploadRes.ok) {
+            const uploadJson = await uploadRes.json();
+            audioUrl = uploadJson.url;
           }
         }
 
@@ -255,11 +305,12 @@ export default function RecordPage() {
           app: "EStory DApp",
         };
 
-        const ipfsResult = await ipfsService.uploadMetadata(ipfsMetadata);
+        const token = await getAccessToken();
+        const ipfsResult = await ipfsService.uploadMetadata(ipfsMetadata, token);
         ipfsHash = ipfsResult.hash;
         console.log("Story pinned to IPFS:", ipfsHash);
 
-        // C. Save to Supabase DB
+        // C. Save to Supabase via API route (bypasses RLS, works for both wallet & OAuth users)
         const storyData = {
           author_id: userId,
           author_wallet: authInfo.wallet_address,
@@ -267,32 +318,71 @@ export default function RecordPage() {
           content: transcribedText,
           has_audio: !!audioBlob && !!audioUrl,
           audio_url: audioUrl,
-          likes: 0,
-          comments_count: 0,
-          shares: 0,
           tags: [],
           mood: "neutral",
           ipfs_hash: ipfsHash,
-          is_public: isPublic, // NEW: Save visibility status
-          created_at: actualCreatedDate, // NEW: Actual system creation time
-          story_date: backdatedStoryDate, // NEW: Explicit backdated field
-          // Fallback: If your legacy code relies on created_at being the story date,
-          // you might need to swap these, but storing BOTH is safest.
+          is_public: isPublic,
+          created_at: actualCreatedDate,
+          story_date: backdatedStoryDate,
         };
 
-        const { data: insertedStory, error: insertError } = await supabase!
-          .from("stories")
-          .insert([storyData])
-          .select("id")
-          .single();
+        const saveHeaders = await getAuthHeaders();
+        const saveRes = await fetch("/api/stories", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...saveHeaders },
+          body: JSON.stringify(storyData),
+        });
 
-        if (insertError) throw insertError;
+        if (!saveRes.ok) {
+          const errBody = await saveRes.json().catch(() => ({}));
+          throw new Error(errBody.error || "Failed to save story");
+        }
+
+        const { story: insertedStory } = await saveRes.json();
+
+        // Vault save — additive, non-blocking (runs after cloud save succeeds)
+        try {
+          if (userId && await checkVaultSetup(userId) && checkVaultUnlocked(userId)) {
+            const dek = getDEK(userId);
+            const encTitle = await encryptString(entryTitle, dek);
+            const encContent = await encryptString(transcribedText, dek);
+
+            const now = new Date().toISOString();
+            const checksumData = new TextEncoder().encode(entryTitle + transcribedText);
+            const hashBuf = await crypto.subtle.digest("SHA-256", checksumData);
+            const { arrayBufferToBase64 } = await import("@/lib/vault/crypto");
+
+            const record: LocalStoryRecord = {
+              localId: crypto.randomUUID(),
+              userId,
+              encrypted_title: encTitle.ciphertext,
+              title_iv: encTitle.iv,
+              encrypted_content: encContent.ciphertext,
+              content_iv: encContent.iv,
+              checksum: arrayBufferToBase64(hashBuf),
+              cloud_id: insertedStory?.id,
+              sync_status: "synced",
+              is_public: isPublic,
+              story_date: backdatedStoryDate,
+              created_at: now,
+              updated_at: now,
+            };
+
+            const db = getVaultDb();
+            await db.stories.put(record);
+            console.log("[VAULT] Story saved locally with encryption");
+          }
+        } catch (vaultErr) {
+          // Vault failure never blocks cloud save success
+          console.warn("[VAULT] Local save failed (non-blocking):", vaultErr);
+        }
 
         // Trigger AI analysis in background (fire-and-forget)
         if (insertedStory?.id) {
+          const analyzeHeaders = await getAuthHeaders();
           fetch("/api/ai/analyze", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", ...analyzeHeaders },
             body: JSON.stringify({
               storyId: insertedStory.id,
               storyText: transcribedText,
@@ -378,14 +468,14 @@ export default function RecordPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="text-center space-y-4">
+          <div className="text-center space-y-6">
             <AnimatePresence>
               {isRecording && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.5 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.5 }}
-                  className="inline-flex items-center space-x-2 bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300 px-4 py-2 rounded-full"
+                  className="inline-flex items-center space-x-2 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-300 px-4 py-2 rounded-full"
                 >
                   <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
                   <span className="font-medium">Recording</span>
@@ -396,20 +486,80 @@ export default function RecordPage() {
                 </motion.div>
               )}
             </AnimatePresence>
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <Button
-                size="lg"
-                onClick={isRecording ? stopRecording : startRecording}
-                disabled={isProcessing}
-                className={`w-32 h-32 rounded-full text-white shadow-xl transition-all ${isRecording ? "bg-[hsl(var(--tone-anxious))] hover:bg-[hsl(var(--tone-anxious))]" : "bg-gradient-to-r from-[hsl(var(--memory-600))] to-[hsl(var(--insight-600))] hover:shadow-[var(--glow-memory)]"}`}
-              >
-                {isRecording ? (
-                  <Square className="w-8 h-8" />
-                ) : (
-                  <Mic className="w-8 h-8" />
-                )}
-              </Button>
-            </motion.div>
+
+            {/* Fancy Microphone Button */}
+            <div className="relative flex items-center justify-center">
+              {/* Animated pulse rings */}
+              {isRecording && (
+                <>
+                  <motion.div
+                    className="absolute w-40 h-40 rounded-full border-2 border-red-400/30"
+                    animate={{ scale: [1, 1.4, 1], opacity: [0.6, 0, 0.6] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }}
+                  />
+                  <motion.div
+                    className="absolute w-48 h-48 rounded-full border border-red-300/20"
+                    animate={{ scale: [1, 1.5, 1], opacity: [0.4, 0, 0.4] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeOut", delay: 0.5 }}
+                  />
+                  <motion.div
+                    className="absolute w-56 h-56 rounded-full border border-red-200/10"
+                    animate={{ scale: [1, 1.6, 1], opacity: [0.3, 0, 0.3] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeOut", delay: 1 }}
+                  />
+                </>
+              )}
+
+              {/* Idle glow ring */}
+              {!isRecording && !isProcessing && (
+                <motion.div
+                  className="absolute w-36 h-36 rounded-full"
+                  style={{
+                    background: "radial-gradient(circle, hsl(var(--memory-500) / 0.15) 0%, transparent 70%)",
+                  }}
+                  animate={{ scale: [1, 1.1, 1], opacity: [0.5, 0.8, 0.5] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                />
+              )}
+
+              <motion.div whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }}>
+                <Button
+                  size="lg"
+                  onClick={isRecording ? stopRecording : startRecording}
+                  disabled={isProcessing}
+                  className={`relative w-32 h-32 rounded-full text-white shadow-2xl transition-all duration-300 ${
+                    isRecording
+                      ? "bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 shadow-red-500/25"
+                      : "bg-gradient-to-br from-[hsl(var(--memory-500))] via-[hsl(var(--memory-600))] to-[hsl(var(--insight-600))] hover:shadow-[0_0_40px_hsl(var(--memory-500)/0.4)]"
+                  }`}
+                >
+                  {/* Inner ring highlight */}
+                  <span className="absolute inset-2 rounded-full border border-white/20" />
+                  {isRecording ? (
+                    <Square className="w-8 h-8 relative z-10" />
+                  ) : (
+                    <svg
+                      className="w-10 h-10 relative z-10"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <rect x="9" y="2" width="6" height="12" rx="3" />
+                      <path d="M5 10a7 7 0 0 0 14 0" />
+                      <line x1="12" y1="17" x2="12" y2="21" />
+                      <line x1="8" y1="21" x2="16" y2="21" />
+                    </svg>
+                  )}
+                </Button>
+              </motion.div>
+            </div>
+
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {isRecording ? "Tap to stop recording" : "Tap to start recording"}
+            </p>
             <div className="flex items-center justify-center space-x-6 text-sm text-gray-600 dark:text-gray-400">
               <div className="flex items-center space-x-2">
                 <Languages className="w-4 h-4" />
@@ -417,7 +567,7 @@ export default function RecordPage() {
               </div>
               <div className="flex items-center space-x-2">
                 <Zap className="w-4 h-4" />
-                <span>Gemini AI</span>
+                <span>ElevenLabs Scribe</span>
               </div>
             </div>
           </div>
@@ -554,14 +704,24 @@ export default function RecordPage() {
                 </>
               )}
             </Button>
-            <Button
-              onClick={enhanceText}
-              disabled={!transcribedText.trim() || isProcessing}
-              variant="outline"
-              className="flex-1"
-            >
-              <Wand2 className="w-4 h-4 mr-2" /> Enhance AI
-            </Button>
+            {preEnhanceText ? (
+              <Button
+                onClick={revertEnhancement}
+                variant="outline"
+                className="flex-1 border-amber-300 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+              >
+                <Undo2 className="w-4 h-4 mr-2" /> Revert
+              </Button>
+            ) : (
+              <Button
+                onClick={enhanceText}
+                disabled={!transcribedText.trim() || isProcessing}
+                variant="outline"
+                className="flex-1"
+              >
+                <Wand2 className="w-4 h-4 mr-2" /> Enhance with AI
+              </Button>
+            )}
             <Button
               onClick={saveEntry}
               disabled={

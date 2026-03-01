@@ -1,9 +1,15 @@
+/**
+ * Email service — token should be obtained from AuthProvider's getAccessToken() by the caller.
+ */
 export const emailService = {
-  sendWelcomeEmail: async (email: string, username: string) => {
+  sendWelcomeEmail: async (email: string, username: string, accessToken?: string | null) => {
     try {
+      const authHeaders: Record<string, string> = accessToken
+        ? { Authorization: `Bearer ${accessToken}` }
+        : {};
       const response = await fetch("/api/email/send", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({
           type: "welcome",
           email,

@@ -7,9 +7,11 @@ import { BackgroundOrbs } from './BackgroundOrbs';
 import { useBackground } from '@/contexts/BackgroundContext';
 import { useReducedMotion } from '@/app/hooks/useReducedMotion';
 import { useDeviceCapability } from '@/app/hooks/useDeviceCapability';
+import { useTheme } from 'next-themes';
 
 /**
  * Fallback gradient background for when 3D is disabled or unsupported
+ * Uses CSS variables so it automatically adapts to light/dark mode
  */
 function FallbackBackground() {
   return (
@@ -19,7 +21,7 @@ function FallbackBackground() {
         background: `
           radial-gradient(ellipse at 20% 30%, hsl(217 91% 50% / 0.08) 0%, transparent 50%),
           radial-gradient(ellipse at 80% 70%, hsl(258 90% 55% / 0.08) 0%, transparent 50%),
-          hsl(233 10% 4%)
+          hsl(var(--void-deep))
         `,
       }}
     />
@@ -30,7 +32,7 @@ function FallbackBackground() {
  * Scene content - particles and orbs
  * Memoized to prevent unnecessary re-renders
  */
-const Scene = memo(function Scene() {
+const Scene = memo(function Scene({ isLightMode }: { isLightMode: boolean }) {
   const { config } = useBackground();
   const [mousePosition, setMousePosition] = useState({ x: 0.5, y: 0.5 });
 
@@ -65,6 +67,7 @@ const Scene = memo(function Scene() {
         primaryColor={config.primaryColor}
         secondaryColor={config.secondaryColor}
         mousePosition={mousePosition}
+        isLightMode={isLightMode}
       />
 
       {/* Floating particles (subtle dust motes) */}
@@ -86,6 +89,7 @@ export function GlobalBackground() {
   const prefersReducedMotion = useReducedMotion();
   const { shouldUse3D, supportsWebGL } = useDeviceCapability();
   const { isEnabled } = useBackground();
+  const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   // Only render on client
@@ -95,6 +99,7 @@ export function GlobalBackground() {
 
   // Don't render 3D if user prefers reduced motion or device can't handle it
   const shouldRender3D = mounted && isEnabled && !prefersReducedMotion && shouldUse3D && supportsWebGL;
+  const isLightMode = resolvedTheme === 'light';
 
   if (!mounted) {
     return <FallbackBackground />;
@@ -106,11 +111,11 @@ export function GlobalBackground() {
 
   return (
     <div className="fixed inset-0 -z-10 pointer-events-none">
-      {/* Fallback gradient visible before canvas loads */}
+      {/* Fallback gradient visible before canvas loads — uses CSS var for theme adaptation */}
       <div
         className="absolute inset-0"
         style={{
-          background: 'hsl(233 10% 4%)',
+          background: 'hsl(var(--void-deep))',
         }}
       />
 
@@ -131,7 +136,7 @@ export function GlobalBackground() {
             height: '100%',
           }}
         >
-          <Scene />
+          <Scene isLightMode={isLightMode} />
         </Canvas>
       </Suspense>
     </div>

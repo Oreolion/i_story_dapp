@@ -14,6 +14,7 @@ import { ipfsService } from "../utils/ipfsService";
 import { useBackgroundMode } from "@/contexts/BackgroundContext";
 import { useSignMessage } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
+import { VaultSettings } from "@/components/vault/VaultSettings";
 
 import {
   Card,
@@ -96,7 +97,7 @@ const getHeatmapColor = (count: number) => {
 export default function ProfilePage() {
   const { user: wagmiUser, isConnected } = useApp();
   const { address } = useAccount();
-  const { profile: authInfo, signInWithGoogle, refreshProfile } = useAuth();
+  const { profile: authInfo, signInWithGoogle, refreshProfile, getAccessToken } = useAuth();
   const supabase = supabaseClient;
   const { signMessageAsync } = useSignMessage();
   const { openConnectModal } = useConnectModal();
@@ -148,9 +149,13 @@ export default function ProfilePage() {
     try {
       const message = `Link wallet ${address.toLowerCase()} to eStory account ${authInfo.id}`;
       const signature = await signMessageAsync({ message });
+      const token = await getAccessToken();
       const res = await fetch("/api/auth/link-account", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           userId: authInfo.id,
           walletAddress: address,
@@ -410,7 +415,7 @@ export default function ProfilePage() {
     // Logic: If email is present AND different from what we had (or it's first setup)
     if (formData.email && formData.email !== profileData?.email && preferences.emailNotifications) {
        toast.promise(
-         emailService.sendWelcomeEmail(formData.email, formData.name || "Writer"),
+         emailService.sendWelcomeEmail(formData.email, formData.name || "Writer", await getAccessToken()),
          {
            loading: 'Sending confirmation email...',
            success: 'Profile saved & Email sent!',
@@ -458,7 +463,7 @@ export default function ProfilePage() {
        };
 
        // 2. Upload to IPFS
-       const ipfsResult = await ipfsService.uploadMetadata(metadata);
+       const ipfsResult = await ipfsService.uploadMetadata(metadata, await getAccessToken());
        if(!ipfsResult?.hash) throw new Error("IPFS upload failed");
        
        // 3. Mint
@@ -1019,6 +1024,11 @@ export default function ProfilePage() {
                           </p>
                         </div>
                       )}
+                  </div>
+
+                  {/* Local Vault Section */}
+                  <div className="space-y-4 border-t pt-6 dark:border-gray-700">
+                    <VaultSettings />
                   </div>
 
                   {/* Preferences Section */}

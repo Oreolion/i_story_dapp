@@ -82,6 +82,85 @@ scripts/deployVerifiedMetrics.ts          (Deployment script)
 skills/cre/                               (CRE skill templates + SKILL.md)
 ```
 
+## Phase 1.6.1: Privacy-Preserving CRE -- COMPLETE
+
+**Goal:** Rewrite CRE pipeline to protect user privacy. Full metrics visible only to author; blockchain stores only cryptographic proofs.
+
+**Tasks:**
+- [x] Create `PrivateVerifiedMetrics.sol` — minimal on-chain struct (tier, threshold, hashes)
+- [x] Move old contract to `contracts/legacy/VerifiedMetrics.sol`
+- [x] Create deployment script `scripts/deployPrivateVerifiedMetrics.ts`
+- [x] Rewrite `gemini.ts` to use `ConfidentialHTTPClient` (encrypted enclave)
+- [x] Rewrite `httpCallback.ts` — 8-step flow with privacy fields + confidential callback
+- [x] Add `callbackUrl` and `owner` to Config type
+- [x] Create `/api/cre/callback` route (DON callback receiver with secret auth)
+- [x] Rewrite `/api/cre/check` with author-based response filtering + legacy fallback
+- [x] Update `lib/contracts.ts` with new ABI
+- [x] Rewrite `useVerifiedMetrics` hook (metrics + proof separation)
+- [x] Rewrite `VerifiedMetricsCard` (dual author/public view)
+- [x] Update `VerifiedBadge` with quality tier label
+- [x] Update `StoryPageClient` and `StoryCard` component props
+- [x] Update middleware rate limits for callback endpoint
+- [x] Update all documentation
+- [ ] Pending: Deploy new contract (requires funded wallet)
+- [ ] Pending: Update CRE workflow secrets for Vault DON
+
+**Key files created/modified:**
+```
+contracts/PrivateVerifiedMetrics.sol          (new — privacy-preserving contract)
+contracts/legacy/VerifiedMetrics.sol          (moved — backward compat)
+scripts/deployPrivateVerifiedMetrics.ts       (new — deployment script)
+cre/iStory_workflow/gemini.ts                (rewritten — ConfidentialHTTPClient)
+cre/iStory_workflow/httpCallback.ts          (rewritten — 8-step privacy flow)
+cre/iStory_workflow/main.ts                  (modified — Config type)
+cre/iStory_workflow/config.staging.json      (modified — callbackUrl, owner)
+app/api/cre/callback/route.ts                (new — DON callback receiver)
+app/api/cre/check/route.ts                  (rewritten — author-based filtering)
+app/hooks/useVerifiedMetrics.ts              (rewritten — metrics + proof)
+components/VerifiedMetricsCard.tsx           (rewritten — dual view)
+components/VerifiedBadge.tsx                 (modified — tier label)
+lib/contracts.ts                             (modified — new ABI)
+middleware.ts                                (modified — callback rate limit)
+```
+
+## Phase 2.2: Local Vault (Client-Side Encrypted Storage) -- COMPLETE
+
+**Goal:** PIN-protected AES-256-GCM encrypted local storage with offline capability.
+
+**Tasks:**
+- [x] Create `lib/vault/crypto.ts` — PBKDF2 key derivation, AES-KW wrapping, AES-GCM encryption
+- [x] Create `lib/vault/db.ts` — Dexie.js IndexedDB schema (stories, vaultKeys, syncQueue)
+- [x] Create `lib/vault/keyManager.ts` — DEK lifecycle (setup, unlock, lock, changePin)
+- [x] Create `lib/vault/index.ts` — barrel export
+- [x] Create `app/hooks/useVault.ts` — React state wrapper for vault lifecycle
+- [x] Create `app/hooks/useLocalStories.ts` — encrypted CRUD with useLiveQuery reactive updates
+- [x] Create `components/vault/PinEntryModal.tsx` — 6-digit PIN entry with confirm flow
+- [x] Create `components/vault/VaultGuard.tsx` — gate component requiring unlock
+- [x] Create `components/vault/VaultSettings.tsx` — setup/unlock/lock/change-PIN UI
+- [x] Integrate into RecordPageClient — dual-write (cloud first, vault additive/non-blocking)
+- [x] Integrate into ProfilePageClient — VaultSettings in profile settings panel
+- [x] Integrate into AuthProvider — clearAllKeys() called on sign-out
+- [x] Unit tests — 27 tests (12 crypto, 15 keyManager)
+
+**Key files created/modified:**
+```
+lib/vault/crypto.ts                     (new — AES-256-GCM + PBKDF2 + AES-KW)
+lib/vault/db.ts                         (new — Dexie.js IndexedDB schema)
+lib/vault/keyManager.ts                 (new — DEK lifecycle)
+lib/vault/index.ts                      (new — barrel export)
+app/hooks/useVault.ts                   (new — vault React hook)
+app/hooks/useLocalStories.ts            (new — encrypted story CRUD hook)
+components/vault/PinEntryModal.tsx       (new — PIN entry UI)
+components/vault/VaultGuard.tsx          (new — vault gate component)
+components/vault/VaultSettings.tsx       (new — vault settings panel)
+app/record/RecordPageClient.tsx          (modified — vault dual-write after cloud save)
+app/profile/ProfilePageClient.tsx        (modified — VaultSettings in settings tab)
+components/AuthProvider.tsx              (modified — clearAllKeys on sign-out)
+__tests__/vault/crypto.test.ts           (new — 12 encryption tests)
+__tests__/vault/keyManager.test.ts       (new — 15 key lifecycle tests)
+__tests__/setup.ts                       (modified — IndexedDB + crypto polyfills)
+```
+
 ## Phase 2: Patterns & Discovery (Next Up)
 
 **Goal:** Users can see patterns across their stories.
@@ -125,6 +204,8 @@ app/hooks/useReflection.ts           (new)
 
 ## Future Phases (Post-MVP)
 
+- Vault → Cloud sync (process syncQueue, upload encrypted stories to Supabase storage)
+- Multi-device vault recovery via `getWrappedKeyMaterial` / `importWrappedKeyMaterial`
 - Graph-based memory (theme -> story relationships)
 - Memory API for external AI agents
 - Default to private with public opt-in
@@ -138,6 +219,7 @@ app/hooks/useReflection.ts           (new)
 | Regular story | Private | Yes (opt-in) | No |
 | Canonical story | Private | Yes (opt-in) | Yes |
 | Shared story | Public | Already shared | If canonical |
+| Vault story | Device-local only | Opt-in sync | If canonical |
 
 ### Navigation Hierarchy (Target State)
 

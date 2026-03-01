@@ -1,10 +1,12 @@
 {
   "geminiModel": "gemini-2.0-flash",
+  "callbackUrl": "https://estory.vercel.app/api/cre/callback",
+  "owner": "",
   "evms": [
     {
-      "verifiedMetricsAddress": "0x052B52A4841080a98876275d5f8E6d094c9E086C",
+      "verifiedMetricsAddress": "0x158e08BCD918070C1703E8b84a6E2524D2AE5e4c",
       "chainSelectorName": "ethereum-testnet-sepolia-base-1",
-      "gasLimit": "500000"
+      "gasLimit": "300000"
     }
   ]
 }

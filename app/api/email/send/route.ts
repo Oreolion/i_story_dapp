@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import WelcomeEmail from "@/components/emails/WelcomeEmail";
+import WaitlistEmail from "@/components/emails/WaitlistEmail";
 import { validateAuthOrReject, isAuthError } from "@/lib/auth";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -26,6 +27,10 @@ export async function POST(req: NextRequest) {
       case "welcome":
         emailComponent = WelcomeEmail({ username: username || "Storyteller" });
         subject = "Welcome to EStory";
+        break;
+      case "waitlist":
+        emailComponent = WaitlistEmail({ email });
+        subject = "You're on the EStory waitlist!";
         break;
       default:
         return NextResponse.json({ error: "Invalid email type" }, { status: 400 });

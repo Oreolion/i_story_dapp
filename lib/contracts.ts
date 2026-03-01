@@ -32,17 +32,23 @@ export const STORY_NFT_ABI = [
   "event NFTMinted(uint256 indexed tokenId, address indexed recipient, string uri, string collectionType)"
 ] as const;
 
-// 4. VerifiedMetrics ABI (Chainlink CRE - On-chain verified story metrics)
+// 4. PrivateVerifiedMetrics ABI (Chainlink CRE - Privacy-preserving on-chain metrics)
 // Base Sepolia KeystoneForwarder: 0x82300bd7c3958625581cc2f77bc6464dcecdf3e5
-export const VERIFIED_METRICS_ADDRESS = process.env.NEXT_PUBLIC_VERIFIED_METRICS_ADDRESS || "0x052B52A4841080a98876275d5f8E6d094c9E086C";
+export const VERIFIED_METRICS_ADDRESS = process.env.NEXT_PUBLIC_VERIFIED_METRICS_ADDRESS || "0x158e08BCD918070C1703E8b84a6E2524D2AE5e4c";
+
+// Legacy contract address for backward compatibility
+export const LEGACY_VERIFIED_METRICS_ADDRESS = process.env.NEXT_PUBLIC_LEGACY_VERIFIED_METRICS_ADDRESS || "0x052B52A4841080a98876275d5f8E6d094c9E086C";
 
 export const VERIFIED_METRICS_ABI = [
   // CRE report receiver (called by KeystoneForwarder)
   "function onReport(bytes calldata metadata, bytes calldata report)",
-  // Read functions
-  "function getMetrics(bytes32 storyId) view returns (uint8 significanceScore, uint8 emotionalDepth, uint8 qualityScore, uint32 wordCount, string[] themes, bytes32 attestationId, uint256 verifiedAt)",
+  // Read functions (privacy-preserving — minimal data)
+  "function getMetrics(bytes32 storyId) view returns (bool meetsQualityThreshold, uint8 qualityTier, bytes32 metricsHash, bytes32 authorCommitment, bytes32 attestationId, uint256 verifiedAt)",
   "function isVerified(bytes32 storyId) view returns (bool)",
   "function getAttestationId(bytes32 storyId) view returns (bytes32)",
+  // Privacy verification helpers
+  "function verifyAuthor(bytes32 storyId, address author) view returns (bool)",
+  "function verifyMetricsHash(bytes32 storyId, bytes32 hash) view returns (bool)",
   // ERC165
   "function supportsInterface(bytes4 interfaceId) view returns (bool)",
   // Admin functions (owner only)
@@ -55,7 +61,7 @@ export const VERIFIED_METRICS_ABI = [
   "function getExpectedAuthor() view returns (address)",
   "function getExpectedWorkflowName() view returns (bytes10)",
   "function getExpectedWorkflowId() view returns (bytes32)",
-  // Events
-  "event MetricsVerified(bytes32 indexed storyId, address indexed author, uint8 significanceScore, uint8 emotionalDepth, uint8 qualityScore, uint32 wordCount, bytes32 attestationId)",
+  // Events (privacy-preserving — no raw scores or themes)
+  "event MetricsVerified(bytes32 indexed storyId, bytes32 indexed authorCommitment, uint8 qualityTier, bool meetsQualityThreshold)",
   "event ForwarderAddressUpdated(address indexed previousForwarder, address indexed newForwarder)"
 ] as const;

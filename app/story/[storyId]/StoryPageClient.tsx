@@ -67,7 +67,7 @@ export default function StoryPage({
   const router = useRouter();
   const { isConnected } = useApp();
   const { address } = useAccount();
-  const { profile: authInfo } = useAuth();
+  const { profile: authInfo, getAccessToken } = useAuth();
 
   const supabase = supabaseClient;
 
@@ -77,7 +77,7 @@ export default function StoryPage({
   // Metadata hook for canonical status
   const { metadata: storyMetadata } = useStoryMetadata(storyId);
   // CRE verified metrics hook
-  const { metrics: verifiedMetrics, isPending: isVerifyPending, isVerified } = useVerifiedMetrics(storyId);
+  const { metrics: verifiedMetrics, proof: verifiedProof, isPending: isVerifyPending, isVerified, isAuthor: isVerifyAuthor } = useVerifiedMetrics(storyId);
   const {
     payPaywall,
     isPending: isPayingProtocol,
@@ -265,9 +265,13 @@ export default function StoryPage({
         setIsSyncing(true);
         toast.loading("Verifying payment...", { id: "sync-toast" });
         try {
-          const res = await fetch("/api/sync/verify-tx", {
+          const token = await getAccessToken();
+          const res = await fetch("/api/sync/verify_tx", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
             body: JSON.stringify({
               txHash: payHash,
               userWallet: address,
@@ -424,9 +428,13 @@ export default function StoryPage({
     setAuthorFollowers(prevState ? Math.max(0, prevCount - 1) : prevCount + 1);
 
     try {
+      const followToken = await getAccessToken();
       const res = await fetch("/api/social/follow", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(followToken ? { Authorization: `Bearer ${followToken}` } : {}),
+        },
         body: JSON.stringify({
           follower_wallet: address,
           followed_wallet: story.author.wallet_address,
@@ -607,6 +615,7 @@ export default function StoryPage({
                     <VerifiedBadge
                       status={isVerified ? "verified" : isVerifyPending ? "pending" : "unverified"}
                       txHash={verifiedMetrics?.on_chain_tx_hash}
+                      qualityTier={verifiedProof?.qualityTier}
                     />
                   </div>
                 </div>
@@ -706,7 +715,9 @@ export default function StoryPage({
                 {/* Verified metrics card for paywalled content - shows buyers what they're getting */}
                 <VerifiedMetricsCard
                   metrics={verifiedMetrics}
+                  proof={verifiedProof}
                   isPending={isVerifyPending}
+                  isAuthor={isVerifyAuthor}
                 />
               </div>
             ) : (
@@ -797,7 +808,9 @@ export default function StoryPage({
       {(isVerified || isVerifyPending) && !isPaywalled && (
         <VerifiedMetricsCard
           metrics={verifiedMetrics}
+          proof={verifiedProof}
           isPending={isVerifyPending}
+          isAuthor={isVerifyAuthor}
         />
       )}
 

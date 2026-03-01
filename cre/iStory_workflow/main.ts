@@ -12,6 +12,8 @@ import { onHttpTrigger } from "./httpCallback";
 // Config type — matches config.staging.json structure
 export type Config = {
   geminiModel: string;
+  callbackUrl: string;
+  owner: string;
   evms: Array<{
     verifiedMetricsAddress: string;
     chainSelectorName: string;
