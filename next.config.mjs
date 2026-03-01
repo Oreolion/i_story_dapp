@@ -1,11 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  eslint: {
+    dirs: ["app", "components", "lib", "scripts", "contracts", "__tests__", "e2e"],
+  },
   webpack: (config) => {
     config.resolve.fallback = {
       ...config.resolve.fallback,
       "@react-native-async-storage/async-storage": false,
     };
-
     return config;
   },
   images: {

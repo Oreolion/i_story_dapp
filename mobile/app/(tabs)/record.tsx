@@ -1,5 +1,6 @@
 // Record Screen - Audio capture, transcription, enhancement, save
-import React, { useState, useRef } from "react";
+// Migrated from old Animated API to react-native-reanimated
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,13 +10,30 @@ import {
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  withSequence,
+  Easing,
+} from "react-native-reanimated";
 import { Audio } from "expo-av";
 import * as FileSystem from "expo-file-system";
+import { LinearGradient } from "expo-linear-gradient";
+import * as Haptics from "expo-haptics";
 import { Mic, Square, Play, Pause, Sparkles, Save, Eye, EyeOff } from "lucide-react-native";
 import Toast from "react-native-toast-message";
 import { router } from "expo-router";
 import { useAuthStore } from "../../stores/authStore";
 import { api, apiUpload } from "../../lib/api";
+import {
+  GlassCard,
+  GradientButton,
+  Badge,
+  AnimatedListItem,
+  GRADIENTS,
+} from "../../components/ui";
 
 type RecordingStep = "idle" | "recording" | "recorded" | "transcribing" | "enhancing" | "saving";
 
@@ -40,17 +58,53 @@ export default function RecordScreen() {
   const [duration, setDuration] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Reanimated pulse animations
+  const pulseScale = useSharedValue(1);
+  const pulseOpacity = useSharedValue(0.4);
+
+  useEffect(() => {
+    if (step === "recording") {
+      pulseScale.value = withRepeat(
+        withSequence(
+          withTiming(1.25, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) })
+        ),
+        -1,
+        false
+      );
+      pulseOpacity.value = withRepeat(
+        withSequence(
+          withTiming(0.8, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+          withTiming(0.4, { duration: 1000, easing: Easing.inOut(Easing.ease) })
+        ),
+        -1,
+        false
+      );
+    } else {
+      pulseScale.value = withTiming(1, { duration: 300 });
+      pulseOpacity.value = withTiming(0.4, { duration: 300 });
+    }
+  }, [step]);
+
+  const pulseRingStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulseScale.value }],
+    opacity: pulseOpacity.value,
+  }));
+
   if (!isAuthenticated) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-slate-900">
-        <Mic size={48} color="#64748b" />
-        <Text className="mt-4 text-lg text-slate-400">Sign in to record</Text>
-        <TouchableOpacity
-          onPress={() => router.push("/auth/login")}
-          className="mt-4 rounded-full bg-violet-600 px-6 py-3"
-        >
-          <Text className="font-semibold text-white">Sign In</Text>
-        </TouchableOpacity>
+      <SafeAreaView style={{ flex: 1, backgroundColor: "#0f172a", alignItems: "center", justifyContent: "center" }}>
+        <GlassCard intensity="medium" style={{ padding: 32, alignItems: "center", marginHorizontal: 24 }}>
+          <Mic size={48} color="#64748b" />
+          <Text style={{ marginTop: 16, fontSize: 17, color: "#94a3b8" }}>Sign in to record</Text>
+          <View style={{ marginTop: 16 }}>
+            <GradientButton
+              onPress={() => router.push("/auth/login")}
+              title="Sign In"
+              gradient={GRADIENTS.primary}
+            />
+          </View>
+        </GlassCard>
       </SafeAreaView>
     );
   }
@@ -198,7 +252,6 @@ export default function RecordScreen() {
 
       if (res.ok) {
         Toast.show({ type: "success", text1: "Story saved!" });
-        // Reset
         setStep("idle");
         setRecordingUri(null);
         setTranscript("");
@@ -223,178 +276,327 @@ export default function RecordScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-900">
-      <ScrollView className="flex-1 px-4" keyboardShouldPersistTaps="handled">
-        <Text className="py-6 text-2xl font-bold text-white">Record Story</Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#0f172a" }}>
+      <ScrollView style={{ flex: 1, paddingHorizontal: 16 }} keyboardShouldPersistTaps="handled">
+        <AnimatedListItem index={0}>
+          <Text style={{ paddingVertical: 24, fontSize: 24, fontWeight: "700", color: "#fff" }}>
+            Record Story
+          </Text>
+        </AnimatedListItem>
 
         {/* Recording Controls */}
-        <View className="items-center rounded-2xl bg-slate-800 p-8">
-          <Text className="mb-4 text-4xl font-mono text-white">
-            {formatTime(duration)}
-          </Text>
+        <AnimatedListItem index={1}>
+          <GlassCard intensity="medium" style={{ padding: 32, alignItems: "center" }}>
+            {/* Recording Status Badge */}
+            {step === "recording" && (
+              <View style={{ marginBottom: 12 }}>
+                <Badge text="Recording" variant="error" />
+              </View>
+            )}
 
-          {step === "idle" && (
-            <TouchableOpacity
-              onPress={startRecording}
-              className="h-20 w-20 items-center justify-center rounded-full bg-red-500"
-            >
-              <Mic size={36} color="#fff" />
-            </TouchableOpacity>
-          )}
-
-          {step === "recording" && (
-            <TouchableOpacity
-              onPress={stopRecording}
-              className="h-20 w-20 items-center justify-center rounded-full bg-red-600"
-            >
-              <Square size={28} color="#fff" />
-            </TouchableOpacity>
-          )}
-
-          {step === "recorded" && recordingUri && (
-            <View className="flex-row gap-4">
-              <TouchableOpacity
-                onPress={playRecording}
-                className="h-14 w-14 items-center justify-center rounded-full bg-slate-700"
-              >
-                {isPlaying ? (
-                  <Pause size={24} color="#fff" />
-                ) : (
-                  <Play size={24} color="#fff" />
-                )}
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={startRecording}
-                className="h-14 w-14 items-center justify-center rounded-full bg-red-500"
-              >
-                <Mic size={24} color="#fff" />
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {(step === "transcribing" || step === "enhancing" || step === "saving") && (
-            <Text className="text-violet-400">
-              {step === "transcribing" && "Transcribing..."}
-              {step === "enhancing" && "Enhancing with AI..."}
-              {step === "saving" && "Saving story..."}
+            <Text style={{ marginBottom: 24, fontSize: 40, color: "#fff", fontVariant: ["tabular-nums"] }}>
+              {formatTime(duration)}
             </Text>
-          )}
-        </View>
+
+            {step === "idle" && (
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  startRecording();
+                }}
+                activeOpacity={0.85}
+              >
+                <View
+                  style={{
+                    shadowColor: "#0b5ed7",
+                    shadowOffset: { width: 0, height: 0 },
+                    shadowOpacity: 0.4,
+                    shadowRadius: 20,
+                    elevation: 12,
+                  }}
+                >
+                  <LinearGradient
+                    colors={GRADIENTS.recording}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={{
+                      width: 128,
+                      height: 128,
+                      borderRadius: 64,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Mic size={40} color="#fff" />
+                  </LinearGradient>
+                </View>
+              </TouchableOpacity>
+            )}
+
+            {step === "recording" && (
+              <View style={{ alignItems: "center", justifyContent: "center" }}>
+                {/* Double pulse rings */}
+                <Animated.View
+                  style={[
+                    pulseRingStyle,
+                    {
+                      position: "absolute",
+                      width: 152,
+                      height: 152,
+                      borderRadius: 76,
+                      borderWidth: 2,
+                      borderColor: "#d94040",
+                    },
+                  ]}
+                />
+                <Animated.View
+                  style={[
+                    pulseRingStyle,
+                    {
+                      position: "absolute",
+                      width: 168,
+                      height: 168,
+                      borderRadius: 84,
+                      borderWidth: 1,
+                      borderColor: "rgba(217, 64, 64, 0.3)",
+                    },
+                  ]}
+                />
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+                    stopRecording();
+                  }}
+                  activeOpacity={0.85}
+                  style={{
+                    width: 128,
+                    height: 128,
+                    borderRadius: 64,
+                    backgroundColor: "#d94040",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    shadowColor: "#d94040",
+                    shadowOffset: { width: 0, height: 0 },
+                    shadowOpacity: 0.5,
+                    shadowRadius: 24,
+                    elevation: 12,
+                  }}
+                >
+                  <Square size={36} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {step === "recorded" && recordingUri && (
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 20 }}>
+                <TouchableOpacity
+                  onPress={playRecording}
+                  activeOpacity={0.8}
+                >
+                  <GlassCard
+                    intensity="heavy"
+                    style={{
+                      width: 56,
+                      height: 56,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderRadius: 28,
+                    }}
+                  >
+                    {isPlaying ? (
+                      <Pause size={24} color="#fff" />
+                    ) : (
+                      <Play size={24} color="#fff" />
+                    )}
+                  </GlassCard>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    startRecording();
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <LinearGradient
+                    colors={GRADIENTS.recording}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={{
+                      width: 56,
+                      height: 56,
+                      borderRadius: 28,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      shadowColor: "#0b5ed7",
+                      shadowOffset: { width: 0, height: 0 },
+                      shadowOpacity: 0.35,
+                      shadowRadius: 12,
+                      elevation: 6,
+                    }}
+                  >
+                    <Mic size={24} color="#fff" />
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {(step === "transcribing" || step === "enhancing" || step === "saving") && (
+              <Text style={{ color: "#a78bfa", fontSize: 15 }}>
+                {step === "transcribing" && "Transcribing..."}
+                {step === "enhancing" && "Enhancing with AI..."}
+                {step === "saving" && "Saving story..."}
+              </Text>
+            )}
+
+            {step === "idle" && (
+              <Text style={{ marginTop: 16, fontSize: 12, color: "#64748b" }}>Tap to start recording</Text>
+            )}
+            {step === "recording" && (
+              <Text style={{ marginTop: 16, fontSize: 12, color: "rgba(217,64,64,0.7)" }}>Tap to stop</Text>
+            )}
+          </GlassCard>
+        </AnimatedListItem>
 
         {/* Action Buttons */}
         {step === "recorded" && recordingUri && (
-          <View className="mt-4 flex-row gap-3">
-            {!transcript && (
-              <TouchableOpacity
-                onPress={transcribe}
-                className="flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-violet-600 p-3"
-              >
-                <Sparkles size={18} color="#fff" />
-                <Text className="font-semibold text-white">Transcribe</Text>
-              </TouchableOpacity>
-            )}
-            {transcript && !enhancedText && (
-              <TouchableOpacity
-                onPress={enhance}
-                className="flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-violet-600 p-3"
-              >
-                <Sparkles size={18} color="#fff" />
-                <Text className="font-semibold text-white">Enhance</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+          <AnimatedListItem index={2}>
+            <View style={{ marginTop: 16, flexDirection: "row", gap: 12 }}>
+              {!transcript && (
+                <View style={{ flex: 1 }}>
+                  <GradientButton
+                    onPress={transcribe}
+                    title="Transcribe"
+                    icon={<Sparkles size={18} color="#fff" />}
+                    gradient={GRADIENTS.primary}
+                    fullWidth
+                  />
+                </View>
+              )}
+              {transcript && !enhancedText && (
+                <View style={{ flex: 1 }}>
+                  <GradientButton
+                    onPress={enhance}
+                    title="Enhance"
+                    icon={<Sparkles size={18} color="#fff" />}
+                    gradient={GRADIENTS.accent}
+                    fullWidth
+                  />
+                </View>
+              )}
+            </View>
+          </AnimatedListItem>
         )}
 
         {/* Transcript / Enhanced Text */}
         {(transcript || enhancedText) && (
-          <View className="mt-4">
-            <Text className="mb-2 text-sm font-semibold text-slate-400">
-              {enhancedText ? "Enhanced Story" : "Transcript"}
-            </Text>
-            <TextInput
-              value={enhancedText || transcript}
-              onChangeText={enhancedText ? setEnhancedText : setTranscript}
-              multiline
-              className="min-h-[120] rounded-xl bg-slate-800 p-4 text-base text-white"
-              placeholderTextColor="#64748b"
-            />
-          </View>
+          <AnimatedListItem index={3}>
+            <View style={{ marginTop: 16 }}>
+              <Text style={{ marginBottom: 8, fontSize: 13, fontWeight: "600", color: "#94a3b8" }}>
+                {enhancedText ? "Enhanced Story" : "Transcript"}
+              </Text>
+              <GlassCard intensity="light" style={{ padding: 16 }}>
+                <TextInput
+                  value={enhancedText || transcript}
+                  onChangeText={enhancedText ? setEnhancedText : setTranscript}
+                  multiline
+                  style={{ minHeight: 120, fontSize: 15, color: "#fff" }}
+                  placeholderTextColor="#64748b"
+                />
+              </GlassCard>
+            </View>
+          </AnimatedListItem>
         )}
 
         {/* Story Details */}
         {(transcript || enhancedText) && (
-          <View className="mt-4 gap-4">
-            <TextInput
-              value={title}
-              onChangeText={setTitle}
-              placeholder="Story title"
-              className="rounded-xl bg-slate-800 p-4 text-base text-white"
-              placeholderTextColor="#64748b"
-            />
+          <AnimatedListItem index={4}>
+            <View style={{ marginTop: 16, gap: 12 }}>
+              <GlassCard intensity="light" style={{ padding: 0 }}>
+                <TextInput
+                  value={title}
+                  onChangeText={setTitle}
+                  placeholder="Story title"
+                  style={{ padding: 16, fontSize: 15, color: "#fff" }}
+                  placeholderTextColor="#64748b"
+                />
+              </GlassCard>
 
-            {/* Mood Selector */}
-            <View>
-              <Text className="mb-2 text-sm text-slate-400">Mood</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View className="flex-row gap-2">
-                  {MOODS.map((m) => (
-                    <TouchableOpacity
-                      key={m}
-                      onPress={() => setSelectedMood(m)}
-                      className={`rounded-full px-4 py-2 ${
-                        selectedMood === m ? "bg-violet-600" : "bg-slate-800"
-                      }`}
-                    >
-                      <Text
-                        className={`text-sm capitalize ${
-                          selectedMood === m ? "text-white" : "text-slate-400"
-                        }`}
-                      >
-                        {m}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </ScrollView>
+              {/* Mood Selector */}
+              <View>
+                <Text style={{ marginBottom: 8, fontSize: 13, color: "#94a3b8" }}>Mood</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View style={{ flexDirection: "row", gap: 8 }}>
+                    {MOODS.map((m) => {
+                      const isSelected = selectedMood === m;
+                      return isSelected ? (
+                        <GradientButton
+                          key={m}
+                          onPress={() => setSelectedMood(m)}
+                          title={m}
+                          gradient={GRADIENTS.primary}
+                          size="sm"
+                        />
+                      ) : (
+                        <TouchableOpacity
+                          key={m}
+                          onPress={() => setSelectedMood(m)}
+                        >
+                          <GlassCard
+                            intensity="light"
+                            style={{ paddingHorizontal: 16, paddingVertical: 8 }}
+                          >
+                            <Text style={{ fontSize: 13, color: "#94a3b8", textTransform: "capitalize" }}>
+                              {m}
+                            </Text>
+                          </GlassCard>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </ScrollView>
+              </View>
+
+              <GlassCard intensity="light" style={{ padding: 0 }}>
+                <TextInput
+                  value={tags}
+                  onChangeText={setTags}
+                  placeholder="Tags (comma separated)"
+                  style={{ padding: 16, fontSize: 15, color: "#fff" }}
+                  placeholderTextColor="#64748b"
+                />
+              </GlassCard>
+
+              {/* Visibility Toggle */}
+              <TouchableOpacity onPress={() => setIsPublic(!isPublic)}>
+                <GlassCard
+                  intensity="light"
+                  style={{ padding: 16, flexDirection: "row", alignItems: "center", gap: 12 }}
+                >
+                  {isPublic ? (
+                    <Eye size={20} color="#a78bfa" />
+                  ) : (
+                    <EyeOff size={20} color="#64748b" />
+                  )}
+                  <Text style={{ fontSize: 15, color: "#fff" }}>
+                    {isPublic ? "Public" : "Private"}
+                  </Text>
+                </GlassCard>
+              </TouchableOpacity>
+
+              {/* Save Button */}
+              <GradientButton
+                onPress={saveStory}
+                title="Save Story"
+                icon={<Save size={20} color="#fff" />}
+                gradient={GRADIENTS.success}
+                size="lg"
+                fullWidth
+              />
             </View>
-
-            <TextInput
-              value={tags}
-              onChangeText={setTags}
-              placeholder="Tags (comma separated)"
-              className="rounded-xl bg-slate-800 p-4 text-base text-white"
-              placeholderTextColor="#64748b"
-            />
-
-            {/* Visibility Toggle */}
-            <TouchableOpacity
-              onPress={() => setIsPublic(!isPublic)}
-              className="flex-row items-center gap-3 rounded-xl bg-slate-800 p-4"
-            >
-              {isPublic ? (
-                <Eye size={20} color="#a78bfa" />
-              ) : (
-                <EyeOff size={20} color="#64748b" />
-              )}
-              <Text className="text-base text-white">
-                {isPublic ? "Public" : "Private"}
-              </Text>
-            </TouchableOpacity>
-
-            {/* Save Button */}
-            <TouchableOpacity
-              onPress={saveStory}
-              className="flex-row items-center justify-center gap-2 rounded-xl bg-green-600 p-4"
-            >
-              <Save size={20} color="#fff" />
-              <Text className="text-lg font-semibold text-white">
-                Save Story
-              </Text>
-            </TouchableOpacity>
-          </View>
+          </AnimatedListItem>
         )}
 
-        <View className="h-24" />
+        <View style={{ height: 96 }} />
       </ScrollView>
     </SafeAreaView>
   );

@@ -17,6 +17,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     supportsTablet: true,
     bundleIdentifier: "com.estory.mobile",
+    associatedDomains: ["applinks:e-story-dapp.vercel.app"],
     infoPlist: {
       NSMicrophoneUsageDescription:
         "e-Story needs microphone access to record voice journals.",
@@ -62,14 +63,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
   ],
   extra: {
-    API_BASE_URL: process.env.API_BASE_URL || "https://istory.vercel.app",
+    API_BASE_URL: process.env.API_BASE_URL || "https://e-story-dapp.vercel.app",
     SUPABASE_URL: process.env.SUPABASE_URL || "",
     SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY || "",
     WALLETCONNECT_PROJECT_ID: process.env.WALLETCONNECT_PROJECT_ID || "",
-    GOOGLE_CLIENT_ID_IOS: process.env.GOOGLE_CLIENT_ID_IOS || "",
-    GOOGLE_CLIENT_ID_ANDROID: process.env.GOOGLE_CLIENT_ID_ANDROID || "",
+    GOOGLE_WEB_CLIENT_ID: process.env.GOOGLE_WEB_CLIENT_ID || "",
     eas: {
-      projectId: process.env.EAS_PROJECT_ID || "",
+      projectId: "183d424a-6826-4538-bff5-06aec39eb0d5",
     },
   },
 });

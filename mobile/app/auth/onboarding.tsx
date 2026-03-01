@@ -1,11 +1,18 @@
 // Onboarding Screen - New user setup (name, username, email)
 import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator } from "react-native";
+import { View, Text, TextInput } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { User, AtSign, Mail, ArrowRight } from "lucide-react-native";
 import Toast from "react-native-toast-message";
 import { useAuthStore } from "../../stores/authStore";
+import {
+  GlassCard,
+  GradientButton,
+  GradientText,
+  AnimatedListItem,
+  GRADIENTS,
+} from "../../components/ui";
 
 export default function OnboardingScreen() {
   const { completeOnboarding } = useAuthStore();
@@ -33,69 +40,88 @@ export default function OnboardingScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-900">
-      <View className="flex-1 px-6">
-        <View className="py-8">
-          <Text className="text-3xl font-bold text-white">Set Up Profile</Text>
-          <Text className="mt-2 text-base text-slate-400">
-            Tell us a bit about yourself
-          </Text>
-        </View>
-
-        <View className="gap-4">
-          <View className="flex-row items-center gap-3 rounded-xl bg-slate-800 px-4 py-3">
-            <User size={20} color="#a78bfa" />
-            <TextInput
-              value={name}
-              onChangeText={setName}
-              placeholder="Full Name"
-              className="flex-1 text-base text-white"
-              placeholderTextColor="#64748b"
-              autoFocus
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#0f172a" }}>
+      <View style={{ flex: 1, paddingHorizontal: 24 }}>
+        <AnimatedListItem index={0}>
+          <View style={{ paddingVertical: 32 }}>
+            <GradientText
+              text="Set Up Profile"
+              gradient={GRADIENTS.primary}
+              style={{ fontSize: 28 }}
             />
+            <Text style={{ marginTop: 8, fontSize: 15, color: "#94a3b8" }}>
+              Tell us a bit about yourself
+            </Text>
           </View>
+        </AnimatedListItem>
 
-          <View className="flex-row items-center gap-3 rounded-xl bg-slate-800 px-4 py-3">
-            <AtSign size={20} color="#a78bfa" />
-            <TextInput
-              value={username}
-              onChangeText={setUsername}
-              placeholder="Username"
-              className="flex-1 text-base text-white"
-              placeholderTextColor="#64748b"
-              autoCapitalize="none"
-            />
-          </View>
+        <View style={{ gap: 16 }}>
+          <AnimatedListItem index={1}>
+            <GlassCard
+              intensity="light"
+              style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 14 }}
+            >
+              <User size={20} color="#a78bfa" />
+              <TextInput
+                value={name}
+                onChangeText={setName}
+                placeholder="Full Name"
+                style={{ flex: 1, fontSize: 15, color: "#fff" }}
+                placeholderTextColor="#64748b"
+                autoFocus
+              />
+            </GlassCard>
+          </AnimatedListItem>
 
-          <View className="flex-row items-center gap-3 rounded-xl bg-slate-800 px-4 py-3">
-            <Mail size={20} color="#a78bfa" />
-            <TextInput
-              value={email}
-              onChangeText={setEmail}
-              placeholder="Email (optional)"
-              className="flex-1 text-base text-white"
-              placeholderTextColor="#64748b"
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-          </View>
+          <AnimatedListItem index={2}>
+            <GlassCard
+              intensity="light"
+              style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 14 }}
+            >
+              <AtSign size={20} color="#a78bfa" />
+              <TextInput
+                value={username}
+                onChangeText={setUsername}
+                placeholder="Username"
+                style={{ flex: 1, fontSize: 15, color: "#fff" }}
+                placeholderTextColor="#64748b"
+                autoCapitalize="none"
+              />
+            </GlassCard>
+          </AnimatedListItem>
 
-          <TouchableOpacity
-            onPress={handleSubmit}
-            disabled={loading}
-            className="mt-4 flex-row items-center justify-center gap-2 rounded-2xl bg-violet-600 p-4"
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <>
-                <Text className="text-lg font-semibold text-white">
-                  Get Started
-                </Text>
-                <ArrowRight size={20} color="#fff" />
-              </>
-            )}
-          </TouchableOpacity>
+          <AnimatedListItem index={3}>
+            <GlassCard
+              intensity="light"
+              style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 14 }}
+            >
+              <Mail size={20} color="#a78bfa" />
+              <TextInput
+                value={email}
+                onChangeText={setEmail}
+                placeholder="Email (optional)"
+                style={{ flex: 1, fontSize: 15, color: "#fff" }}
+                placeholderTextColor="#64748b"
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </GlassCard>
+          </AnimatedListItem>
+
+          <AnimatedListItem index={4}>
+            <View style={{ marginTop: 8 }}>
+              <GradientButton
+                onPress={handleSubmit}
+                title="Get Started"
+                icon={<ArrowRight size={20} color="#fff" />}
+                gradient={GRADIENTS.primary}
+                size="lg"
+                loading={loading}
+                disabled={loading}
+                fullWidth
+              />
+            </View>
+          </AnimatedListItem>
         </View>
       </View>
     </SafeAreaView>

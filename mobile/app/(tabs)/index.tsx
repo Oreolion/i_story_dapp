@@ -4,24 +4,37 @@ import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
   RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { Mic, BookOpen, Users, TrendingUp } from "lucide-react-native";
+import { Mic, BookOpen, Users, TrendingUp, Wallet } from "lucide-react-native";
 import { useAccount } from "wagmi";
 import { useAuthStore } from "../../stores/authStore";
 import { apiGet } from "../../lib/api";
+import {
+  GlassCard,
+  GradientButton,
+  GradientText,
+  AnimatedListItem,
+  StatCard,
+  SkeletonLoader,
+  GRADIENTS,
+} from "../../components/ui";
 
 export default function HomeScreen() {
   const { user, isAuthenticated } = useAuthStore();
   const { address, isConnected } = useAccount();
   const [stats, setStats] = useState({ stories: 0, books: 0, followers: 0 });
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const fetchStats = async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      setLoading(false);
+      return;
+    }
     try {
       const res = await apiGet<{ user: { stories_count?: number } }>(
         "/api/user/profile"
@@ -32,7 +45,9 @@ export default function HomeScreen() {
           stories: res.data?.user?.stories_count || 0,
         }));
       }
-    } catch {}
+    } catch {} finally {
+      setLoading(false);
+    }
   };
 
   const onRefresh = async () => {
@@ -46,101 +61,169 @@ export default function HomeScreen() {
   }, [isAuthenticated]);
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-900">
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#0f172a" }}>
       <ScrollView
-        className="flex-1 px-4"
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 100 }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* Header */}
-        <View className="py-6">
-          <Text className="text-3xl font-bold text-white">
-            {user?.name ? `Welcome, ${user.name}` : "Welcome to e-Story"}
-          </Text>
-          <Text className="mt-1 text-base text-slate-400">
-            Your voice. Your story. On-chain forever.
-          </Text>
+        {/* Hero Section with gradient overlay */}
+        <LinearGradient
+          colors={GRADIENTS.hero}
+          style={{ paddingHorizontal: 16, paddingTop: 24, paddingBottom: 32 }}
+        >
+          <AnimatedListItem index={0}>
+            <GradientText
+              text={user?.name ? `Welcome, ${user.name}` : "Welcome to e-Story"}
+              gradient={GRADIENTS.primary}
+              style={{ fontSize: 28, lineHeight: 36 }}
+            />
+          </AnimatedListItem>
+          <AnimatedListItem index={1}>
+            <Text style={{ marginTop: 6, fontSize: 15, color: "#94a3b8" }}>
+              Your voice. Your story. On-chain forever.
+            </Text>
+          </AnimatedListItem>
+        </LinearGradient>
+
+        <View style={{ paddingHorizontal: 16 }}>
+          {/* Quick Actions */}
+          <AnimatedListItem index={2}>
+            <View style={{ flexDirection: "row", gap: 12, marginTop: -16 }}>
+              <View style={{ flex: 1 }}>
+                <GradientButton
+                  onPress={() => router.push("/record")}
+                  title="Record"
+                  gradient={GRADIENTS.recording}
+                  icon={<Mic size={22} color="#fff" />}
+                  fullWidth
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <GlassCard
+                  intensity="medium"
+                  style={{
+                    padding: 14,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <BookOpen
+                    size={22}
+                    color="#a78bfa"
+                    onPress={() => router.push("/library")}
+                  />
+                  <Text style={{ marginTop: 8, fontWeight: "600", color: "#cbd5e1", fontSize: 13 }}>
+                    Archive
+                  </Text>
+                </GlassCard>
+              </View>
+              <View style={{ flex: 1 }}>
+                <GlassCard
+                  intensity="medium"
+                  style={{
+                    padding: 14,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Users
+                    size={22}
+                    color="#a78bfa"
+                    onPress={() => router.push("/social")}
+                  />
+                  <Text style={{ marginTop: 8, fontWeight: "600", color: "#cbd5e1", fontSize: 13 }}>
+                    Community
+                  </Text>
+                </GlassCard>
+              </View>
+            </View>
+          </AnimatedListItem>
+
+          {/* Stats Cards */}
+          {isAuthenticated && (
+            <AnimatedListItem index={3}>
+              <View style={{ marginTop: 20, flexDirection: "row", gap: 12 }}>
+                {loading ? (
+                  <SkeletonLoader variant="card" height={80} />
+                ) : (
+                  <>
+                    <StatCard value={stats.stories} label="Stories" color="#fff" />
+                    <StatCard value={stats.books} label="Books" color="#fff" />
+                    <StatCard
+                      value={0}
+                      label="Streak"
+                      color="#4ade80"
+                      icon={<TrendingUp size={18} color="#4ade80" />}
+                    />
+                  </>
+                )}
+              </View>
+            </AnimatedListItem>
+          )}
+
+          {/* Wallet Status */}
+          {isConnected && address && (
+            <AnimatedListItem index={4}>
+              <GlassCard
+                intensity="light"
+                style={{ marginTop: 16, padding: 16 }}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <LinearGradient
+                    colors={GRADIENTS.accent}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={{ width: 3, height: 32, borderRadius: 2 }}
+                  />
+                  <View>
+                    <Text style={{ fontSize: 12, color: "#94a3b8" }}>Connected Wallet</Text>
+                    <Text style={{ marginTop: 2, fontFamily: "monospace", fontSize: 12, color: "#a78bfa" }}>
+                      {address.slice(0, 6)}...{address.slice(-4)}
+                    </Text>
+                  </View>
+                </View>
+              </GlassCard>
+            </AnimatedListItem>
+          )}
+
+          {/* Login CTA */}
+          {!isAuthenticated && (
+            <AnimatedListItem index={3}>
+              <GlassCard
+                intensity="medium"
+                style={{ marginTop: 32, padding: 24, alignItems: "center" }}
+              >
+                <Text style={{ fontSize: 18, fontWeight: "600", color: "#fff" }}>
+                  Start your journey
+                </Text>
+                <Text
+                  style={{
+                    marginTop: 8,
+                    textAlign: "center",
+                    fontSize: 14,
+                    color: "#94a3b8",
+                    lineHeight: 20,
+                  }}
+                >
+                  Connect your wallet or sign in with Google to begin recording
+                  stories.
+                </Text>
+                <View style={{ marginTop: 16, width: "100%" }}>
+                  <GradientButton
+                    onPress={() => router.push("/auth/login")}
+                    title="Get Started"
+                    gradient={GRADIENTS.primary}
+                    size="lg"
+                    fullWidth
+                  />
+                </View>
+              </GlassCard>
+            </AnimatedListItem>
+          )}
         </View>
-
-        {/* Quick Actions */}
-        <View className="flex-row gap-3">
-          <TouchableOpacity
-            onPress={() => router.push("/record")}
-            className="flex-1 items-center rounded-2xl bg-violet-600 p-4"
-          >
-            <Mic size={28} color="#fff" />
-            <Text className="mt-2 font-semibold text-white">Record</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => router.push("/library")}
-            className="flex-1 items-center rounded-2xl bg-slate-800 p-4"
-          >
-            <BookOpen size={28} color="#a78bfa" />
-            <Text className="mt-2 font-semibold text-slate-300">Archive</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => router.push("/social")}
-            className="flex-1 items-center rounded-2xl bg-slate-800 p-4"
-          >
-            <Users size={28} color="#a78bfa" />
-            <Text className="mt-2 font-semibold text-slate-300">Community</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Stats Cards */}
-        {isAuthenticated && (
-          <View className="mt-6 flex-row gap-3">
-            <View className="flex-1 rounded-xl bg-slate-800 p-4">
-              <Text className="text-2xl font-bold text-white">
-                {stats.stories}
-              </Text>
-              <Text className="text-sm text-slate-400">Stories</Text>
-            </View>
-            <View className="flex-1 rounded-xl bg-slate-800 p-4">
-              <Text className="text-2xl font-bold text-white">
-                {stats.books}
-              </Text>
-              <Text className="text-sm text-slate-400">Books</Text>
-            </View>
-            <View className="flex-1 rounded-xl bg-slate-800 p-4">
-              <TrendingUp size={20} color="#4ade80" />
-              <Text className="mt-1 text-sm text-slate-400">Streak</Text>
-            </View>
-          </View>
-        )}
-
-        {/* Wallet Status */}
-        {isConnected && address && (
-          <View className="mt-4 rounded-xl bg-slate-800/50 p-4">
-            <Text className="text-sm text-slate-400">Connected Wallet</Text>
-            <Text className="mt-1 font-mono text-xs text-violet-400">
-              {address.slice(0, 6)}...{address.slice(-4)}
-            </Text>
-          </View>
-        )}
-
-        {/* Login CTA */}
-        {!isAuthenticated && (
-          <View className="mt-8 items-center rounded-2xl bg-slate-800 p-6">
-            <Text className="text-lg font-semibold text-white">
-              Start your journey
-            </Text>
-            <Text className="mt-2 text-center text-sm text-slate-400">
-              Connect your wallet or sign in with Google to begin recording
-              stories.
-            </Text>
-            <TouchableOpacity
-              onPress={() => router.push("/auth/login")}
-              className="mt-4 rounded-full bg-violet-600 px-8 py-3"
-            >
-              <Text className="font-semibold text-white">Get Started</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Spacer for tab bar */}
-        <View className="h-20" />
       </ScrollView>
     </SafeAreaView>
   );

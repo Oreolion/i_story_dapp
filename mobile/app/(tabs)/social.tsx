@@ -7,17 +7,65 @@ import {
   TouchableOpacity,
   TextInput,
   RefreshControl,
-  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withSequence,
+} from "react-native-reanimated";
 import { router } from "expo-router";
 import { Search, Heart, MessageCircle, Share2, Lock } from "lucide-react-native";
-import Toast from "react-native-toast-message";
+import * as Haptics from "expo-haptics";
 import { useAuthStore } from "../../stores/authStore";
 import { apiGet, apiPost } from "../../lib/api";
 import type { StoryDataType } from "../../types";
+import {
+  GlassCard,
+  GradientButton,
+  AnimatedListItem,
+  Badge,
+  Avatar,
+  SkeletonLoader,
+  GRADIENTS,
+  ANIMATION,
+} from "../../components/ui";
 
 type FeedTab = "latest" | "trending" | "following";
+
+function HeartButton({ isLiked, count, onPress }: { isLiked: boolean; count: number; onPress: () => void }) {
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handlePress = () => {
+    scale.value = withSequence(
+      withSpring(1.3, { damping: 8, stiffness: 300 }),
+      withSpring(1, { damping: 10, stiffness: 200 })
+    );
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onPress();
+  };
+
+  return (
+    <TouchableOpacity
+      onPress={handlePress}
+      style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
+    >
+      <Animated.View style={animatedStyle}>
+        <Heart
+          size={18}
+          color={isLiked ? "#ef4444" : "#64748b"}
+          fill={isLiked ? "#ef4444" : "transparent"}
+        />
+      </Animated.View>
+      <Text style={{ fontSize: 13, color: "#94a3b8" }}>{count}</Text>
+    </TouchableOpacity>
+  );
+}
 
 export default function SocialScreen() {
   const { isAuthenticated } = useAuthStore();
@@ -55,7 +103,6 @@ export default function SocialScreen() {
       router.push("/auth/login");
       return;
     }
-    // Optimistic update
     setStories((prev) =>
       prev.map((s) =>
         s.id === storyId
@@ -72,111 +119,122 @@ export default function SocialScreen() {
       s.content.toLowerCase().includes(search.toLowerCase())
   );
 
-  const renderStory = ({ item }: { item: StoryDataType }) => (
-    <TouchableOpacity
-      onPress={() => router.push(`/story/${item.id}`)}
-      className="mb-4 rounded-2xl bg-slate-800 p-4"
-    >
-      {/* Author Row */}
-      <View className="mb-3 flex-row items-center">
-        {item.author.avatar ? (
-          <Image
-            source={{ uri: item.author.avatar }}
-            className="h-10 w-10 rounded-full"
-          />
-        ) : (
-          <View className="h-10 w-10 items-center justify-center rounded-full bg-violet-600">
-            <Text className="text-lg font-bold text-white">
-              {item.author.name?.[0] || "?"}
-            </Text>
+  const renderStory = ({ item, index }: { item: StoryDataType; index: number }) => (
+    <AnimatedListItem index={index}>
+      <TouchableOpacity
+        onPress={() => router.push(`/story/${item.id}`)}
+        activeOpacity={0.8}
+      >
+        <GlassCard intensity="light" style={{ padding: 16, marginBottom: 16 }}>
+          {/* Author Row */}
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
+            <Avatar
+              uri={item.author.avatar}
+              name={item.author.name}
+              size="md"
+              withGradientBorder
+            />
+            <View style={{ marginLeft: 12, flex: 1 }}>
+              <Text style={{ fontWeight: "600", color: "#fff", fontSize: 14 }}>
+                {item.author.name || "Anonymous"}
+              </Text>
+              <Text style={{ fontSize: 11, color: "#64748b" }}>{item.timestamp}</Text>
+            </View>
+            <Badge text={item.mood} />
           </View>
-        )}
-        <View className="ml-3 flex-1">
-          <Text className="font-semibold text-white">
-            {item.author.name || "Anonymous"}
-          </Text>
-          <Text className="text-xs text-slate-400">{item.timestamp}</Text>
-        </View>
-        <View className="rounded-full bg-slate-700 px-3 py-1">
-          <Text className="text-xs capitalize text-slate-300">{item.mood}</Text>
-        </View>
-      </View>
 
-      {/* Content */}
-      <Text className="mb-1 text-lg font-semibold text-white">{item.title}</Text>
-      {item.paywallAmount > 0 && !item.isPaid ? (
-        <View className="flex-row items-center gap-2">
-          <Lock size={14} color="#64748b" />
-          <Text className="text-sm italic text-slate-400">
-            {item.teaser || "Premium content — unlock to read"}
+          {/* Content */}
+          <Text style={{ marginBottom: 4, fontSize: 16, fontWeight: "600", color: "#fff" }}>
+            {item.title}
           </Text>
-        </View>
-      ) : (
-        <Text className="text-sm leading-5 text-slate-300" numberOfLines={3}>
-          {item.content}
-        </Text>
-      )}
+          {item.paywallAmount > 0 && !item.isPaid ? (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <Lock size={14} color="#64748b" />
+              <Text style={{ fontSize: 13, fontStyle: "italic", color: "#94a3b8" }}>
+                {item.teaser || "Premium content — unlock to read"}
+              </Text>
+            </View>
+          ) : (
+            <Text style={{ fontSize: 13, lineHeight: 20, color: "#cbd5e1" }} numberOfLines={3}>
+              {item.content}
+            </Text>
+          )}
 
-      {/* Actions */}
-      <View className="mt-3 flex-row items-center gap-6">
-        <TouchableOpacity
-          onPress={() => handleLike(item.id)}
-          className="flex-row items-center gap-1"
-        >
-          <Heart
-            size={18}
-            color={item.isLiked ? "#ef4444" : "#64748b"}
-            fill={item.isLiked ? "#ef4444" : "transparent"}
-          />
-          <Text className="text-sm text-slate-400">{item.likes}</Text>
-        </TouchableOpacity>
-        <View className="flex-row items-center gap-1">
-          <MessageCircle size={18} color="#64748b" />
-          <Text className="text-sm text-slate-400">{item.comments}</Text>
-        </View>
-        <View className="flex-row items-center gap-1">
-          <Share2 size={18} color="#64748b" />
-          <Text className="text-sm text-slate-400">{item.shares}</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
+          {/* Actions */}
+          <View style={{ marginTop: 12, flexDirection: "row", alignItems: "center", gap: 24 }}>
+            <HeartButton
+              isLiked={item.isLiked}
+              count={item.likes}
+              onPress={() => handleLike(item.id)}
+            />
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+              <MessageCircle size={18} color="#64748b" />
+              <Text style={{ fontSize: 13, color: "#94a3b8" }}>{item.comments}</Text>
+            </View>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+              <Share2 size={18} color="#64748b" />
+              <Text style={{ fontSize: 13, color: "#94a3b8" }}>{item.shares}</Text>
+            </View>
+          </View>
+        </GlassCard>
+      </TouchableOpacity>
+    </AnimatedListItem>
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-900">
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#0f172a" }}>
       {/* Search Bar */}
-      <View className="flex-row items-center gap-2 px-4 py-3">
-        <View className="flex-1 flex-row items-center rounded-xl bg-slate-800 px-3 py-2">
+      <View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
+        <GlassCard
+          intensity="light"
+          style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 14, paddingVertical: 10 }}
+        >
           <Search size={18} color="#64748b" />
           <TextInput
             value={search}
             onChangeText={setSearch}
             placeholder="Search stories..."
-            className="ml-2 flex-1 text-base text-white"
+            style={{ marginLeft: 10, flex: 1, fontSize: 15, color: "#fff" }}
             placeholderTextColor="#64748b"
           />
-        </View>
+        </GlassCard>
       </View>
 
       {/* Tabs */}
-      <View className="flex-row gap-2 px-4 pb-3">
-        {(["latest", "trending", "following"] as FeedTab[]).map((tab) => (
-          <TouchableOpacity
-            key={tab}
-            onPress={() => setActiveTab(tab)}
-            className={`rounded-full px-4 py-2 ${
-              activeTab === tab ? "bg-violet-600" : "bg-slate-800"
-            }`}
-          >
-            <Text
-              className={`text-sm font-medium capitalize ${
-                activeTab === tab ? "text-white" : "text-slate-400"
-              }`}
+      <View style={{ flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingBottom: 12 }}>
+        {(["latest", "trending", "following"] as FeedTab[]).map((tab) => {
+          const isActive = activeTab === tab;
+          return isActive ? (
+            <GradientButton
+              key={tab}
+              onPress={() => setActiveTab(tab)}
+              title={tab}
+              gradient={GRADIENTS.primary}
+              size="sm"
+            />
+          ) : (
+            <TouchableOpacity
+              key={tab}
+              onPress={() => setActiveTab(tab)}
             >
-              {tab}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <GlassCard
+                intensity="light"
+                style={{ paddingHorizontal: 16, paddingVertical: 8 }}
+              >
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: "500",
+                    color: "#94a3b8",
+                    textTransform: "capitalize",
+                  }}
+                >
+                  {tab}
+                </Text>
+              </GlassCard>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {/* Feed */}
@@ -189,10 +247,12 @@ export default function SocialScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         ListEmptyComponent={
-          <View className="items-center py-12">
-            <Text className="text-slate-400">
-              {loading ? "Loading stories..." : "No stories yet"}
-            </Text>
+          <View style={{ alignItems: "center", paddingVertical: 48 }}>
+            {loading ? (
+              <SkeletonLoader variant="card" count={3} />
+            ) : (
+              <Text style={{ color: "#94a3b8" }}>No stories yet</Text>
+            )}
           </View>
         }
       />

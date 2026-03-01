@@ -1,61 +1,100 @@
-// Login Screen - Wallet connect + Google OAuth
+// Login Screen - Email/password + Google OAuth
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { Wallet, X } from "lucide-react-native";
-import { useAppKit } from "@reown/appkit-react-native";
-import { useAccount, useSignMessage } from "wagmi";
+import { Mail, Lock, X } from "lucide-react-native";
 import Toast from "react-native-toast-message";
-import * as WebBrowser from "expo-web-browser";
-import { makeRedirectUri } from "expo-auth-session";
-import * as QueryParams from "expo-auth-session/build/QueryParams";
 import { useAuthStore } from "../../stores/authStore";
-import { supabase } from "../../lib/supabase";
-
-WebBrowser.maybeCompleteAuthSession();
+import { signInWithGoogleNative } from "../../lib/googleAuth";
+import {
+  GlassCard,
+  GradientButton,
+  GradientText,
+  AnimatedListItem,
+  GRADIENTS,
+  GLASS,
+} from "../../components/ui";
 
 export default function LoginScreen() {
-  const { loginWithWallet, loginWithGoogle } = useAuthStore();
-  const { open } = useAppKit();
-  const { address, isConnected } = useAccount();
-  const { signMessageAsync } = useSignMessage();
+  const { loginWithEmail, loginWithGoogleIdToken, resetPassword } = useAuthStore();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+
+  const handleEmailLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      Toast.show({ type: "error", text1: "Email and password are required" });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await loginWithEmail(email.trim(), password);
+      Toast.show({ type: "success", text1: "Signed in!" });
+      router.replace("/");
+    } catch (err) {
+      console.error("[Login] Email login failed:", err);
+      const message = err instanceof Error ? err.message : "Login failed. Try again.";
+      Toast.show({ type: "error", text1: message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = () => {
+    Alert.prompt
+      ? Alert.prompt(
+          "Reset Password",
+          "Enter your email address",
+          async (inputEmail) => {
+            if (!inputEmail?.trim()) return;
+            try {
+              await resetPassword(inputEmail.trim());
+              Alert.alert("Check your email", "A password reset link has been sent.");
+            } catch {
+              Alert.alert("Error", "Failed to send reset email. Try again.");
+            }
+          },
+          "plain-text",
+          email,
+          "email-address"
+        )
+      : (async () => {
+          if (!email.trim()) {
+            Toast.show({ type: "error", text1: "Enter your email first, then tap Forgot password" });
+            return;
+          }
+          try {
+            await resetPassword(email.trim());
+            Alert.alert("Check your email", "A password reset link has been sent.");
+          } catch {
+            Alert.alert("Error", "Failed to send reset email. Try again.");
+          }
+        })();
+  };
 
   const handleGoogleLogin = async () => {
     setGoogleLoading(true);
     try {
-      const redirectTo = makeRedirectUri();
+      const result = await signInWithGoogleNative();
+      if (!result) return;
 
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo,
-          skipBrowserRedirect: true,
-        },
-      });
-
-      if (error || !data.url) throw error || new Error("No OAuth URL returned");
-
-      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
-
-      if (result.type !== "success" || !result.url) {
-        // User cancelled or dismissed the browser
-        return;
-      }
-
-      // Parse tokens from the redirect URL
-      const { params, errorCode } = QueryParams.getQueryParams(result.url);
-
-      if (errorCode) throw new Error(errorCode);
-
-      const { access_token, refresh_token } = params;
-      if (!access_token || !refresh_token) {
-        throw new Error("Missing tokens in callback URL");
-      }
-
-      const { needsOnboarding } = await loginWithGoogle(access_token, refresh_token);
+      const { needsOnboarding } = await loginWithGoogleIdToken(
+        result.accessToken,
+        result.refreshToken
+      );
 
       Toast.show({ type: "success", text1: "Signed in with Google!" });
       router.replace(needsOnboarding ? "/auth/onboarding" : "/");
@@ -67,94 +106,147 @@ export default function LoginScreen() {
     }
   };
 
-  const handleWalletLogin = async () => {
-    if (!isConnected) {
-      open();
-      return;
-    }
-
-    if (!address) return;
-
-    setLoading(true);
-    try {
-      await loginWithWallet(address, async (message: string) => {
-        return await signMessageAsync({ message });
-      });
-      Toast.show({ type: "success", text1: "Signed in!" });
-      router.replace("/");
-    } catch (err) {
-      console.error("[Login] Wallet login failed:", err);
-      Toast.show({ type: "error", text1: "Login failed. Try again." });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
-    <SafeAreaView className="flex-1 bg-slate-900">
-      <View className="flex-1 px-6">
-        {/* Close button */}
-        <View className="flex-row justify-end py-4">
-          <TouchableOpacity onPress={() => router.back()}>
-            <X size={24} color="#64748b" />
-          </TouchableOpacity>
-        </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#0f172a" }}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1 }}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={{ flex: 1, paddingHorizontal: 24 }}>
+            {/* Close button */}
+            <View style={{ flexDirection: "row", justifyContent: "flex-end", paddingVertical: 16 }}>
+              <TouchableOpacity onPress={() => router.back()}>
+                <X size={24} color="#64748b" />
+              </TouchableOpacity>
+            </View>
 
-        {/* Hero */}
-        <View className="flex-1 items-center justify-center">
-          <Text className="text-4xl font-bold text-white">e-Story</Text>
-          <Text className="mt-2 text-center text-base text-slate-400">
-            Your voice. Your story.{"\n"}On-chain forever.
-          </Text>
-
-          <View className="mt-12 w-full gap-4">
-            {/* Wallet Connect */}
-            <TouchableOpacity
-              onPress={handleWalletLogin}
-              disabled={loading}
-              className="flex-row items-center justify-center gap-3 rounded-2xl bg-violet-600 p-4"
+            {/* Hero */}
+            <LinearGradient
+              colors={GRADIENTS.hero}
+              style={{ alignItems: "center", paddingTop: 32, paddingBottom: 40, marginHorizontal: -24, paddingHorizontal: 24 }}
             >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <>
-                  <Wallet size={22} color="#fff" />
-                  <Text className="text-lg font-semibold text-white">
-                    {isConnected ? "Sign In with Wallet" : "Connect Wallet"}
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
+              <AnimatedListItem index={0}>
+                <GradientText
+                  text="e-Story"
+                  gradient={GRADIENTS.primary}
+                  style={{ fontSize: 40 }}
+                />
+              </AnimatedListItem>
+              <AnimatedListItem index={1}>
+                <Text style={{ marginTop: 8, textAlign: "center", fontSize: 15, color: "#94a3b8", lineHeight: 22 }}>
+                  Your voice. Your story.{"\n"}On-chain forever.
+                </Text>
+              </AnimatedListItem>
+            </LinearGradient>
+
+            {/* Email & Password */}
+            <View style={{ gap: 12, marginTop: 8 }}>
+              <AnimatedListItem index={2}>
+                <GlassCard
+                  intensity="light"
+                  style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 14 }}
+                >
+                  <Mail size={20} color="#a78bfa" />
+                  <TextInput
+                    value={email}
+                    onChangeText={setEmail}
+                    placeholder="Email"
+                    style={{ flex: 1, fontSize: 15, color: "#fff" }}
+                    placeholderTextColor="#64748b"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                </GlassCard>
+              </AnimatedListItem>
+
+              <AnimatedListItem index={3}>
+                <GlassCard
+                  intensity="light"
+                  style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 14 }}
+                >
+                  <Lock size={20} color="#a78bfa" />
+                  <TextInput
+                    value={password}
+                    onChangeText={setPassword}
+                    placeholder="Password"
+                    style={{ flex: 1, fontSize: 15, color: "#fff" }}
+                    placeholderTextColor="#64748b"
+                    secureTextEntry
+                  />
+                </GlassCard>
+              </AnimatedListItem>
+
+              {/* Sign In button */}
+              <AnimatedListItem index={4}>
+                <GradientButton
+                  onPress={handleEmailLogin}
+                  title="Sign In"
+                  gradient={GRADIENTS.primary}
+                  size="lg"
+                  loading={loading}
+                  disabled={loading}
+                  fullWidth
+                />
+              </AnimatedListItem>
+
+              {/* Forgot password */}
+              <TouchableOpacity onPress={handleForgotPassword} style={{ alignItems: "center", paddingVertical: 4 }}>
+                <Text style={{ fontSize: 13, color: "#a78bfa" }}>Forgot password?</Text>
+              </TouchableOpacity>
+            </View>
 
             {/* Divider */}
-            <View className="flex-row items-center gap-3">
-              <View className="h-px flex-1 bg-slate-700" />
-              <Text className="text-sm text-slate-500">or</Text>
-              <View className="h-px flex-1 bg-slate-700" />
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 20 }}>
+              <View style={{ height: 1, flex: 1, backgroundColor: GLASS.light.border }} />
+              <Text style={{ fontSize: 13, color: "#64748b" }}>or</Text>
+              <View style={{ height: 1, flex: 1, backgroundColor: GLASS.light.border }} />
             </View>
 
             {/* Google Sign In */}
-            <TouchableOpacity
-              onPress={handleGoogleLogin}
-              disabled={googleLoading}
-              className="flex-row items-center justify-center gap-3 rounded-2xl bg-white p-4"
-            >
-              {googleLoading ? (
-                <ActivityIndicator color="#0f172a" />
-              ) : (
-                <Text className="text-lg font-semibold text-slate-900">
-                  Continue with Google
-                </Text>
-              )}
-            </TouchableOpacity>
-          </View>
+            <AnimatedListItem index={5}>
+              <GlassCard
+                intensity="medium"
+                style={{ overflow: "hidden" }}
+              >
+                <TouchableOpacity
+                  onPress={handleGoogleLogin}
+                  disabled={googleLoading}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 12,
+                    paddingVertical: 16,
+                    opacity: googleLoading ? 0.5 : 1,
+                  }}
+                >
+                  <Text style={{ fontSize: 16, fontWeight: "600", color: "#fff" }}>
+                    {googleLoading ? "Signing in..." : "Continue with Google"}
+                  </Text>
+                </TouchableOpacity>
+              </GlassCard>
+            </AnimatedListItem>
 
-          {/* Terms */}
-          <Text className="mt-8 text-center text-xs text-slate-500">
-            By continuing, you agree to our Terms of Service and Privacy Policy
-          </Text>
-        </View>
-      </View>
+            {/* Sign Up link */}
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, paddingTop: 32, paddingBottom: 16 }}>
+              <Text style={{ fontSize: 13, color: "#94a3b8" }}>Don't have an account?</Text>
+              <TouchableOpacity onPress={() => router.push("/auth/signup")}>
+                <Text style={{ fontSize: 13, fontWeight: "600", color: "#a78bfa" }}>Sign Up</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Terms */}
+            <Text style={{ textAlign: "center", fontSize: 11, color: "#64748b", paddingBottom: 16 }}>
+              By continuing, you agree to our Terms of Service and Privacy Policy
+            </Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
