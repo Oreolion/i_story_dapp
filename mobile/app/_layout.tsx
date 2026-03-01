@@ -73,6 +73,10 @@ export default function RootLayout() {
               options={{ headerShown: false, presentation: "modal" }}
             />
             <Stack.Screen
+              name="auth/signup"
+              options={{ headerShown: false, presentation: "modal" }}
+            />
+            <Stack.Screen
               name="auth/onboarding"
               options={{ headerShown: false, presentation: "modal" }}
             />

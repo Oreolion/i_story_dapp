@@ -1,11 +1,11 @@
 // e-Story Mobile - API Client
 // Wraps all fetch calls with API_BASE_URL prefix and Bearer token from SecureStore
 
-import * as SecureStore from "expo-secure-store";
 import Constants from "expo-constants";
+import { getItem, setItem, removeItem } from "./storage";
 
 const API_BASE_URL =
-  Constants.expoConfig?.extra?.API_BASE_URL || "https://istory.vercel.app";
+  Constants.expoConfig?.extra?.API_BASE_URL || "https://e-story-dapp.vercel.app";
 
 const TOKEN_KEY = "supabase_access_token";
 
@@ -34,7 +34,7 @@ export async function api<T = unknown>(
   const url = path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
 
   // Get auth token
-  const token = await SecureStore.getItemAsync(TOKEN_KEY);
+  const token = await getItem(TOKEN_KEY);
 
   const headers: Record<string, string> = {
     ...(options.headers as Record<string, string>),
@@ -106,13 +106,13 @@ export const apiUpload = <T>(path: string, formData: FormData) =>
 
 // Token management
 export async function setAuthToken(token: string): Promise<void> {
-  await SecureStore.setItemAsync(TOKEN_KEY, token);
+  await setItem(TOKEN_KEY, token);
 }
 
 export async function getAuthToken(): Promise<string | null> {
-  return SecureStore.getItemAsync(TOKEN_KEY);
+  return getItem(TOKEN_KEY);
 }
 
 export async function clearAuthToken(): Promise<void> {
-  await SecureStore.deleteItemAsync(TOKEN_KEY);
+  await removeItem(TOKEN_KEY);
 }

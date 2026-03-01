@@ -1,5 +1,5 @@
 // Library/Archive Screen - Personal stories, books, themes, life areas
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
   ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Animated, { FadeInDown } from "react-native-reanimated";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import {
   BookOpen,
@@ -30,7 +32,16 @@ import {
 } from "lucide-react-native";
 import { useAuthStore } from "../../stores/authStore";
 import { usePatterns } from "../../hooks/usePatterns";
-import type { StoryWithMetadata, ThemeGroup, DomainGroup, LifeDomain } from "../../types";
+import type { StoryWithMetadata, LifeDomain } from "../../types";
+import {
+  GlassCard,
+  GradientButton,
+  AnimatedListItem,
+  Badge,
+  StatCard,
+  SectionHeader,
+  GRADIENTS,
+} from "../../components/ui";
 
 type LibraryTab = "all" | "stories" | "books" | "key-moments" | "themes" | "life-areas";
 
@@ -68,7 +79,7 @@ const THEME_COLORS = [
 ];
 
 export default function LibraryScreen() {
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated } = useAuthStore();
   const {
     stories,
     themeGroups,
@@ -99,15 +110,18 @@ export default function LibraryScreen() {
 
   if (!isAuthenticated) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-slate-900">
-        <BookOpen size={48} color="#64748b" />
-        <Text className="mt-4 text-lg text-slate-400">Sign in to view your archive</Text>
-        <TouchableOpacity
-          onPress={() => router.push("/auth/login")}
-          className="mt-4 rounded-full bg-violet-600 px-6 py-3"
-        >
-          <Text className="font-semibold text-white">Sign In</Text>
-        </TouchableOpacity>
+      <SafeAreaView style={{ flex: 1, backgroundColor: "#0f172a", alignItems: "center", justifyContent: "center" }}>
+        <GlassCard intensity="medium" style={{ padding: 32, alignItems: "center", marginHorizontal: 24 }}>
+          <BookOpen size={48} color="#64748b" />
+          <Text style={{ marginTop: 16, fontSize: 17, color: "#94a3b8" }}>Sign in to view your archive</Text>
+          <View style={{ marginTop: 16 }}>
+            <GradientButton
+              onPress={() => router.push("/auth/login")}
+              title="Sign In"
+              gradient={GRADIENTS.primary}
+            />
+          </View>
+        </GlassCard>
       </SafeAreaView>
     );
   }
@@ -126,109 +140,116 @@ export default function LibraryScreen() {
     }
   })();
 
-  const renderStory = ({ item }: { item: StoryWithMetadata }) => (
-    <TouchableOpacity
-      onPress={() => router.push(`/story/${item.id}`)}
-      className="mb-3 rounded-xl bg-slate-800 p-4"
-    >
-      <View className="flex-row items-center justify-between">
-        <View className="flex-1 flex-row items-center gap-2">
-          {isCanonical(item) && (
-            <Star size={14} color="#facc15" fill="#facc15" />
-          )}
-          <Text className="flex-1 text-base font-semibold text-white" numberOfLines={1}>
-            {item.title}
-          </Text>
-        </View>
-        <View className="ml-2 flex-row items-center gap-2">
-          {item.hasAudio && (
-            <View className="h-2 w-2 rounded-full bg-green-400" />
-          )}
-          <Text className="text-xs text-slate-500">
-            {new Date(item.created_at).toLocaleDateString()}
-          </Text>
-        </View>
-      </View>
-      <Text className="mt-1 text-sm text-slate-400" numberOfLines={2}>
-        {item.content}
-      </Text>
-      <View className="mt-2 flex-row flex-wrap gap-2">
-        <View className="rounded-full bg-slate-700 px-2 py-1">
-          <Text className="text-xs capitalize text-slate-300">{item.mood}</Text>
-        </View>
-        {!item.is_public && (
-          <View className="rounded-full bg-amber-900/30 px-2 py-1">
-            <Text className="text-xs text-amber-400">Private</Text>
+  const renderStory = ({ item, index }: { item: StoryWithMetadata; index: number }) => (
+    <AnimatedListItem index={index}>
+      <TouchableOpacity
+        onPress={() => router.push(`/story/${item.id}`)}
+        activeOpacity={0.8}
+      >
+        <GlassCard intensity="light" style={{ padding: 16, marginBottom: 12 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8 }}>
+              {isCanonical(item) && (
+                <Star size={14} color="#facc15" fill="#facc15" />
+              )}
+              <Text style={{ flex: 1, fontSize: 15, fontWeight: "600", color: "#fff" }} numberOfLines={1}>
+                {item.title}
+              </Text>
+            </View>
+            <View style={{ marginLeft: 8, flexDirection: "row", alignItems: "center", gap: 8 }}>
+              {item.hasAudio && (
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#4ade80" }} />
+              )}
+              <Text style={{ fontSize: 11, color: "#64748b" }}>
+                {new Date(item.created_at).toLocaleDateString()}
+              </Text>
+            </View>
           </View>
-        )}
-        {item.story_metadata?.life_domain && item.story_metadata.life_domain !== "general" && (
-          <View className="rounded-full bg-violet-900/30 px-2 py-1">
-            <Text className="text-xs capitalize text-violet-400">
-              {item.story_metadata.life_domain}
-            </Text>
+          <Text style={{ marginTop: 4, fontSize: 13, color: "#94a3b8" }} numberOfLines={2}>
+            {item.content}
+          </Text>
+          <View style={{ marginTop: 8, flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+            <Badge text={item.mood} />
+            {!item.is_public && (
+              <Badge text="Private" variant="warning" />
+            )}
+            {item.story_metadata?.life_domain && item.story_metadata.life_domain !== "general" && (
+              <Badge text={item.story_metadata.life_domain} variant="violet" />
+            )}
           </View>
-        )}
-      </View>
-    </TouchableOpacity>
+        </GlassCard>
+      </TouchableOpacity>
+    </AnimatedListItem>
   );
 
   const renderThemesView = () => (
-    <View className="px-4 pb-8">
+    <View style={{ paddingHorizontal: 16, paddingBottom: 32 }}>
       {themeGroups.length === 0 ? (
-        <View className="items-center py-12">
-          <Text className="text-slate-400">No themes discovered yet</Text>
+        <View style={{ alignItems: "center", paddingVertical: 48 }}>
+          <Text style={{ color: "#94a3b8" }}>No themes discovered yet</Text>
         </View>
       ) : (
         themeGroups.map((group, idx) => {
           const isExpanded = expandedThemes.has(group.theme);
           const color = THEME_COLORS[idx % THEME_COLORS.length];
           return (
-            <View key={group.theme} className="mb-3">
-              <TouchableOpacity
-                onPress={() => toggleTheme(group.theme)}
-                className="flex-row items-center justify-between rounded-xl bg-slate-800 p-4"
-              >
-                <View className="flex-1 flex-row items-center gap-3">
-                  <View
-                    className="h-3 w-3 rounded-full"
-                    style={{ backgroundColor: color }}
-                  />
-                  <Text className="text-base font-medium capitalize text-white">
-                    {group.theme}
-                  </Text>
-                  <View className="rounded-full bg-slate-700 px-2 py-0.5">
-                    <Text className="text-xs font-medium text-slate-300">
-                      {group.count}
-                    </Text>
-                  </View>
-                </View>
-                {isExpanded ? (
-                  <ChevronDown size={18} color="#64748b" />
-                ) : (
-                  <ChevronRight size={18} color="#64748b" />
-                )}
-              </TouchableOpacity>
-              {isExpanded &&
-                group.stories.map((story) => (
-                  <TouchableOpacity
-                    key={story.id}
-                    onPress={() => router.push(`/story/${story.id}`)}
-                    className="ml-6 mt-2 rounded-lg bg-slate-800/50 p-3"
+            <AnimatedListItem key={group.theme} index={idx}>
+              <View style={{ marginBottom: 12 }}>
+                <TouchableOpacity
+                  onPress={() => toggleTheme(group.theme)}
+                  activeOpacity={0.8}
+                >
+                  <GlassCard
+                    intensity="light"
+                    style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 16 }}
                   >
-                    <View className="flex-row items-center gap-2">
-                      {isCanonical(story) && (
-                        <Star size={12} color="#facc15" fill="#facc15" />
-                      )}
-                      <Text className="flex-1 text-sm text-white" numberOfLines={1}>
-                        {story.title}
+                    <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 12 }}>
+                      <View
+                        style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: color }}
+                      />
+                      <Text style={{ fontSize: 15, fontWeight: "500", color: "#fff", textTransform: "capitalize" }}>
+                        {group.theme}
                       </Text>
-                      <Text className="text-xs text-slate-500">
-                        {new Date(story.created_at).toLocaleDateString()}
-                      </Text>
+                      <Badge text={String(group.count)} />
                     </View>
-                  </TouchableOpacity>
-                ))}
-            </View>
+                    {isExpanded ? (
+                      <ChevronDown size={18} color="#64748b" />
+                    ) : (
+                      <ChevronRight size={18} color="#64748b" />
+                    )}
+                  </GlassCard>
+                </TouchableOpacity>
+                {isExpanded && (
+                  <Animated.View entering={FadeInDown.duration(300)}>
+                    {group.stories.map((story) => (
+                      <TouchableOpacity
+                        key={story.id}
+                        onPress={() => router.push(`/story/${story.id}`)}
+                        activeOpacity={0.8}
+                      >
+                        <GlassCard
+                          intensity="light"
+                          withBorder={false}
+                          style={{ marginLeft: 24, marginTop: 8, padding: 12 }}
+                        >
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                            {isCanonical(story) && (
+                              <Star size={12} color="#facc15" fill="#facc15" />
+                            )}
+                            <Text style={{ flex: 1, fontSize: 13, color: "#fff" }} numberOfLines={1}>
+                              {story.title}
+                            </Text>
+                            <Text style={{ fontSize: 11, color: "#64748b" }}>
+                              {new Date(story.created_at).toLocaleDateString()}
+                            </Text>
+                          </View>
+                        </GlassCard>
+                      </TouchableOpacity>
+                    ))}
+                  </Animated.View>
+                )}
+              </View>
+            </AnimatedListItem>
           );
         })
       )}
@@ -238,53 +259,63 @@ export default function LibraryScreen() {
   const renderDomainsView = () => {
     const totalStories = stories.length;
     return (
-      <View className="px-4 pb-8">
+      <View style={{ paddingHorizontal: 16, paddingBottom: 32 }}>
         {domainGroups.length === 0 ? (
-          <View className="items-center py-12">
-            <Text className="text-slate-400">No life areas tracked yet</Text>
+          <View style={{ alignItems: "center", paddingVertical: 48 }}>
+            <Text style={{ color: "#94a3b8" }}>No life areas tracked yet</Text>
           </View>
         ) : (
-          domainGroups.map((group) => {
+          domainGroups.map((group, idx) => {
             const Icon = DOMAIN_ICONS[group.domain] || TreePine;
             const color = DOMAIN_COLORS[group.domain] || "#94a3b8";
             const pct = totalStories > 0 ? (group.count / totalStories) * 100 : 0;
             return (
-              <View key={group.domain} className="mb-3 rounded-xl bg-slate-800 p-4">
-                <View className="flex-row items-center gap-3">
-                  <View
-                    className="h-10 w-10 items-center justify-center rounded-lg"
-                    style={{ backgroundColor: color + "20" }}
-                  >
-                    <Icon size={20} color={color} />
-                  </View>
-                  <View className="flex-1">
-                    <View className="flex-row items-center justify-between">
-                      <Text className="text-base font-medium capitalize text-white">
-                        {group.domain}
-                      </Text>
-                      <Text className="text-sm font-medium text-slate-400">
-                        {Math.round(pct)}%
-                      </Text>
+              <AnimatedListItem key={group.domain} index={idx}>
+                <GlassCard intensity="light" style={{ padding: 16, marginBottom: 12 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                    <View
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 10,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backgroundColor: color + "20",
+                      }}
+                    >
+                      <Icon size={20} color={color} />
                     </View>
-                    <View className="mt-2 h-2 overflow-hidden rounded-full bg-slate-700">
-                      <View
-                        className="h-2 rounded-full"
-                        style={{ width: `${pct}%`, backgroundColor: color }}
-                      />
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                        <Text style={{ fontSize: 15, fontWeight: "500", color: "#fff", textTransform: "capitalize" }}>
+                          {group.domain}
+                        </Text>
+                        <Text style={{ fontSize: 13, fontWeight: "500", color: "#94a3b8" }}>
+                          {Math.round(pct)}%
+                        </Text>
+                      </View>
+                      <View style={{ marginTop: 8, height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
+                        <LinearGradient
+                          colors={[color, color + "80"]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                          style={{ height: 6, borderRadius: 3, width: `${pct}%` }}
+                        />
+                      </View>
                     </View>
                   </View>
-                </View>
-                <View className="mt-2 flex-row items-center justify-between">
-                  <Text className="text-xs text-slate-500">
-                    {group.count} {group.count === 1 ? "story" : "stories"}
-                  </Text>
-                  {group.dominantTone && (
-                    <Text className="text-xs capitalize text-slate-500">
-                      Tone: {group.dominantTone}
+                  <View style={{ marginTop: 8, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                    <Text style={{ fontSize: 11, color: "#64748b" }}>
+                      {group.count} {group.count === 1 ? "story" : "stories"}
                     </Text>
-                  )}
-                </View>
-              </View>
+                    {group.dominantTone && (
+                      <Text style={{ fontSize: 11, color: "#64748b", textTransform: "capitalize" }}>
+                        Tone: {group.dominantTone}
+                      </Text>
+                    )}
+                  </View>
+                </GlassCard>
+              </AnimatedListItem>
             );
           })
         )}
@@ -295,103 +326,95 @@ export default function LibraryScreen() {
   const tabs: LibraryTab[] = ["all", "stories", "books", "key-moments", "themes", "life-areas"];
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-900">
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#0f172a" }}>
       {/* Header */}
-      <View className="px-4 pt-4">
-        <Text className="text-2xl font-bold text-white">Your Archive</Text>
-        <Text className="text-sm text-slate-400">
-          {stories.length} stories
-        </Text>
-      </View>
+      <AnimatedListItem index={0}>
+        <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
+          <Text style={{ fontSize: 24, fontWeight: "700", color: "#fff" }}>Your Archive</Text>
+          <Text style={{ fontSize: 13, color: "#94a3b8" }}>
+            {stories.length} stories
+          </Text>
+        </View>
+      </AnimatedListItem>
 
       {/* Monthly Summary Card */}
       {monthlySummary && monthlySummary.storyCount > 0 && (
-        <View className="mx-4 mt-3 rounded-xl bg-slate-800 p-4">
-          <View className="mb-2 flex-row items-center gap-2">
-            <Calendar size={16} color="#a78bfa" />
-            <Text className="text-sm font-semibold text-white">
-              {monthlySummary.month} {monthlySummary.year}
-            </Text>
-          </View>
-          <View className="flex-row gap-4">
-            <View className="flex-1 items-center">
-              <Text className="text-lg font-bold text-white">
-                {monthlySummary.storyCount}
-              </Text>
-              <Text className="text-xs text-slate-400">Stories</Text>
-            </View>
-            <View className="flex-1 items-center">
-              <Text className="text-lg font-bold text-amber-400">
-                {monthlySummary.canonicalCount}
-              </Text>
-              <Text className="text-xs text-slate-400">Key Moments</Text>
-            </View>
-            <View className="flex-1 items-center">
-              <Text className="text-lg font-bold text-violet-400">
-                {themeGroups.length}
-              </Text>
-              <Text className="text-xs text-slate-400">Themes</Text>
-            </View>
-          </View>
-          {monthlySummary.topThemes.length > 0 && (
-            <View className="mt-3 flex-row flex-wrap gap-1">
-              {monthlySummary.topThemes.map((theme) => (
-                <View key={theme} className="rounded-full bg-violet-900/30 px-2 py-0.5">
-                  <Text className="text-xs capitalize text-violet-300">{theme}</Text>
-                </View>
-              ))}
-              {monthlySummary.dominantDomain && (
-                <View className="rounded-full bg-emerald-900/30 px-2 py-0.5">
-                  <Text className="text-xs capitalize text-emerald-300">
-                    {monthlySummary.dominantDomain}
-                  </Text>
+        <AnimatedListItem index={1}>
+          <View style={{ marginHorizontal: 16, marginTop: 12 }}>
+            <GlassCard intensity="medium" style={{ padding: 16 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                <Calendar size={16} color="#a78bfa" />
+                <Text style={{ fontSize: 14, fontWeight: "600", color: "#fff" }}>
+                  {monthlySummary.month} {monthlySummary.year}
+                </Text>
+              </View>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <StatCard value={monthlySummary.storyCount} label="Stories" />
+                <StatCard value={monthlySummary.canonicalCount} label="Key Moments" color="#fbbf24" />
+                <StatCard value={themeGroups.length} label="Themes" color="#a78bfa" />
+              </View>
+              {monthlySummary.topThemes.length > 0 && (
+                <View style={{ marginTop: 12, flexDirection: "row", flexWrap: "wrap", gap: 4 }}>
+                  {monthlySummary.topThemes.map((theme) => (
+                    <Badge key={theme} text={theme} variant="violet" />
+                  ))}
+                  {monthlySummary.dominantDomain && (
+                    <Badge text={monthlySummary.dominantDomain} variant="success" />
+                  )}
                 </View>
               )}
-            </View>
-          )}
-        </View>
+            </GlassCard>
+          </View>
+        </AnimatedListItem>
       )}
 
       {/* Stats Row */}
-      <View className="mx-4 mt-3 mb-1 flex-row gap-2">
-        <View className="flex-1 items-center rounded-lg bg-slate-800/60 py-2">
-          <Text className="text-sm font-bold text-white">{stories.length}</Text>
-          <Text className="text-xs text-slate-500">Total</Text>
-        </View>
-        <View className="flex-1 items-center rounded-lg bg-slate-800/60 py-2">
-          <Text className="text-sm font-bold text-amber-400">{canonicalStories.length}</Text>
-          <Text className="text-xs text-slate-500">Key Moments</Text>
-        </View>
-        <View className="flex-1 items-center rounded-lg bg-slate-800/60 py-2">
-          <Text className="text-sm font-bold text-violet-400">{themeGroups.length}</Text>
-          <Text className="text-xs text-slate-500">Themes</Text>
-        </View>
+      <View style={{ marginHorizontal: 16, marginTop: 12, marginBottom: 4, flexDirection: "row", gap: 8 }}>
+        <StatCard value={stories.length} label="Total" />
+        <StatCard value={canonicalStories.length} label="Key Moments" color="#fbbf24" />
+        <StatCard value={themeGroups.length} label="Themes" color="#a78bfa" />
       </View>
 
       {/* Tabs */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        className="px-4 py-3"
+        style={{ paddingHorizontal: 16, paddingVertical: 12 }}
         contentContainerStyle={{ gap: 8 }}
       >
-        {tabs.map((tab) => (
-          <TouchableOpacity
-            key={tab}
-            onPress={() => setActiveTab(tab)}
-            className={`rounded-full px-3 py-1.5 ${
-              activeTab === tab ? "bg-violet-600" : "bg-slate-800"
-            }`}
-          >
-            <Text
-              className={`text-xs font-medium capitalize ${
-                activeTab === tab ? "text-white" : "text-slate-400"
-              }`}
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab;
+          return isActive ? (
+            <GradientButton
+              key={tab}
+              onPress={() => setActiveTab(tab)}
+              title={tab.replace("-", " ")}
+              gradient={GRADIENTS.primary}
+              size="sm"
+            />
+          ) : (
+            <TouchableOpacity
+              key={tab}
+              onPress={() => setActiveTab(tab)}
             >
-              {tab.replace("-", " ")}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <GlassCard
+                intensity="light"
+                style={{ paddingHorizontal: 12, paddingVertical: 6 }}
+              >
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: "500",
+                    color: "#94a3b8",
+                    textTransform: "capitalize",
+                  }}
+                >
+                  {tab.replace("-", " ")}
+                </Text>
+              </GlassCard>
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
 
       {/* Tab Content */}
@@ -421,8 +444,8 @@ export default function LibraryScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
           ListEmptyComponent={
-            <View className="items-center py-12">
-              <Text className="text-slate-400">
+            <View style={{ alignItems: "center", paddingVertical: 48 }}>
+              <Text style={{ color: "#94a3b8" }}>
                 {isLoading ? "Loading..." : "No stories yet. Start recording!"}
               </Text>
             </View>

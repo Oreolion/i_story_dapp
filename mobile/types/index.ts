@@ -226,6 +226,13 @@ export interface OnboardingData {
   email: string;
 }
 
+export interface SignupData {
+  name: string;
+  username: string;
+  email: string;
+  password: string;
+}
+
 // === Tracker Types ===
 
 export interface Habit {

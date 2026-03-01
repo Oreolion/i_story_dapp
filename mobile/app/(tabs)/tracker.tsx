@@ -8,9 +8,14 @@ import {
   TextInput,
   Alert,
   RefreshControl,
-  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from "react-native-reanimated";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import {
   CalendarCheck,
@@ -24,6 +29,15 @@ import * as Haptics from "expo-haptics";
 import { useAuthStore } from "../../stores/authStore";
 import { apiGet, apiPost, apiPut, apiDelete } from "../../lib/api";
 import type { Habit, DailyLog } from "../../types";
+import {
+  GlassCard,
+  GradientButton,
+  AnimatedListItem,
+  SectionHeader,
+  SkeletonLoader,
+  GRADIENTS,
+  ANIMATION,
+} from "../../components/ui";
 
 const MOODS = [
   { label: "Great", value: "great", emoji: "😊", color: "#4ade80" },
@@ -34,6 +48,67 @@ const MOODS = [
 
 function formatDate(date: Date): string {
   return date.toISOString().split("T")[0];
+}
+
+function MoodButton({ mood, isSelected, onPress }: {
+  mood: typeof MOODS[number];
+  isSelected: boolean;
+  onPress: () => void;
+}) {
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handlePress = () => {
+    scale.value = withSpring(1.1, {
+      damping: ANIMATION.springConfig.damping,
+      stiffness: ANIMATION.springConfig.stiffness,
+    });
+    setTimeout(() => {
+      scale.value = withSpring(1, {
+        damping: ANIMATION.springConfig.damping,
+        stiffness: ANIMATION.springConfig.stiffness,
+      });
+    }, 150);
+    onPress();
+  };
+
+  return (
+    <TouchableOpacity
+      onPress={handlePress}
+      activeOpacity={0.8}
+      style={{ flex: 1 }}
+    >
+      <Animated.View style={animatedStyle}>
+        <GlassCard
+          intensity={isSelected ? "heavy" : "light"}
+          style={{
+            alignItems: "center",
+            paddingVertical: 12,
+            ...(isSelected && {
+              backgroundColor: mood.color + "20",
+              borderColor: mood.color,
+              borderWidth: 1.5,
+            }),
+          }}
+        >
+          <Text style={{ fontSize: 20 }}>{mood.emoji}</Text>
+          <Text
+            style={{
+              marginTop: 4,
+              fontSize: 11,
+              fontWeight: "600",
+              color: isSelected ? "#fff" : "#94a3b8",
+            }}
+          >
+            {mood.label}
+          </Text>
+        </GlassCard>
+      </Animated.View>
+    </TouchableOpacity>
+  );
 }
 
 export default function TrackerScreen() {
@@ -204,189 +279,217 @@ export default function TrackerScreen() {
 
   if (!isAuthenticated) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-slate-900">
-        <CalendarCheck size={48} color="#64748b" />
-        <Text className="mt-4 text-lg text-slate-400">Sign in to track your habits</Text>
-        <TouchableOpacity
-          onPress={() => router.push("/auth/login")}
-          className="mt-4 rounded-full bg-violet-600 px-6 py-3"
-        >
-          <Text className="font-semibold text-white">Sign In</Text>
-        </TouchableOpacity>
+      <SafeAreaView style={{ flex: 1, backgroundColor: "#0f172a", alignItems: "center", justifyContent: "center" }}>
+        <GlassCard intensity="medium" style={{ padding: 32, alignItems: "center", marginHorizontal: 24 }}>
+          <CalendarCheck size={48} color="#64748b" />
+          <Text style={{ marginTop: 16, fontSize: 17, color: "#94a3b8" }}>Sign in to track your habits</Text>
+          <View style={{ marginTop: 16 }}>
+            <GradientButton
+              onPress={() => router.push("/auth/login")}
+              title="Sign In"
+              gradient={GRADIENTS.primary}
+            />
+          </View>
+        </GlassCard>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-900">
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#0f172a" }}>
       <ScrollView
-        className="flex-1"
+        style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: 100 }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
         {/* Header */}
-        <View className="px-4 py-4">
-          <Text className="text-2xl font-bold text-white">Daily Tracker</Text>
-          <Text className="text-sm text-slate-400">
-            {new Date().toLocaleDateString("en-US", {
-              weekday: "long",
-              month: "long",
-              day: "numeric",
-            })}
-          </Text>
-        </View>
+        <AnimatedListItem index={0}>
+          <View style={{ paddingHorizontal: 16, paddingVertical: 16 }}>
+            <Text style={{ fontSize: 24, fontWeight: "700", color: "#fff" }}>Daily Tracker</Text>
+            <Text style={{ fontSize: 13, color: "#94a3b8" }}>
+              {new Date().toLocaleDateString("en-US", {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+              })}
+            </Text>
+          </View>
+        </AnimatedListItem>
 
         {/* Progress Card */}
-        <View className="mx-4 mb-4 rounded-xl bg-slate-800 p-4">
-          <View className="mb-2 flex-row items-center justify-between">
-            <Text className="text-sm font-medium text-slate-300">Today's Progress</Text>
-            <Text className="text-sm font-semibold text-emerald-400">
-              {completedCount}/{totalHabits}
-            </Text>
+        <AnimatedListItem index={1}>
+          <View style={{ marginHorizontal: 16, marginBottom: 16 }}>
+            <GlassCard intensity="medium" style={{ padding: 16 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <Text style={{ fontSize: 13, fontWeight: "500", color: "#cbd5e1" }}>Today's Progress</Text>
+                <Text style={{ fontSize: 13, fontWeight: "600", color: "#34d399" }}>
+                  {completedCount}/{totalHabits}
+                </Text>
+              </View>
+              <View style={{ height: 8, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
+                <LinearGradient
+                  colors={GRADIENTS.success}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={{ height: 8, borderRadius: 4, width: `${progressPercent}%` }}
+                />
+              </View>
+              {totalHabits > 0 && progressPercent === 100 && (
+                <Text style={{ marginTop: 8, textAlign: "center", fontSize: 12, color: "#34d399" }}>
+                  All habits completed! Great job!
+                </Text>
+              )}
+            </GlassCard>
           </View>
-          <View className="h-3 overflow-hidden rounded-full bg-slate-700">
-            <View
-              className="h-3 rounded-full bg-emerald-500"
-              style={{ width: `${progressPercent}%` }}
-            />
-          </View>
-          {totalHabits > 0 && progressPercent === 100 && (
-            <Text className="mt-2 text-center text-xs text-emerald-400">
-              All habits completed! Great job!
-            </Text>
-          )}
-        </View>
+        </AnimatedListItem>
 
         {/* Mood Selector */}
-        <View className="mx-4 mb-4">
-          <Text className="mb-2 text-sm font-medium text-slate-300">How are you feeling?</Text>
-          <View className="flex-row gap-2">
-            {MOODS.map((mood) => (
-              <TouchableOpacity
-                key={mood.value}
-                onPress={() => selectMood(mood.value)}
-                className={`flex-1 items-center rounded-xl py-3 ${
-                  selectedMood === mood.value ? "border-2" : "bg-slate-800"
-                }`}
-                style={
-                  selectedMood === mood.value
-                    ? { backgroundColor: mood.color + "20", borderColor: mood.color }
-                    : undefined
-                }
-              >
-                <Text className="text-lg">{mood.emoji}</Text>
-                <Text
-                  className={`mt-1 text-xs font-medium ${
-                    selectedMood === mood.value ? "text-white" : "text-slate-400"
-                  }`}
-                >
-                  {mood.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+        <AnimatedListItem index={2}>
+          <View style={{ marginHorizontal: 16, marginBottom: 16 }}>
+            <SectionHeader title="How are you feeling?" />
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {MOODS.map((mood) => (
+                <MoodButton
+                  key={mood.value}
+                  mood={mood}
+                  isSelected={selectedMood === mood.value}
+                  onPress={() => selectMood(mood.value)}
+                />
+              ))}
+            </View>
           </View>
-        </View>
+        </AnimatedListItem>
 
         {/* Habits List */}
-        <View className="mx-4 mb-4">
-          <Text className="mb-2 text-sm font-medium text-slate-300">Habits</Text>
+        <View style={{ marginHorizontal: 16, marginBottom: 16 }}>
+          <SectionHeader title="Habits" />
           {loading ? (
-            <ActivityIndicator color="#a78bfa" />
+            <SkeletonLoader variant="line" count={3} />
           ) : (
             <>
-              {habits.map((habit) => {
+              {habits.map((habit, idx) => {
                 const isCompleted = completedIds.includes(habit.id);
                 return (
-                  <TouchableOpacity
-                    key={habit.id}
-                    onPress={() => toggleHabit(habit.id)}
-                    onLongPress={() => deleteHabit(habit)}
-                    className="mb-2 flex-row items-center rounded-xl bg-slate-800 p-3"
-                  >
-                    {isCompleted ? (
-                      <View className="mr-3 h-6 w-6 items-center justify-center rounded-full bg-emerald-500">
-                        <Check size={14} color="#fff" />
-                      </View>
-                    ) : (
-                      <Circle size={24} color="#64748b" className="mr-3" />
-                    )}
-                    <Text
-                      className={`flex-1 text-base ${
-                        isCompleted
-                          ? "text-slate-500 line-through"
-                          : "text-white"
-                      }`}
-                    >
-                      {habit.title}
-                    </Text>
+                  <AnimatedListItem key={habit.id} index={idx + 3}>
                     <TouchableOpacity
-                      onPress={() => deleteHabit(habit)}
-                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      onPress={() => toggleHabit(habit.id)}
+                      onLongPress={() => deleteHabit(habit)}
+                      activeOpacity={0.8}
                     >
-                      <Trash2 size={16} color="#64748b" />
+                      <GlassCard
+                        intensity="light"
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          padding: 14,
+                          marginBottom: 8,
+                        }}
+                      >
+                        {isCompleted ? (
+                          <View
+                            style={{
+                              marginRight: 12,
+                              width: 24,
+                              height: 24,
+                              borderRadius: 12,
+                              backgroundColor: "#10b981",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            <Check size={14} color="#fff" />
+                          </View>
+                        ) : (
+                          <View style={{ marginRight: 12 }}>
+                            <Circle size={24} color="#64748b" />
+                          </View>
+                        )}
+                        <Text
+                          style={{
+                            flex: 1,
+                            fontSize: 15,
+                            color: isCompleted ? "#64748b" : "#fff",
+                            textDecorationLine: isCompleted ? "line-through" : "none",
+                          }}
+                        >
+                          {habit.title}
+                        </Text>
+                        <TouchableOpacity
+                          onPress={() => deleteHabit(habit)}
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                          <Trash2 size={16} color="#64748b" />
+                        </TouchableOpacity>
+                      </GlassCard>
                     </TouchableOpacity>
-                  </TouchableOpacity>
+                  </AnimatedListItem>
                 );
               })}
 
               {/* Add Habit Row */}
-              <View className="flex-row items-center gap-2">
-                <TextInput
-                  value={newHabitTitle}
-                  onChangeText={setNewHabitTitle}
-                  placeholder="Add a habit..."
-                  placeholderTextColor="#64748b"
-                  className="flex-1 rounded-xl bg-slate-800 px-4 py-3 text-white"
-                  onSubmitEditing={addHabit}
-                  returnKeyType="done"
-                />
-                <TouchableOpacity
-                  onPress={addHabit}
-                  className="h-12 w-12 items-center justify-center rounded-xl bg-violet-600"
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <GlassCard
+                  intensity="light"
+                  style={{ flex: 1, padding: 0 }}
                 >
-                  <Plus size={20} color="#fff" />
-                </TouchableOpacity>
+                  <TextInput
+                    value={newHabitTitle}
+                    onChangeText={setNewHabitTitle}
+                    placeholder="Add a habit..."
+                    placeholderTextColor="#64748b"
+                    style={{ paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, color: "#fff" }}
+                    onSubmitEditing={addHabit}
+                    returnKeyType="done"
+                  />
+                </GlassCard>
+                <GradientButton
+                  onPress={addHabit}
+                  title=""
+                  icon={<Plus size={20} color="#fff" />}
+                  gradient={GRADIENTS.primary}
+                  size="sm"
+                  style={{ width: 48, height: 48 }}
+                />
               </View>
             </>
           )}
         </View>
 
         {/* Daily Notes */}
-        <View className="mx-4 mb-4">
-          <Text className="mb-2 text-sm font-medium text-slate-300">Notes</Text>
-          <TextInput
-            value={notes}
-            onChangeText={setNotes}
-            onBlur={saveNotes}
-            placeholder="How was your day? Any reflections..."
-            placeholderTextColor="#64748b"
-            className="min-h-[100px] rounded-xl bg-slate-800 p-4 text-white"
-            multiline
-            textAlignVertical="top"
-          />
-        </View>
+        <AnimatedListItem index={5}>
+          <View style={{ marginHorizontal: 16, marginBottom: 16 }}>
+            <SectionHeader title="Notes" />
+            <GlassCard intensity="light" style={{ padding: 0 }}>
+              <TextInput
+                value={notes}
+                onChangeText={setNotes}
+                onBlur={saveNotes}
+                placeholder="How was your day? Any reflections..."
+                placeholderTextColor="#64748b"
+                style={{ minHeight: 100, padding: 16, fontSize: 15, color: "#fff", textAlignVertical: "top" }}
+                multiline
+              />
+            </GlassCard>
+          </View>
+        </AnimatedListItem>
 
         {/* AI Journal Button */}
-        <View className="mx-4 mb-4">
-          <TouchableOpacity
-            onPress={generateJournal}
-            disabled={generatingJournal}
-            className={`flex-row items-center justify-center gap-2 rounded-xl py-4 ${
-              generatingJournal ? "bg-violet-800" : "bg-violet-600"
-            }`}
-          >
-            {generatingJournal ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <Sparkles size={20} color="#fff" />
-            )}
-            <Text className="font-semibold text-white">
-              {generatingJournal ? "Generating..." : "Generate AI Journal"}
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <AnimatedListItem index={6}>
+          <View style={{ marginHorizontal: 16, marginBottom: 16 }}>
+            <GradientButton
+              onPress={generateJournal}
+              title={generatingJournal ? "Generating..." : "Generate AI Journal"}
+              icon={<Sparkles size={20} color="#fff" />}
+              gradient={GRADIENTS.accent}
+              loading={generatingJournal}
+              disabled={generatingJournal}
+              size="lg"
+              fullWidth
+            />
+          </View>
+        </AnimatedListItem>
       </ScrollView>
     </SafeAreaView>
   );
