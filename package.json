@@ -3,14 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "cd mobile && expo start",
-    "android": "cd mobile && expo start --android",
-    "ios": "cd mobile && expo start --ios",
-    "start": "cd mobile && expo start",
-    "web:dev": "next dev -p 8031",
-    "web:build": "next build",
-    "web:start": "next start",
-    "lint": "eslint"
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "mobile": "cd mobile && expo start",
+    "mobile:android": "cd mobile && expo start --android",
+    "mobile:ios": "cd mobile && expo start --ios"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
