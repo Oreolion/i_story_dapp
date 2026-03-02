@@ -9,9 +9,14 @@ const ALLOWED_AUDIO_TYPES = [
   "audio/x-m4a", "audio/aac", "video/webm",
 ];
 
-const client = new ElevenLabsClient({
-  apiKey: process.env.ELEVENLABS_API_KEY,
-});
+// Lazy-init to avoid module-scope failures when env var is missing at build time
+let _client: ElevenLabsClient | null = null;
+function getClient(): ElevenLabsClient {
+  if (!_client) {
+    _client = new ElevenLabsClient({ apiKey: process.env.ELEVENLABS_API_KEY });
+  }
+  return _client;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,8 +24,8 @@ export async function POST(req: NextRequest) {
     const authResult = await validateAuthOrReject(req);
     if (isAuthError(authResult)) return authResult;
 
-    const apiKey = process.env.ELEVENLABS_API_KEY;
-    if (!apiKey) {
+    if (!process.env.ELEVENLABS_API_KEY) {
+      console.error("[TRANSCRIBE] ELEVENLABS_API_KEY is not configured");
       return NextResponse.json(
         { error: "Server configuration error" },
         { status: 500 }
@@ -56,6 +61,7 @@ export async function POST(req: NextRequest) {
     const audioBlob = new Blob([arrayBuffer], { type: fileType });
 
     // Call ElevenLabs Scribe Model
+    const client = getClient();
     const transcription = await client.speechToText.convert({
       file: audioBlob,
       modelId: "scribe_v1",
@@ -64,14 +70,32 @@ export async function POST(req: NextRequest) {
       diarize: false,
     });
 
+    // SDK v2.26+ returns a union type — extract text from the response
     const responseText = (transcription as { text?: string }).text ||
                          (typeof transcription === 'string' ? transcription : '');
+
+    if (!responseText) {
+      console.error("[TRANSCRIBE] Empty transcription result:", JSON.stringify(transcription).slice(0, 200));
+      return NextResponse.json(
+        { error: "Transcription returned empty result. Please try again." },
+        { status: 422 }
+      );
+    }
+
     return NextResponse.json({ text: responseText });
 
   } catch (error: unknown) {
-    console.error("ElevenLabs Transcription error:", error);
+    console.error("[TRANSCRIBE] Error:", error);
+    const message = error instanceof Error ? error.message : String(error);
+    // Surface specific SDK errors for debugging
+    if (message.includes("api_key") || message.includes("Unauthorized") || message.includes("401")) {
+      return NextResponse.json(
+        { error: "Transcription service authentication failed. Please check server configuration." },
+        { status: 502 }
+      );
+    }
     return NextResponse.json(
-      { error: "Failed to transcribe audio" },
+      { error: "Failed to transcribe audio. Please try again." },
       { status: 500 }
     );
   }

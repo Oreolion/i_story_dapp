@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-hot-toast";
 
@@ -76,9 +76,14 @@ export default function RecordPage() {
 
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [recordingDuration, setRecordingDuration] = useState(0);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [isEnhancing, setIsEnhancing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [isPlayingTTS, setIsPlayingTTS] = useState(false);
   const [preEnhanceText, setPreEnhanceText] = useState<string | null>(null);
+
+  // Derived: anything in-flight blocks the mic button
+  const isBusy = isTranscribing || isEnhancing || isSaving;
 
   // Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -88,6 +93,42 @@ export default function RecordPage() {
 
   // Use centralized auth token from AuthProvider
   const { getAccessToken } = useAuth();
+
+  // ─── Draft persistence (survives page reloads) ───────────────────────
+  const DRAFT_KEY = "estory_record_draft";
+
+  // Restore draft on mount
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      const draft = JSON.parse(raw);
+      if (draft.transcribedText) setTranscribedText(draft.transcribedText);
+      if (draft.entryTitle) setEntryTitle(draft.entryTitle);
+      if (draft.storyDate) setStoryDate(draft.storyDate);
+      if (draft.isPublic !== undefined) setIsPublic(draft.isPublic);
+      toast.success("Restored unsaved draft");
+    } catch {
+      // Corrupt draft — ignore
+    }
+  }, []);
+
+  // Auto-save draft whenever content changes (debounced via effect)
+  const saveDraft = useCallback(() => {
+    if (!transcribedText.trim() && !entryTitle.trim()) {
+      sessionStorage.removeItem(DRAFT_KEY);
+      return;
+    }
+    sessionStorage.setItem(
+      DRAFT_KEY,
+      JSON.stringify({ transcribedText, entryTitle, storyDate, isPublic })
+    );
+  }, [transcribedText, entryTitle, storyDate, isPublic]);
+
+  useEffect(() => {
+    const timer = setTimeout(saveDraft, 500);
+    return () => clearTimeout(timer);
+  }, [saveDraft]);
 
   // Helper to build auth headers from centralized token
   const getAuthHeaders = async (): Promise<Record<string, string>> => {
@@ -148,23 +189,31 @@ export default function RecordPage() {
 
   // --- 2. AI Transcription ---
   const handleTranscribe = async (blob: Blob) => {
-    setIsProcessing(true);
+    setIsTranscribing(true);
     try {
+      const authHeaders = await getAuthHeaders();
+      if (!authHeaders.Authorization) {
+        setIsTranscribing(false);
+        toast.error("Please sign in to transcribe audio.");
+        return;
+      }
+
       const formData = new FormData();
       formData.append("file", blob);
 
-      const authHeaders = await getAuthHeaders();
       const promise = fetch("/api/ai/transcribe", {
         method: "POST",
         headers: { ...authHeaders },
         body: formData,
       }).then(async (res) => {
+        const data = await res.json().catch(() => ({ error: "Invalid server response" }));
         if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error || "Transcription failed");
+          throw new Error(data.error || `Transcription failed (${res.status})`);
         }
-        const data = await res.json();
-        return data.text;
+        if (!data.text) {
+          throw new Error("Transcription returned empty text. Please try again.");
+        }
+        return data.text as string;
       });
 
       toast.promise(promise, {
@@ -175,18 +224,18 @@ export default function RecordPage() {
             const dateObj = new Date(storyDate);
             setEntryTitle(`Journal Entry - ${dateObj.toLocaleDateString()}`);
           }
-          setIsProcessing(false);
+          setIsTranscribing(false);
           return "Transcription complete!";
         },
         error: (err) => {
-          setIsProcessing(false);
-          console.error(err);
-          return "Failed to transcribe audio.";
+          setIsTranscribing(false);
+          console.error("[RECORD] Transcription error:", err);
+          return err?.message || "Failed to transcribe audio.";
         },
       });
     } catch (err) {
-      setIsProcessing(false);
-      console.error("Transcription setup error:", err);
+      setIsTranscribing(false);
+      console.error("[RECORD] Transcription setup error:", err);
       toast.error("Failed to start transcription.");
     }
   };
@@ -194,7 +243,7 @@ export default function RecordPage() {
   // --- 3. AI Enhancement ---
   const enhanceText = async () => {
     if (!transcribedText.trim()) return;
-    setIsProcessing(true);
+    setIsEnhancing(true);
     setPreEnhanceText(transcribedText); // Save original for revert
 
     try {
@@ -216,18 +265,18 @@ export default function RecordPage() {
         loading: "Polishing story...",
         success: (enhanced) => {
           setTranscribedText(enhanced);
-          setIsProcessing(false);
+          setIsEnhancing(false);
           return "Story enhanced! You can revert if you prefer the original.";
         },
         error: (err) => {
           setPreEnhanceText(null);
-          setIsProcessing(false);
+          setIsEnhancing(false);
           return "Failed to enhance text.";
         },
       });
     } catch (err) {
       setPreEnhanceText(null);
-      setIsProcessing(false);
+      setIsEnhancing(false);
       console.error("Enhancement setup error:", err);
       toast.error("Failed to start enhancement.");
     }
@@ -263,7 +312,7 @@ export default function RecordPage() {
     if (!transcribedText.trim() || !entryTitle.trim())
       return toast.error("Story is empty.");
 
-    setIsProcessing(true);
+    setIsSaving(true);
 
     const promiseToSave = async () => {
       let audioUrl = null;
@@ -400,15 +449,17 @@ export default function RecordPage() {
     toast.promise(promiseToSave(), {
       loading: "Saving to Database & IPFS...",
       success: (msg) => {
-        setIsProcessing(false);
+        setIsSaving(false);
         setTranscribedText("");
         setEntryTitle("");
         setAudioBlob(null);
         setRecordingDuration(0);
+        // Clear draft after successful save
+        sessionStorage.removeItem(DRAFT_KEY);
         return msg;
       },
       error: (err) => {
-        setIsProcessing(false);
+        setIsSaving(false);
         return err?.message || "Failed to save";
       },
     });
@@ -511,7 +562,7 @@ export default function RecordPage() {
               )}
 
               {/* Idle glow ring */}
-              {!isRecording && !isProcessing && (
+              {!isRecording && !isBusy && (
                 <motion.div
                   className="absolute w-36 h-36 rounded-full"
                   style={{
@@ -526,7 +577,7 @@ export default function RecordPage() {
                 <Button
                   size="lg"
                   onClick={isRecording ? stopRecording : startRecording}
-                  disabled={isProcessing}
+                  disabled={isBusy}
                   className={`relative w-32 h-32 rounded-full text-white shadow-2xl transition-all duration-300 ${
                     isRecording
                       ? "bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 shadow-red-500/25"
@@ -594,7 +645,7 @@ export default function RecordPage() {
                 value={entryTitle}
                 onChange={(e) => setEntryTitle(e.target.value)}
                 className="text-lg"
-                disabled={isProcessing}
+                disabled={isBusy}
               />
             </div>
 
@@ -615,7 +666,7 @@ export default function RecordPage() {
                   value={storyDate}
                   onChange={(e) => setStoryDate(e.target.value)}
                   className="pl-10 font-medium"
-                  disabled={isProcessing}
+                  disabled={isBusy}
                 />
               </div>
             </div>
@@ -627,7 +678,7 @@ export default function RecordPage() {
               </Label>
               <div
                 className={`flex items-center justify-between px-3 py-2 rounded-md border cursor-pointer transition-colors ${isPublic ? 'bg-[hsl(var(--growth-500)/0.1)] border-[hsl(var(--growth-500)/0.3)]' : 'bg-[hsl(var(--void-light))] border-gray-200 dark:border-gray-700'}`}
-                onClick={() => !isProcessing && setIsPublic(!isPublic)}
+                onClick={() => !isBusy && setIsPublic(!isPublic)}
               >
                 <div className="flex items-center gap-2">
                   {isPublic ? (
@@ -660,13 +711,22 @@ export default function RecordPage() {
                   Audio Captured
                 </Badge>
               )}
-              {isProcessing && (
+              {isTranscribing && (
                 <Badge
                   variant="secondary"
                   className="bg-[hsl(var(--memory-500)/0.15)] text-[hsl(var(--memory-600))] dark:text-[hsl(var(--memory-400))]"
                 >
                   <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                  Processing...
+                  Transcribing...
+                </Badge>
+              )}
+              {isEnhancing && (
+                <Badge
+                  variant="secondary"
+                  className="bg-[hsl(var(--insight-500)/0.15)] text-[hsl(var(--insight-600))] dark:text-[hsl(var(--insight-400))]"
+                >
+                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                  Enhancing...
                 </Badge>
               )}
               <Badge
@@ -684,7 +744,7 @@ export default function RecordPage() {
             value={transcribedText}
             onChange={(e) => setTranscribedText(e.target.value)}
             className="min-h-[200px] text-base leading-relaxed resize-none"
-            disabled={isProcessing}
+            disabled={isBusy}
           />
           <Separator />
           <div className="flex flex-col sm:flex-row gap-4">
@@ -715,7 +775,7 @@ export default function RecordPage() {
             ) : (
               <Button
                 onClick={enhanceText}
-                disabled={!transcribedText.trim() || isProcessing}
+                disabled={!transcribedText.trim() || isBusy}
                 variant="outline"
                 className="flex-1"
               >
@@ -725,11 +785,11 @@ export default function RecordPage() {
             <Button
               onClick={saveEntry}
               disabled={
-                !transcribedText.trim() || !entryTitle.trim() || isProcessing
+                !transcribedText.trim() || !entryTitle.trim() || isBusy
               }
               className="flex-1 bg-gradient-growth hover:opacity-90"
             >
-              {isProcessing ? (
+              {isSaving ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               ) : (
                 <Save className="w-4 h-4 mr-2" />

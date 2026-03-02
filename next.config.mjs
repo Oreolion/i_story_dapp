@@ -1,5 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  experimental: {
+    // Tree-shake barrel exports — significantly reduces bundle size for icon/UI libs
+    optimizePackageImports: [
+      "lucide-react",
+      "framer-motion",
+      "@radix-ui/react-icons",
+      "date-fns",
+      "@supabase/supabase-js",
+    ],
+  },
   webpack: (config) => {
     config.resolve.fallback = {
       ...config.resolve.fallback,
