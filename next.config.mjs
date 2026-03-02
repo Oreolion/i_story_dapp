@@ -1,8 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-<<<<<<< HEAD
+  eslint: {
+    dirs: ["app", "components", "lib", "scripts", "contracts", "__tests__", "e2e"],
+  },
   experimental: {
-    // Tree-shake barrel exports — significantly reduces bundle size for icon/UI libs
     optimizePackageImports: [
       "lucide-react",
       "framer-motion",
@@ -10,10 +11,6 @@ const nextConfig = {
       "date-fns",
       "@supabase/supabase-js",
     ],
-=======
-  eslint: {
-    dirs: ["app", "components", "lib", "scripts", "contracts", "__tests__", "e2e"],
->>>>>>> 251757cdfe2b99f0bf98f33119dce9171dca42a7
   },
   webpack: (config) => {
     config.resolve.fallback = {
