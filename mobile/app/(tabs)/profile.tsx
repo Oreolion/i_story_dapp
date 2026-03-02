@@ -6,13 +6,16 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from "react-native-reanimated";
 import { router } from "expo-router";
 import {
   User,
-  Settings,
   LogOut,
   Wallet,
   Mail,
@@ -24,9 +27,19 @@ import Toast from "react-native-toast-message";
 import { useAccount } from "wagmi";
 import { useAppKit } from "@reown/appkit-react-native";
 import { useAuthStore } from "../../stores/authStore";
+import {
+  GlassCard,
+  GradientButton,
+  Avatar,
+  GradientText,
+  AnimatedListItem,
+  SectionHeader,
+  GRADIENTS,
+  ANIMATION,
+} from "../../components/ui";
 
 export default function ProfileScreen() {
-  const { user, isAuthenticated, logout, updateProfile, authMethod } =
+  const { user, isAuthenticated, logout, updateProfile } =
     useAuthStore();
   const { address, isConnected } = useAccount();
   const { open } = useAppKit();
@@ -34,17 +47,25 @@ export default function ProfileScreen() {
   const [name, setName] = useState(user?.name || "");
   const [bio, setBio] = useState(user?.bio || "");
 
+  const signOutScale = useSharedValue(1);
+  const signOutAnimated = useAnimatedStyle(() => ({
+    transform: [{ scale: signOutScale.value }],
+  }));
+
   if (!isAuthenticated || !user) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-slate-900">
-        <User size={48} color="#64748b" />
-        <Text className="mt-4 text-lg text-slate-400">Sign in to view profile</Text>
-        <TouchableOpacity
-          onPress={() => router.push("/auth/login")}
-          className="mt-4 rounded-full bg-violet-600 px-6 py-3"
-        >
-          <Text className="font-semibold text-white">Sign In</Text>
-        </TouchableOpacity>
+      <SafeAreaView style={{ flex: 1, backgroundColor: "#0f172a", alignItems: "center", justifyContent: "center" }}>
+        <GlassCard intensity="medium" style={{ padding: 32, alignItems: "center", marginHorizontal: 24 }}>
+          <User size={48} color="#64748b" />
+          <Text style={{ marginTop: 16, fontSize: 17, color: "#94a3b8" }}>Sign in to view profile</Text>
+          <View style={{ marginTop: 16 }}>
+            <GradientButton
+              onPress={() => router.push("/auth/login")}
+              title="Sign In"
+              gradient={GRADIENTS.primary}
+            />
+          </View>
+        </GlassCard>
       </SafeAreaView>
     );
   }
@@ -65,125 +86,173 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-900">
-      <ScrollView className="flex-1 px-4">
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#0f172a" }}>
+      <ScrollView style={{ flex: 1, paddingHorizontal: 16 }} contentContainerStyle={{ paddingBottom: 100 }}>
         {/* Header */}
-        <View className="flex-row items-center justify-between py-4">
-          <Text className="text-2xl font-bold text-white">Profile</Text>
-          <TouchableOpacity onPress={() => setEditing(!editing)}>
-            {editing ? (
-              <X size={24} color="#64748b" />
-            ) : (
-              <Edit3 size={24} color="#a78bfa" />
-            )}
-          </TouchableOpacity>
-        </View>
+        <AnimatedListItem index={0}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 16 }}>
+            <Text style={{ fontSize: 24, fontWeight: "700", color: "#fff" }}>Profile</Text>
+            <TouchableOpacity onPress={() => setEditing(!editing)}>
+              {editing ? (
+                <X size={24} color="#64748b" />
+              ) : (
+                <Edit3 size={24} color="#a78bfa" />
+              )}
+            </TouchableOpacity>
+          </View>
+        </AnimatedListItem>
 
         {/* Avatar & Name */}
-        <View className="items-center rounded-2xl bg-slate-800 p-6">
-          {user.avatar ? (
-            <Image
-              source={{ uri: user.avatar }}
-              className="h-24 w-24 rounded-full"
+        <AnimatedListItem index={1}>
+          <GlassCard intensity="medium" style={{ padding: 24, alignItems: "center" }}>
+            <Avatar
+              uri={user.avatar}
+              name={user.name}
+              size="xl"
+              withGradientBorder
             />
-          ) : (
-            <View className="h-24 w-24 items-center justify-center rounded-full bg-violet-600">
-              <Text className="text-3xl font-bold text-white">
-                {user.name?.[0] || "?"}
-              </Text>
-            </View>
-          )}
 
-          {editing ? (
-            <View className="mt-4 w-full gap-3">
-              <TextInput
-                value={name}
-                onChangeText={setName}
-                placeholder="Name"
-                className="rounded-xl bg-slate-700 p-3 text-white"
-                placeholderTextColor="#64748b"
-              />
-              <TextInput
-                value={bio}
-                onChangeText={setBio}
-                placeholder="Bio (max 500 chars)"
-                multiline
-                maxLength={500}
-                className="min-h-[80] rounded-xl bg-slate-700 p-3 text-white"
-                placeholderTextColor="#64748b"
-              />
-              <TouchableOpacity
-                onPress={handleSave}
-                className="flex-row items-center justify-center gap-2 rounded-xl bg-violet-600 p-3"
-              >
-                <Check size={18} color="#fff" />
-                <Text className="font-semibold text-white">Save</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <>
-              <Text className="mt-3 text-xl font-bold text-white">
-                {user.name || "Anonymous"}
-              </Text>
-              {user.username && (
-                <Text className="text-sm text-slate-400">{user.username}</Text>
-              )}
-              {user.bio && (
-                <Text className="mt-2 text-center text-sm text-slate-300">
-                  {user.bio}
-                </Text>
-              )}
-            </>
-          )}
-        </View>
+            {editing ? (
+              <View style={{ marginTop: 16, width: "100%", gap: 12 }}>
+                <GlassCard intensity="light" style={{ padding: 0 }}>
+                  <TextInput
+                    value={name}
+                    onChangeText={setName}
+                    placeholder="Name"
+                    style={{ padding: 14, fontSize: 15, color: "#fff" }}
+                    placeholderTextColor="#64748b"
+                  />
+                </GlassCard>
+                <GlassCard intensity="light" style={{ padding: 0 }}>
+                  <TextInput
+                    value={bio}
+                    onChangeText={setBio}
+                    placeholder="Bio (max 500 chars)"
+                    multiline
+                    maxLength={500}
+                    style={{ minHeight: 80, padding: 14, fontSize: 15, color: "#fff", textAlignVertical: "top" }}
+                    placeholderTextColor="#64748b"
+                  />
+                </GlassCard>
+                <GradientButton
+                  onPress={handleSave}
+                  title="Save"
+                  icon={<Check size={18} color="#fff" />}
+                  gradient={GRADIENTS.primary}
+                  fullWidth
+                />
+              </View>
+            ) : (
+              <>
+                <View style={{ marginTop: 12 }}>
+                  <GradientText
+                    text={user.name || "Anonymous"}
+                    gradient={GRADIENTS.primary}
+                    style={{ fontSize: 22, textAlign: "center" }}
+                  />
+                </View>
+                {user.username && (
+                  <Text style={{ fontSize: 13, color: "#94a3b8", marginTop: 2 }}>
+                    @{user.username}
+                  </Text>
+                )}
+                {user.bio && (
+                  <Text style={{ marginTop: 8, textAlign: "center", fontSize: 14, color: "#cbd5e1", lineHeight: 20 }}>
+                    {user.bio}
+                  </Text>
+                )}
+              </>
+            )}
+          </GlassCard>
+        </AnimatedListItem>
 
         {/* Connected Accounts */}
-        <View className="mt-4 rounded-xl bg-slate-800 p-4">
-          <Text className="mb-3 text-sm font-semibold text-slate-400">
-            Connected Accounts
-          </Text>
+        <AnimatedListItem index={2}>
+          <View style={{ marginTop: 16 }}>
+            <SectionHeader title="Connected Accounts" />
+            <GlassCard intensity="light" style={{ padding: 16 }}>
+              {/* Wallet */}
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 8 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                  <Wallet size={20} color="#a78bfa" />
+                  <Text style={{ color: "#fff", fontSize: 15 }}>Wallet</Text>
+                </View>
+                {isConnected && address ? (
+                  <Text style={{ fontFamily: "monospace", fontSize: 12, color: "#4ade80" }}>
+                    {address.slice(0, 6)}...{address.slice(-4)}
+                  </Text>
+                ) : (
+                  <GradientButton
+                    onPress={() => open()}
+                    title="Connect"
+                    variant="outline"
+                    size="sm"
+                    gradient={GRADIENTS.primary}
+                  />
+                )}
+              </View>
 
-          {/* Wallet */}
-          <View className="flex-row items-center justify-between py-2">
-            <View className="flex-row items-center gap-3">
-              <Wallet size={20} color="#a78bfa" />
-              <Text className="text-white">Wallet</Text>
-            </View>
-            {isConnected && address ? (
-              <Text className="font-mono text-xs text-green-400">
-                {address.slice(0, 6)}...{address.slice(-4)}
-              </Text>
-            ) : (
-              <TouchableOpacity onPress={() => open()}>
-                <Text className="text-sm text-violet-400">Connect</Text>
-              </TouchableOpacity>
-            )}
+              {/* Email */}
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  paddingVertical: 8,
+                  marginTop: 4,
+                  borderTopWidth: 1,
+                  borderTopColor: "rgba(255,255,255,0.06)",
+                }}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                  <Mail size={20} color="#a78bfa" />
+                  <Text style={{ color: "#fff", fontSize: 15 }}>Email</Text>
+                </View>
+                <Text style={{ fontSize: 12, color: "#94a3b8" }}>
+                  {user.email || "Not linked"}
+                </Text>
+              </View>
+            </GlassCard>
           </View>
+        </AnimatedListItem>
 
-          {/* Email */}
-          <View className="flex-row items-center justify-between border-t border-slate-700 py-2">
-            <View className="flex-row items-center gap-3">
-              <Mail size={20} color="#a78bfa" />
-              <Text className="text-white">Email</Text>
-            </View>
-            <Text className="text-xs text-slate-400">
-              {user.email || "Not linked"}
-            </Text>
+        {/* Sign Out */}
+        <AnimatedListItem index={3}>
+          <View style={{ marginTop: 16 }}>
+            <TouchableOpacity
+              onPress={handleLogout}
+              onPressIn={() => {
+                signOutScale.value = withSpring(0.97, {
+                  damping: ANIMATION.springConfig.damping,
+                  stiffness: ANIMATION.springConfig.stiffness,
+                });
+              }}
+              onPressOut={() => {
+                signOutScale.value = withSpring(1, {
+                  damping: ANIMATION.springConfig.damping,
+                  stiffness: ANIMATION.springConfig.stiffness,
+                });
+              }}
+              activeOpacity={0.8}
+            >
+              <Animated.View style={signOutAnimated}>
+                <GlassCard
+                  intensity="light"
+                  style={{
+                    padding: 16,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 12,
+                    borderColor: "rgba(239,68,68,0.2)",
+                  }}
+                >
+                  <LogOut size={20} color="#ef4444" />
+                  <Text style={{ color: "#f87171", fontSize: 15, fontWeight: "500" }}>Sign Out</Text>
+                </GlassCard>
+              </Animated.View>
+            </TouchableOpacity>
           </View>
-        </View>
-
-        {/* Actions */}
-        <View className="mt-4 gap-3">
-          <TouchableOpacity
-            onPress={handleLogout}
-            className="flex-row items-center gap-3 rounded-xl bg-red-900/20 p-4"
-          >
-            <LogOut size={20} color="#ef4444" />
-            <Text className="text-red-400">Sign Out</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View className="h-24" />
+        </AnimatedListItem>
       </ScrollView>
     </SafeAreaView>
   );

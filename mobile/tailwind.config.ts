@@ -40,6 +40,12 @@ const config: Config = {
         },
         border: "hsl(220, 13%, 91%)",
         ring: "hsl(262.1, 83.3%, 57.8%)",
+        glass: {
+          DEFAULT: "rgba(255,255,255,0.05)",
+          light: "rgba(255,255,255,0.08)",
+          medium: "rgba(255,255,255,0.12)",
+          border: "rgba(255,255,255,0.10)",
+        },
       },
     },
   },

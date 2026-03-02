@@ -1,38 +1,21 @@
-// Tab Layout - Bottom navigation with 5 tabs
+// Tab Layout - Bottom navigation with custom glass tab bar
 import React from "react";
 import { Tabs } from "expo-router";
-import { View, Text } from "react-native";
 import {
   Home,
   Mic,
+  CalendarCheck,
   Archive,
   Users,
   User,
 } from "lucide-react-native";
-import { useAuthStore } from "../../stores/authStore";
+import { AnimatedTabBar } from "../../components/ui";
 
 export default function TabLayout() {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-
   return (
     <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: {
-          backgroundColor: "#0f172a",
-          borderTopColor: "#1e293b",
-          borderTopWidth: 1,
-          height: 80,
-          paddingBottom: 20,
-          paddingTop: 8,
-        },
-        tabBarActiveTintColor: "#a78bfa",
-        tabBarInactiveTintColor: "#64748b",
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: "600",
-        },
-      }}
+      screenOptions={{ headerShown: false }}
+      tabBar={(props) => <AnimatedTabBar {...props} />}
     >
       <Tabs.Screen
         name="index"
@@ -48,16 +31,16 @@ export default function TabLayout() {
         options={{
           title: "Record",
           tabBarIcon: ({ color, size }) => (
-            <View
-              className="rounded-full bg-primary p-2"
-              style={
-                isAuthenticated
-                  ? { backgroundColor: "#7c3aed" }
-                  : { backgroundColor: "#374151" }
-              }
-            >
-              <Mic size={size - 4} color="#fff" />
-            </View>
+            <Mic size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="tracker"
+        options={{
+          title: "Tracker",
+          tabBarIcon: ({ color, size }) => (
+            <CalendarCheck size={size} color={color} />
           ),
         }}
       />

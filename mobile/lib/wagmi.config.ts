@@ -77,11 +77,17 @@ export const wagmiAdapter = new WagmiAdapter({
   networks,
 });
 
-// Create AppKit instance — called once at module level
-export const appKit = createAppKit({
-  projectId,
-  networks,
-  adapters: [wagmiAdapter],
-  metadata,
-  storage: appKitStorage,
-});
+// Create AppKit instance — called once at module level (native only)
+import { Platform } from "react-native";
+
+export let appKit: ReturnType<typeof createAppKit> | null = null;
+
+if (Platform.OS !== "web" && projectId) {
+  appKit = createAppKit({
+    projectId,
+    networks,
+    adapters: [wagmiAdapter],
+    metadata,
+    storage: appKitStorage,
+  });
+}

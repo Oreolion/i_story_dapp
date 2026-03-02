@@ -1,154 +1,457 @@
-// Library/Archive Screen - Personal stories, books, themes
-import React, { useState, useEffect, useCallback } from "react";
+// Library/Archive Screen - Personal stories, books, themes, life areas
+import React, { useState } from "react";
 import {
   View,
   Text,
   FlatList,
   TouchableOpacity,
   RefreshControl,
+  ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Animated, { FadeInDown } from "react-native-reanimated";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { BookOpen, Star, Tag, Globe } from "lucide-react-native";
+import {
+  BookOpen,
+  Star,
+  Calendar,
+  Briefcase,
+  Heart,
+  Activity,
+  Brain,
+  Compass,
+  Palette,
+  Sparkles,
+  GraduationCap,
+  Lightbulb,
+  Users,
+  TreePine,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react-native";
 import { useAuthStore } from "../../stores/authStore";
-import { apiGet } from "../../lib/api";
-import type { StoryDataType } from "../../types";
+import { usePatterns } from "../../hooks/usePatterns";
+import type { StoryWithMetadata, LifeDomain } from "../../types";
+import {
+  GlassCard,
+  GradientButton,
+  AnimatedListItem,
+  Badge,
+  StatCard,
+  SectionHeader,
+  GRADIENTS,
+} from "../../components/ui";
 
-type LibraryTab = "all" | "stories" | "books" | "key-moments";
+type LibraryTab = "all" | "stories" | "books" | "key-moments" | "themes" | "life-areas";
+
+const DOMAIN_ICONS: Record<LifeDomain, React.ComponentType<any>> = {
+  work: Briefcase,
+  relationships: Heart,
+  health: Activity,
+  identity: Brain,
+  growth: Sparkles,
+  creativity: Palette,
+  spirituality: Lightbulb,
+  family: Users,
+  adventure: Compass,
+  learning: GraduationCap,
+  general: TreePine,
+};
+
+const DOMAIN_COLORS: Record<LifeDomain, string> = {
+  work: "#60a5fa",
+  relationships: "#f472b6",
+  health: "#4ade80",
+  identity: "#a78bfa",
+  growth: "#facc15",
+  creativity: "#fb923c",
+  spirituality: "#c084fc",
+  family: "#f87171",
+  adventure: "#22d3ee",
+  learning: "#34d399",
+  general: "#94a3b8",
+};
+
+const THEME_COLORS = [
+  "#818cf8", "#f472b6", "#34d399", "#fbbf24", "#60a5fa",
+  "#a78bfa", "#fb923c", "#22d3ee", "#f87171", "#4ade80",
+];
 
 export default function LibraryScreen() {
-  const { isAuthenticated, user } = useAuthStore();
-  const [stories, setStories] = useState<StoryDataType[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { isAuthenticated } = useAuthStore();
+  const {
+    stories,
+    themeGroups,
+    domainGroups,
+    canonicalStories,
+    monthlySummary,
+    isLoading,
+    refetch,
+  } = usePatterns();
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<LibraryTab>("all");
-
-  const fetchLibrary = useCallback(async () => {
-    if (!isAuthenticated) return;
-    try {
-      const res = await apiGet<{ stories: StoryDataType[] }>("/api/stories");
-      if (res.ok && res.data?.stories) {
-        // Filter to user's own stories
-        setStories(
-          res.data.stories.filter(
-            (s) => s.author.wallet_address === user?.wallet_address
-          )
-        );
-      }
-    } catch (err) {
-      console.error("[Library] Fetch failed:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [isAuthenticated, user]);
-
-  useEffect(() => {
-    fetchLibrary();
-  }, [fetchLibrary]);
+  const [expandedThemes, setExpandedThemes] = useState<Set<string>>(new Set());
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchLibrary();
+    await refetch();
     setRefreshing(false);
+  };
+
+  const toggleTheme = (theme: string) => {
+    setExpandedThemes((prev) => {
+      const next = new Set(prev);
+      if (next.has(theme)) next.delete(theme);
+      else next.add(theme);
+      return next;
+    });
   };
 
   if (!isAuthenticated) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-slate-900">
-        <BookOpen size={48} color="#64748b" />
-        <Text className="mt-4 text-lg text-slate-400">Sign in to view your archive</Text>
-        <TouchableOpacity
-          onPress={() => router.push("/auth/login")}
-          className="mt-4 rounded-full bg-violet-600 px-6 py-3"
-        >
-          <Text className="font-semibold text-white">Sign In</Text>
-        </TouchableOpacity>
+      <SafeAreaView style={{ flex: 1, backgroundColor: "#0f172a", alignItems: "center", justifyContent: "center" }}>
+        <GlassCard intensity="medium" style={{ padding: 32, alignItems: "center", marginHorizontal: 24 }}>
+          <BookOpen size={48} color="#64748b" />
+          <Text style={{ marginTop: 16, fontSize: 17, color: "#94a3b8" }}>Sign in to view your archive</Text>
+          <View style={{ marginTop: 16 }}>
+            <GradientButton
+              onPress={() => router.push("/auth/login")}
+              title="Sign In"
+              gradient={GRADIENTS.primary}
+            />
+          </View>
+        </GlassCard>
       </SafeAreaView>
     );
   }
 
-  const renderStory = ({ item }: { item: StoryDataType }) => (
-    <TouchableOpacity
-      onPress={() => router.push(`/story/${item.id}`)}
-      className="mb-3 rounded-xl bg-slate-800 p-4"
-    >
-      <View className="flex-row items-center justify-between">
-        <Text className="flex-1 text-base font-semibold text-white" numberOfLines={1}>
-          {item.title}
-        </Text>
-        <View className="ml-2 flex-row items-center gap-2">
-          {item.hasAudio && (
-            <View className="h-2 w-2 rounded-full bg-green-400" />
-          )}
-          <Text className="text-xs text-slate-500">
-            {new Date(item.created_at).toLocaleDateString()}
-          </Text>
-        </View>
-      </View>
-      <Text className="mt-1 text-sm text-slate-400" numberOfLines={2}>
-        {item.content}
-      </Text>
-      <View className="mt-2 flex-row gap-2">
-        <View className="rounded-full bg-slate-700 px-2 py-1">
-          <Text className="text-xs capitalize text-slate-300">{item.mood}</Text>
-        </View>
-        {!item.is_public && (
-          <View className="rounded-full bg-amber-900/30 px-2 py-1">
-            <Text className="text-xs text-amber-400">Private</Text>
+  const isCanonical = (story: StoryWithMetadata) =>
+    story.story_metadata?.is_canonical === true;
+
+  const filteredStories = (() => {
+    switch (activeTab) {
+      case "stories":
+        return stories;
+      case "key-moments":
+        return canonicalStories;
+      default:
+        return stories;
+    }
+  })();
+
+  const renderStory = ({ item, index }: { item: StoryWithMetadata; index: number }) => (
+    <AnimatedListItem index={index}>
+      <TouchableOpacity
+        onPress={() => router.push(`/story/${item.id}`)}
+        activeOpacity={0.8}
+      >
+        <GlassCard intensity="light" style={{ padding: 16, marginBottom: 12 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8 }}>
+              {isCanonical(item) && (
+                <Star size={14} color="#facc15" fill="#facc15" />
+              )}
+              <Text style={{ flex: 1, fontSize: 15, fontWeight: "600", color: "#fff" }} numberOfLines={1}>
+                {item.title}
+              </Text>
+            </View>
+            <View style={{ marginLeft: 8, flexDirection: "row", alignItems: "center", gap: 8 }}>
+              {item.hasAudio && (
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#4ade80" }} />
+              )}
+              <Text style={{ fontSize: 11, color: "#64748b" }}>
+                {new Date(item.created_at).toLocaleDateString()}
+              </Text>
+            </View>
           </View>
-        )}
-      </View>
-    </TouchableOpacity>
+          <Text style={{ marginTop: 4, fontSize: 13, color: "#94a3b8" }} numberOfLines={2}>
+            {item.content}
+          </Text>
+          <View style={{ marginTop: 8, flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+            <Badge text={item.mood} />
+            {!item.is_public && (
+              <Badge text="Private" variant="warning" />
+            )}
+            {item.story_metadata?.life_domain && item.story_metadata.life_domain !== "general" && (
+              <Badge text={item.story_metadata.life_domain} variant="violet" />
+            )}
+          </View>
+        </GlassCard>
+      </TouchableOpacity>
+    </AnimatedListItem>
   );
 
+  const renderThemesView = () => (
+    <View style={{ paddingHorizontal: 16, paddingBottom: 32 }}>
+      {themeGroups.length === 0 ? (
+        <View style={{ alignItems: "center", paddingVertical: 48 }}>
+          <Text style={{ color: "#94a3b8" }}>No themes discovered yet</Text>
+        </View>
+      ) : (
+        themeGroups.map((group, idx) => {
+          const isExpanded = expandedThemes.has(group.theme);
+          const color = THEME_COLORS[idx % THEME_COLORS.length];
+          return (
+            <AnimatedListItem key={group.theme} index={idx}>
+              <View style={{ marginBottom: 12 }}>
+                <TouchableOpacity
+                  onPress={() => toggleTheme(group.theme)}
+                  activeOpacity={0.8}
+                >
+                  <GlassCard
+                    intensity="light"
+                    style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 16 }}
+                  >
+                    <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 12 }}>
+                      <View
+                        style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: color }}
+                      />
+                      <Text style={{ fontSize: 15, fontWeight: "500", color: "#fff", textTransform: "capitalize" }}>
+                        {group.theme}
+                      </Text>
+                      <Badge text={String(group.count)} />
+                    </View>
+                    {isExpanded ? (
+                      <ChevronDown size={18} color="#64748b" />
+                    ) : (
+                      <ChevronRight size={18} color="#64748b" />
+                    )}
+                  </GlassCard>
+                </TouchableOpacity>
+                {isExpanded && (
+                  <Animated.View entering={FadeInDown.duration(300)}>
+                    {group.stories.map((story) => (
+                      <TouchableOpacity
+                        key={story.id}
+                        onPress={() => router.push(`/story/${story.id}`)}
+                        activeOpacity={0.8}
+                      >
+                        <GlassCard
+                          intensity="light"
+                          withBorder={false}
+                          style={{ marginLeft: 24, marginTop: 8, padding: 12 }}
+                        >
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                            {isCanonical(story) && (
+                              <Star size={12} color="#facc15" fill="#facc15" />
+                            )}
+                            <Text style={{ flex: 1, fontSize: 13, color: "#fff" }} numberOfLines={1}>
+                              {story.title}
+                            </Text>
+                            <Text style={{ fontSize: 11, color: "#64748b" }}>
+                              {new Date(story.created_at).toLocaleDateString()}
+                            </Text>
+                          </View>
+                        </GlassCard>
+                      </TouchableOpacity>
+                    ))}
+                  </Animated.View>
+                )}
+              </View>
+            </AnimatedListItem>
+          );
+        })
+      )}
+    </View>
+  );
+
+  const renderDomainsView = () => {
+    const totalStories = stories.length;
+    return (
+      <View style={{ paddingHorizontal: 16, paddingBottom: 32 }}>
+        {domainGroups.length === 0 ? (
+          <View style={{ alignItems: "center", paddingVertical: 48 }}>
+            <Text style={{ color: "#94a3b8" }}>No life areas tracked yet</Text>
+          </View>
+        ) : (
+          domainGroups.map((group, idx) => {
+            const Icon = DOMAIN_ICONS[group.domain] || TreePine;
+            const color = DOMAIN_COLORS[group.domain] || "#94a3b8";
+            const pct = totalStories > 0 ? (group.count / totalStories) * 100 : 0;
+            return (
+              <AnimatedListItem key={group.domain} index={idx}>
+                <GlassCard intensity="light" style={{ padding: 16, marginBottom: 12 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                    <View
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 10,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backgroundColor: color + "20",
+                      }}
+                    >
+                      <Icon size={20} color={color} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                        <Text style={{ fontSize: 15, fontWeight: "500", color: "#fff", textTransform: "capitalize" }}>
+                          {group.domain}
+                        </Text>
+                        <Text style={{ fontSize: 13, fontWeight: "500", color: "#94a3b8" }}>
+                          {Math.round(pct)}%
+                        </Text>
+                      </View>
+                      <View style={{ marginTop: 8, height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
+                        <LinearGradient
+                          colors={[color, color + "80"]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                          style={{ height: 6, borderRadius: 3, width: `${pct}%` }}
+                        />
+                      </View>
+                    </View>
+                  </View>
+                  <View style={{ marginTop: 8, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                    <Text style={{ fontSize: 11, color: "#64748b" }}>
+                      {group.count} {group.count === 1 ? "story" : "stories"}
+                    </Text>
+                    {group.dominantTone && (
+                      <Text style={{ fontSize: 11, color: "#64748b", textTransform: "capitalize" }}>
+                        Tone: {group.dominantTone}
+                      </Text>
+                    )}
+                  </View>
+                </GlassCard>
+              </AnimatedListItem>
+            );
+          })
+        )}
+      </View>
+    );
+  };
+
+  const tabs: LibraryTab[] = ["all", "stories", "books", "key-moments", "themes", "life-areas"];
+
   return (
-    <SafeAreaView className="flex-1 bg-slate-900">
-      <View className="px-4 py-4">
-        <Text className="text-2xl font-bold text-white">Your Archive</Text>
-        <Text className="text-sm text-slate-400">
-          {stories.length} stories
-        </Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#0f172a" }}>
+      {/* Header */}
+      <AnimatedListItem index={0}>
+        <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
+          <Text style={{ fontSize: 24, fontWeight: "700", color: "#fff" }}>Your Archive</Text>
+          <Text style={{ fontSize: 13, color: "#94a3b8" }}>
+            {stories.length} stories
+          </Text>
+        </View>
+      </AnimatedListItem>
+
+      {/* Monthly Summary Card */}
+      {monthlySummary && monthlySummary.storyCount > 0 && (
+        <AnimatedListItem index={1}>
+          <View style={{ marginHorizontal: 16, marginTop: 12 }}>
+            <GlassCard intensity="medium" style={{ padding: 16 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                <Calendar size={16} color="#a78bfa" />
+                <Text style={{ fontSize: 14, fontWeight: "600", color: "#fff" }}>
+                  {monthlySummary.month} {monthlySummary.year}
+                </Text>
+              </View>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <StatCard value={monthlySummary.storyCount} label="Stories" />
+                <StatCard value={monthlySummary.canonicalCount} label="Key Moments" color="#fbbf24" />
+                <StatCard value={themeGroups.length} label="Themes" color="#a78bfa" />
+              </View>
+              {monthlySummary.topThemes.length > 0 && (
+                <View style={{ marginTop: 12, flexDirection: "row", flexWrap: "wrap", gap: 4 }}>
+                  {monthlySummary.topThemes.map((theme) => (
+                    <Badge key={theme} text={theme} variant="violet" />
+                  ))}
+                  {monthlySummary.dominantDomain && (
+                    <Badge text={monthlySummary.dominantDomain} variant="success" />
+                  )}
+                </View>
+              )}
+            </GlassCard>
+          </View>
+        </AnimatedListItem>
+      )}
+
+      {/* Stats Row */}
+      <View style={{ marginHorizontal: 16, marginTop: 12, marginBottom: 4, flexDirection: "row", gap: 8 }}>
+        <StatCard value={stories.length} label="Total" />
+        <StatCard value={canonicalStories.length} label="Key Moments" color="#fbbf24" />
+        <StatCard value={themeGroups.length} label="Themes" color="#a78bfa" />
       </View>
 
       {/* Tabs */}
-      <View className="flex-row gap-2 px-4 pb-3">
-        {(["all", "stories", "books", "key-moments"] as LibraryTab[]).map(
-          (tab) => (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ paddingHorizontal: 16, paddingVertical: 12 }}
+        contentContainerStyle={{ gap: 8 }}
+      >
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab;
+          return isActive ? (
+            <GradientButton
+              key={tab}
+              onPress={() => setActiveTab(tab)}
+              title={tab.replace("-", " ")}
+              gradient={GRADIENTS.primary}
+              size="sm"
+            />
+          ) : (
             <TouchableOpacity
               key={tab}
               onPress={() => setActiveTab(tab)}
-              className={`rounded-full px-3 py-1.5 ${
-                activeTab === tab ? "bg-violet-600" : "bg-slate-800"
-              }`}
             >
-              <Text
-                className={`text-xs font-medium capitalize ${
-                  activeTab === tab ? "text-white" : "text-slate-400"
-                }`}
+              <GlassCard
+                intensity="light"
+                style={{ paddingHorizontal: 12, paddingVertical: 6 }}
               >
-                {tab.replace("-", " ")}
-              </Text>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: "500",
+                    color: "#94a3b8",
+                    textTransform: "capitalize",
+                  }}
+                >
+                  {tab.replace("-", " ")}
+                </Text>
+              </GlassCard>
             </TouchableOpacity>
-          )
-        )}
-      </View>
+          );
+        })}
+      </ScrollView>
 
-      <FlatList
-        data={stories}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={renderStory}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 100 }}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        ListEmptyComponent={
-          <View className="items-center py-12">
-            <Text className="text-slate-400">
-              {loading ? "Loading..." : "No stories yet. Start recording!"}
-            </Text>
-          </View>
-        }
-      />
+      {/* Tab Content */}
+      {activeTab === "themes" ? (
+        <ScrollView
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          {renderThemesView()}
+        </ScrollView>
+      ) : activeTab === "life-areas" ? (
+        <ScrollView
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          {renderDomainsView()}
+        </ScrollView>
+      ) : (
+        <FlatList
+          data={filteredStories}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={renderStory}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 100 }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          ListEmptyComponent={
+            <View style={{ alignItems: "center", paddingVertical: 48 }}>
+              <Text style={{ color: "#94a3b8" }}>
+                {isLoading ? "Loading..." : "No stories yet. Start recording!"}
+              </Text>
+            </View>
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }

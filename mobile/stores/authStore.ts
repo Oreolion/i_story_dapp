@@ -2,10 +2,10 @@
 // Replaces web AuthProvider.tsx context with Zustand store for RN
 
 import { create } from "zustand";
-import * as SecureStore from "expo-secure-store";
+import { removeItem } from "../lib/storage";
 import { supabase } from "../lib/supabase";
 import { api, setAuthToken, clearAuthToken } from "../lib/api";
-import type { OnboardingData } from "../types";
+import type { OnboardingData, SignupData } from "../types";
 
 const TOKEN_KEY = "supabase_access_token";
 const REFRESH_KEY = "supabase_refresh_token";
@@ -27,12 +27,16 @@ interface AuthState {
   user: UserProfile | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  authMethod: "wallet" | "google" | null;
+  authMethod: "wallet" | "google" | "email" | null;
 
   // Actions
   initialize: () => Promise<void>;
   loginWithWallet: (address: string, signMessage: (message: string) => Promise<string>) => Promise<void>;
   loginWithGoogle: (accessToken: string, refreshToken: string) => Promise<{ needsOnboarding: boolean }>;
+  loginWithGoogleIdToken: (accessToken: string, refreshToken: string) => Promise<{ needsOnboarding: boolean }>;
+  loginWithEmail: (email: string, password: string) => Promise<void>;
+  signupWithEmail: (data: SignupData) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   logout: () => Promise<void>;
   fetchProfile: () => Promise<void>;
   completeOnboarding: (data: OnboardingData) => Promise<void>;
@@ -51,10 +55,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (session) {
         await setAuthToken(session.access_token);
         await get().fetchProfile();
-        set({
-          isAuthenticated: true,
-          authMethod: session.user?.app_metadata?.provider === "google" ? "google" : "wallet",
-        });
+        const provider = session.user?.app_metadata?.provider;
+        const authMethod = provider === "google" ? "google" : provider === "email" ? "email" : "wallet";
+        set({ isAuthenticated: true, authMethod });
       }
     } catch (err) {
       console.error("[Auth] Initialize failed:", err);
@@ -139,12 +142,87 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
+  loginWithGoogleIdToken: async (accessToken: string, refreshToken: string) => {
+    set({ isLoading: true });
+    try {
+      await setAuthToken(accessToken);
+      await get().fetchProfile();
+      set({ isAuthenticated: true, authMethod: "google" });
+
+      const user = get().user;
+      return { needsOnboarding: !user?.name || !user?.username };
+    } catch (err) {
+      console.error("[Auth] Google ID token login failed:", err);
+      throw err;
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  loginWithEmail: async (email: string, password: string) => {
+    set({ isLoading: true });
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+      if (error) throw error;
+      if (!data.session) throw new Error("No session returned");
+
+      await setAuthToken(data.session.access_token);
+      await get().fetchProfile();
+      set({ isAuthenticated: true, authMethod: "email" });
+    } catch (err) {
+      console.error("[Auth] Email login failed:", err);
+      throw err;
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  signupWithEmail: async (data: SignupData) => {
+    set({ isLoading: true });
+    try {
+      const { data: authData, error } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
+      });
+
+      if (error) throw error;
+      if (!authData.session) throw new Error("No session returned. Check your email for confirmation.");
+
+      await setAuthToken(authData.session.access_token);
+
+      // Complete onboarding in one step
+      await api("/api/auth/onboarding", {
+        method: "POST",
+        body: {
+          name: data.name,
+          username: data.username,
+          email: data.email,
+          userId: authData.user?.id,
+        },
+      });
+
+      await get().fetchProfile();
+      set({ isAuthenticated: true, authMethod: "email" });
+    } catch (err) {
+      console.error("[Auth] Email signup failed:", err);
+      throw err;
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  resetPassword: async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    if (error) throw error;
+  },
+
   logout: async () => {
     try {
       await supabase.auth.signOut();
       await clearAuthToken();
-      await SecureStore.deleteItemAsync(TOKEN_KEY);
-      await SecureStore.deleteItemAsync(REFRESH_KEY);
+      await removeItem(TOKEN_KEY);
+      await removeItem(REFRESH_KEY);
       set({ user: null, isAuthenticated: false, authMethod: null });
     } catch (err) {
       console.error("[Auth] Logout failed:", err);
