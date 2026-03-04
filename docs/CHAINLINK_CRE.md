@@ -49,6 +49,51 @@ Anyone can verify that a story was analyzed and meets quality standards. Only th
 
 In `app/api/journal/save/route.ts`, after the story is successfully saved to Supabase, the API fires off a background request to `/api/cre/trigger`. This is **fire-and-forget** — the save succeeds immediately, and CRE runs asynchronously.
 
+### Note: "Generate / Create Insights" (UI) vs CRE
+
+The "Generate Insights" / "Create Insights" button in the story UI (see `components/StoryInsights.tsx`) calls the local AI analysis endpoint (`/api/ai/analyze`) and updates the story's metadata for the UI. That action does **not** trigger the Chainlink CRE workflow.
+
+Use `/api/cre/trigger` (automatically called after save) to start the CRE verification. You can also call it manually (requires an authenticated user token) as shown below.
+
+### Quick manual triggers (curl & CRE CLI)
+
+1) Trigger the app's CRE route (auth required):
+
+```bash
+curl -X POST "https://YOUR_APP_HOST/api/cre/trigger" \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer $ACCESS_TOKEN" \
+     -d '{"storyId":"YOUR-STORY-UUID"}'
+```
+
+2) Trigger the CRE workflow endpoint directly (if running CRE runner locally or to demonstrate the workflow):
+
+```bash
+curl -X POST "$CRE_WORKFLOW_URL" \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer $CRE_API_KEY" \
+     -d '{"storyId":"YOUR-STORY-UUID","title":"...","content":"...","authorWallet":"0x..."}'
+```
+
+3) CLI demo (recommended for presentations if you have the CRE runner available):
+
+```bash
+cd cre
+cat demo-input.json | cre workflow simulate iStory_workflow
+# or --broadcast to write to testnet
+cat demo-input.json | cre workflow simulate iStory_workflow --broadcast
+```
+
+### Short presentation checklist (what to show on stage)
+
+- Save a story in the app (or call `/api/journal/save`) → show `verification_logs` row created with `status = "pending"`.
+- Show `/api/cre/trigger` call (background fetch) or run the `cre workflow simulate` command and point to the CRE runner logs.
+- Show CRE workflow log steps (Step 1..8) — Gemini query, metricsHash/commitment, on-chain write (tx hash).
+- Show on-chain proof (call `getMetrics` on `PrivateVerifiedMetrics`) — only minimal fields visible.
+- Show `/api/cre/callback` result reflected in `verified_metrics` (full scores, themes) and `verification_logs` status changed to `completed`.
+- In the app, refresh the story author view; `VerifiedMetricsCard` should show full metrics while public view shows proof only.
+
+
 ---
 
 ## The Full Pipeline
@@ -278,13 +323,69 @@ cat > demo-input.json << 'EOF'
   "content": "Today I faced a significant challenge...",
   "authorWallet": "0xYourWalletAddress"
 }
+---
+
+## Ready-to-run demo input (copy & paste)
+
+The following `demo-input.json` is a self-contained example you can copy into the `cre/` folder and run with the `cre` CLI. It uses a deterministic UUID and a placeholder wallet address that works for a local/demo run. If you plan to broadcast to testnet, ensure your CRE runner is configured with a funded wallet.
+
+demo-input.json
+
+```json
+{
+     "storyId": "11111111-1111-4111-8111-111111111111",
+     "title": "Demo: CRE verification run",
+     "content": "This is a short demo story used to exercise the Chainlink CRE workflow. It contains innocuous text for testing the pipeline, on-chain write, and callback behavior.",
+     "authorWallet": "0x0000000000000000000000000000000000000001"
+}
+```
+
+Commands (Bash / WSL / Git Bash)
+
+```bash
+# Save demo input
+cat > demo-input.json << 'EOF'
+{
+     "storyId": "11111111-1111-4111-8111-111111111111",
+     "title": "Demo: CRE verification run",
+     "content": "This is a short demo story used to exercise the Chainlink CRE workflow. It contains innocuous text for testing the pipeline, on-chain write, and callback behavior.",
+     "authorWallet": "0x0000000000000000000000000000000000000001"
+}
+EOF
+
+# Dry run (no on-chain write)
+cat input.json | cre workflow simulate iStory_workflow
+
+# Broadcast (writes to testnet) — requires runner configured + funded wallet
+cat input.json | cre workflow simulate iStory_workflow --broadcast
+```
+
+Commands (PowerShell)
+
+```powershell
+@"
+{
+     "storyId": "11111111-1111-4111-8111-111111111111",
+     "title": "Demo: CRE verification run",
+     "content": "This is a short demo story used to exercise the Chainlink CRE workflow. It contains innocuous text for testing the pipeline, on-chain write, and callback behavior.",
+     "authorWallet": "0x0000000000000000000000000000000000000001"
+}
+"@ > demo-input.json
+
+Get-Content input.json | cre workflow simulate iStory_workflow
+Get-Content input.json | cre workflow simulate iStory_workflow --broadcast
+```
+
+Notes
+- `--broadcast` requires the CRE runner's configured EVM signer to have testnet funds and the workflow `evm` config set to the correct chain.
+- If you only want to show the CRE logs without writing on-chain, run the simulate command without `--broadcast` and the runner will go through Steps 1-8 but skip a real transaction.
 EOF
 
 # Dry run (local only)
-cat demo-input.json | cre workflow simulate iStory_workflow
+cat input.json | cre workflow simulate iStory_workflow
 
 # Real on-chain write
-cat demo-input.json | cre workflow simulate iStory_workflow --broadcast
+cat input.json | cre workflow simulate iStory_workflow --broadcast
 ```
 
 ### Expected Output (8 Steps)
@@ -315,3 +416,11 @@ cast call $CONTRACT_ADDRESS \
 # Returns: (true, 4, 0xabc...hash, 0xdef...commitment, 0x123...attestation, 1709123456)
 # NO scores, NO themes, NO wallet address visible
 ```
+
+i will apply the open core model for the estory project hence forth. what is next after this homepage fix
+
+first lets talk about the brand foundation you created, note that their are ai tools that can be used to clone voices now and they work well, doesnt that affect the concept of voice as prove of humanity, also note the files and transcript stored on mobile device feature in preaching about ownership, privacy and permanence
+
+### prompt for claude code marketing
+
+is it cool to launch web app first and mobile app after, but getting waitlist for it as it is on homepage
