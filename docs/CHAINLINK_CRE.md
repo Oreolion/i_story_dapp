@@ -416,11 +416,3 @@ cast call $CONTRACT_ADDRESS \
 # Returns: (true, 4, 0xabc...hash, 0xdef...commitment, 0x123...attestation, 1709123456)
 # NO scores, NO themes, NO wallet address visible
 ```
-
-i will apply the open core model for the estory project hence forth. what is next after this homepage fix
-
-first lets talk about the brand foundation you created, note that their are ai tools that can be used to clone voices now and they work well, doesnt that affect the concept of voice as prove of humanity, also note the files and transcript stored on mobile device feature in preaching about ownership, privacy and permanence
-
-### prompt for claude code marketing
-
-is it cool to launch web app first and mobile app after, but getting waitlist for it as it is on homepage

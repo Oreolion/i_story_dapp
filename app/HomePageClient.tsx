@@ -208,7 +208,7 @@ export default function HomePage() {
 
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
             The voice journal that listens, learns your patterns, and belongs to
-            you — not us, not our servers, not any platform. Just talk.
+            you — not us, not any platform. Just talk, AI listens and do the work.
           </p>
         </div>
 

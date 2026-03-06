@@ -18,6 +18,14 @@ Detailed references are in `docs/` — read them on-demand when needed.
 
 **eStory** is a Web3 AI-powered voice journaling dApp that transforms personal narratives into structured, sovereign memory infrastructure. Built on Base (Ethereum L2), it combines voice capture, AI transcription, blockchain permanence, and cognitive analysis.
 
+### Vision — A Convergent Solution to Three Civilizational Crises
+
+1. **The Ancient Crisis — Memory Extinction.** Throughout history, the vast majority of human experience has vanished. Oral traditions died with their keepers. Humanity has always lacked infrastructure to capture and preserve the individual story at scale. eStory solves this with voice capture → AI transcription → encrypted storage → optional on-chain permanence.
+
+2. **The Present Crisis — The Unexamined Life at Scale.** We are living through a civilizational inflection point comparable to the Renaissance and Industrial Revolution. Future generations will look back and ask how we navigated it. Journaling declutters the mind and sharpens thinking, but current platforms harvest intimate data with zero transparency. eStory provides a sovereign space to process this historic moment — client-side encryption (AES-256-GCM) and Chainlink CRE ensure analysis is verifiable without trusting the app operator.
+
+3. **The Emerging Crisis — The Meaning Void.** As AI automates work, millions will lose not just jobs but their primary source of identity and purpose. Storytelling, journaling, and creative self-expression are among the oldest answers to that void. But in a world flooded with AI-generated content, authenticity must be provable. eStory's on-chain cryptographic proofs create tamper-proof provenance for genuine human narratives.
+
 ### Tech Stack
 
 - **Frontend:** Next.js 15.5.9, React 19, Tailwind CSS 4, shadcn/ui
