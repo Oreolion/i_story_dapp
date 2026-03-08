@@ -62,8 +62,11 @@ export const metadata: Metadata = {
     images: ["/opengraph-image"],
   },
   icons: {
-    icon: "/favicon.ico",
-    apple: "/favicon.ico",
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico" },
+    ],
+    apple: "/apple-touch-icon.png",
   },
   manifest: "/manifest.json",
 };
@@ -75,7 +78,7 @@ const jsonLd = {
       "@type": "Organization",
       name: "eStory",
       url: "https://estory.vercel.app",
-      logo: "https://estory.vercel.app/favicon.ico",
+      logo: "https://estory.vercel.app/logo-mark.svg",
       description:
         "AI-powered blockchain journaling platform that transforms personal narratives into sovereign memory infrastructure.",
     },

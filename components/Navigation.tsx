@@ -14,8 +14,8 @@ import {
   Sun,
   Coins,
   TrainTrack,
-  BookOpen,
 } from "lucide-react";
+import { LogoMark } from "./LogoMark";
 import { motion } from "framer-motion";
 import { AuthButton } from "./AuthButton";
 import { useState, useEffect } from "react";
@@ -50,13 +50,10 @@ export function Navigation() {
         <div className="flex items-center justify-between h-16 gap-8">
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2 shrink-0">
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              className="w-8 h-8 bg-linear-to-r from-[hsl(var(--memory-600))] to-[hsl(var(--insight-600))] rounded-lg flex items-center justify-center"
-            >
-              <BookOpen className="w-5 h-5 text-white" />
+            <motion.div whileHover={{ scale: 1.05 }}>
+              <LogoMark size={28} />
             </motion.div>
-            <span className="text-xl font-bold text-gradient-memory">
+            <span className="text-xl font-bold bg-gradient-to-r from-[#d4a04a] via-[#9b7dd4] to-[#6c3dbd] bg-clip-text text-transparent">
               eStory
             </span>
           </Link>

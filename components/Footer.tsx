@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
-  BookOpen,
   Github,
   Twitter,
   Mail,
@@ -12,6 +11,7 @@ import {
   Heart,
   Globe,
 } from "lucide-react";
+import { LogoMark } from "./LogoMark";
 import { Separator } from "./ui/separator";
 
 const footerLinks = {
@@ -83,13 +83,10 @@ export function Footer() {
               className="lg:col-span-2 space-y-4"
             >
               <Link href="/" className="flex items-center space-x-2 mb-4">
-                <motion.div
-                  whileHover={{ scale: 1.05, rotate: 5 }}
-                  className="w-10 h-10 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg flex items-center justify-center shadow-lg"
-                >
-                  <BookOpen className="w-6 h-6 text-white" />
+                <motion.div whileHover={{ scale: 1.05, rotate: 5 }}>
+                  <LogoMark size={36} />
                 </motion.div>
-                <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                <span className="text-2xl font-bold bg-gradient-to-r from-[#d4a04a] via-[#9b7dd4] to-[#6c3dbd] bg-clip-text text-transparent">
                   eStory
                 </span>
               </Link>
@@ -290,7 +287,7 @@ export function Footer() {
     
 
       {/* Subtle gradient bottom accent */}
-      <div className="h-1 bg-linear-to-r from-purple-600 via-indigo-600 to-emerald-600 opacity-50" />
+      <div className="h-1 bg-linear-to-r from-[#d4a04a] via-[#9b7dd4] to-[#6c3dbd] opacity-50" />
     </footer>
   );
 }

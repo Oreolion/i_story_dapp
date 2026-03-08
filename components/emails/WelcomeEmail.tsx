@@ -28,7 +28,7 @@ export const WelcomeEmail = ({ username }: WelcomeEmailProps) => {
           <Container className="border border-solid border-[#eaeaea] rounded my-[40px] mx-auto p-[20px] max-w-[465px]">
             <Section className="mt-[32px]">
               <Heading className="text-black text-[24px] font-normal text-center p-0 my-[30px] mx-0">
-                Welcome to <span className="font-bold text-purple-600">EStory</span>
+                Welcome to <span className="font-bold text-amber-600">EStory</span>
               </Heading>
             </Section>
             <Text className="text-black text-[14px] leading-[24px]">
@@ -39,7 +39,7 @@ export const WelcomeEmail = ({ username }: WelcomeEmailProps) => {
             </Text>
             <Section className="text-center mt-[32px] mb-[32px]">
               <Button
-                className="bg-[#7c3aed] rounded text-white text-[12px] font-semibold no-underline text-center px-5 py-3"
+                className="bg-[#d4a04a] rounded text-white text-[12px] font-semibold no-underline text-center px-5 py-3"
                 href="https://estory.vercel.app/record"
               >
                 Record Your First Story

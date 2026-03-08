@@ -15,7 +15,7 @@
 
 eStory is an innovative AI-powered web3 application that empowers users to chronicle their daily lives through voice journaling, immortalize their personal narratives on the blockchain, and monetize their stories in a decentralized ecosystem. Built on Base, a secure and scalable Layer 2 solution on Ethereum, this app ensures low-cost, fast transactions while maintaining Ethereum's security.
 
-In a world where hestory has often been manipulated by conquerors, victors and dominating empires, eStory reclaims the power of authentic storytelling. Users can broadcast their unfiltered truths forever on the blockchain, ensuring tamper-proof preservation, while earning rewards through community engagement and NFT-based sales.
+In a world where history has often been manipulated by conquerors, victors and dominating empires, eStory reclaims the power of authentic storytelling. Users can broadcast their unfiltered truths forever on the blockchain, ensuring tamper-proof preservation, while earning rewards through community engagement and NFT-based sales.
 
 ## Key Features
 
@@ -100,7 +100,7 @@ Engage with the community, share your stories, and earn $STORY tokens based on i
 
 ## Why eStory?
 
-Hestory is written by the victors, but your story deserves to be heard unedited. eStory counters narrative manipulation by giving individuals the tools to create, own, and profit from their personal histories on an immutable blockchain. Whether it's a daily reflection, a life milestone, or a cultural tale, your voice becomes part of an unbreakable digital archive—all powered by the efficiency of Base Layer 2.
+history is written by the victors, but your story deserves to be heard unedited. eStory counters narrative manipulation by giving individuals the tools to create, own, and profit from their personal histories on an immutable blockchain. Whether it's a daily reflection, a life milestone, or a cultural tale, your voice becomes part of an unbreakable digital archive—all powered by the efficiency of Base Layer 2.
 
 ## Tech Stack
 
@@ -623,11 +623,6 @@ Use Pinata or similar for file permanence:
 npm install --save-dev @pinata/sdk
 ```
 
-## License
-
-This project is licensed under the MIT License - see LICENSE file for details.
-
-MIT © 2024-2026 eStory Team
 
 ### Q2 2026
 
@@ -691,7 +686,7 @@ The target customer for Speak Your Story is a diverse group of individuals who v
 
 Primary Demographics: Ages 18-45, with a focus on millennials and Gen Z who are tech-savvy and active on social media. Balanced gender split, appealing to both men and women interested in self-reflection, creativity, or activism. Global users, particularly in regions with high blockchain adoption (e.g., North America, Europe, Asia) and those facing narrative suppression or censorship.
 
-Key Personas: Aspiring Storytellers and Journalers: Everyday people who want an easy way to document their lives via voice, without the hassle of writing. They seek AI tools to enhance their entries and compile them into books for personal growth or sharing. Blockchain and Crypto Enthusiasts: Web3 users who appreciate NFTs, tokens, and decentralization for owning and monetizing content. They value the app's use of Base (Ethereum L2) for low fees and tamper-proof storage. Content Creators and Influencers: Writers, podcasters, or social media users looking to broadcast authentic stories, build communities, and earn through likes, tips, paywalls, or NFT sales. They use viral features like streaks and leaderboards to grow their audience. Hestory and Truth Advocates: Individuals concerned about manipulated narratives (e.g., activists, historians, or those from marginalized communities) who want to preserve unfiltered truths on an immutable blockchain. Monetization Seekers: Freelancers or side-hustlers aiming to turn personal stories into revenue streams, such as selling digital books or earning $STORY tokens from engagement.
+Key Personas: Aspiring Storytellers and Journalers: Everyday people who want an easy way to document their lives via voice, without the hassle of writing. They seek AI tools to enhance their entries and compile them into books for personal growth or sharing. Blockchain and Crypto Enthusiasts: Web3 users who appreciate NFTs, tokens, and decentralization for owning and monetizing content. They value the app's use of Base (Ethereum L2) for low fees and tamper-proof storage. Content Creators and Influencers: Writers, podcasters, or social media users looking to broadcast authentic stories, build communities, and earn through likes, tips, paywalls, or NFT sales. They use viral features like streaks and leaderboards to grow their audience. history and Truth Advocates: Individuals concerned about manipulated narratives (e.g., activists, historians, or those from marginalized communities) who want to preserve unfiltered truths on an immutable blockchain. Monetization Seekers: Freelancers or side-hustlers aiming to turn personal stories into revenue streams, such as selling digital books or earning $STORY tokens from engagement.
 
 Pain Points Addressed: Traditional journaling apps lack permanence and monetization; Speak Your Story counters this with blockchain immortality and rewards. Users frustrated by centralized platforms' censorship or data ownership issues find solace in decentralized, user-owned content.
 

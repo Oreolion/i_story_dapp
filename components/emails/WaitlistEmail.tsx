@@ -31,7 +31,7 @@ export const WaitlistEmail = ({ email }: WaitlistEmailProps) => {
             <Section className="mt-[32px]">
               <Heading className="text-black text-[24px] font-normal text-center p-0 my-[30px] mx-0">
                 You&apos;re on the list{" "}
-                <span className="font-bold text-purple-600">EStory</span>
+                <span className="font-bold text-amber-600">EStory</span>
               </Heading>
             </Section>
 
@@ -54,7 +54,7 @@ export const WaitlistEmail = ({ email }: WaitlistEmailProps) => {
             <Section className="text-center mt-[32px] mb-[32px]">
               <Link
                 href="https://estory.vercel.app"
-                className="bg-[#7c3aed] rounded text-white text-[12px] font-semibold no-underline text-center px-5 py-3"
+                className="bg-[#d4a04a] rounded text-white text-[12px] font-semibold no-underline text-center px-5 py-3"
               >
                 Try EStory Web App
               </Link>
