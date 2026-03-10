@@ -1,6 +1,6 @@
 // Record Screen - Audio capture, transcription, enhancement, save
 // Supports both voice recording and typed stories
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Alert,
   Platform,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, {
   useSharedValue,
@@ -108,6 +109,52 @@ export default function RecordScreen() {
 
   const isBusy = step === "transcribing" || step === "enhancing" || step === "saving";
   const hasContent = !!(enhancedText || transcript);
+
+  // === Draft Persistence ===
+  const DRAFT_KEY = "estory_draft";
+
+  const saveDraft = useCallback(async () => {
+    if (!title && !transcript && !enhancedText && !tags) return;
+    try {
+      await AsyncStorage.setItem(
+        DRAFT_KEY,
+        JSON.stringify({ title, transcript, enhancedText, tags, selectedMood, isPublic, storyDate, inputMode })
+      );
+    } catch {}
+  }, [title, transcript, enhancedText, tags, selectedMood, isPublic, storyDate, inputMode]);
+
+  const loadDraft = useCallback(async () => {
+    try {
+      const raw = await AsyncStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      const draft = JSON.parse(raw);
+      if (draft.title) setTitle(draft.title);
+      if (draft.transcript) setTranscript(draft.transcript);
+      if (draft.enhancedText) setEnhancedText(draft.enhancedText);
+      if (draft.tags) setTags(draft.tags);
+      if (draft.selectedMood) setSelectedMood(draft.selectedMood);
+      if (draft.isPublic !== undefined) setIsPublic(draft.isPublic);
+      if (draft.storyDate) setStoryDate(draft.storyDate);
+      if (draft.inputMode) setInputMode(draft.inputMode);
+      if (draft.title || draft.transcript || draft.enhancedText) {
+        setStep("recorded");
+        Toast.show({ type: "info", text1: "Draft restored", text2: "Your previous entry was recovered" });
+      }
+    } catch {}
+  }, []);
+
+  const clearDraft = useCallback(async () => {
+    try { await AsyncStorage.removeItem(DRAFT_KEY); } catch {}
+  }, []);
+
+  // Load draft on mount
+  useEffect(() => { loadDraft(); }, []);
+
+  // Auto-save draft on content changes (debounced)
+  useEffect(() => {
+    const timer = setTimeout(saveDraft, 2000);
+    return () => clearTimeout(timer);
+  }, [title, transcript, enhancedText, tags, selectedMood, isPublic, storyDate, saveDraft]);
 
   // Reanimated pulse animations
   const pulseScale = useSharedValue(1);
@@ -374,6 +421,7 @@ export default function RecordScreen() {
 
       if (res.ok) {
         Toast.show({ type: "success", text1: "Story saved!" });
+        await clearDraft();
         // Reset all state
         setStep("idle");
         setRecordingUri(null);

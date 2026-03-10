@@ -6,6 +6,9 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  Share,
+  Alert,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, {
@@ -25,6 +28,10 @@ import {
   Play,
   Pause,
   Star,
+  Share2,
+  UserPlus,
+  UserCheck,
+  Send,
   Briefcase,
   Activity,
   Brain,
@@ -44,6 +51,8 @@ import * as Haptics from "expo-haptics";
 import { useAuthStore } from "../../stores/authStore";
 import { apiGet, apiPost, apiPatch } from "../../lib/api";
 import { useVerifiedMetrics, getEmotionalDepthLabel } from "../../hooks/useVerifiedMetrics";
+import { useStoryProtocol } from "../../hooks/useStoryProtocol";
+import { useAccount } from "wagmi";
 import type { StoryDataType, CommentDataTypes, StoryMetadata } from "../../types";
 import {
   GlassCard,
@@ -120,6 +129,14 @@ export default function StoryDetailScreen() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isCanonical, setIsCanonical] = useState(false);
   const [togglingCanonical, setTogglingCanonical] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [showTipModal, setShowTipModal] = useState(false);
+  const [tipAmount, setTipAmount] = useState("0.001");
+  const [tipping, setTipping] = useState(false);
+  const [unlocking, setUnlocking] = useState(false);
+
+  const { isConnected } = useAccount();
+  const { tipCreator, payPaywall } = useStoryProtocol();
 
   const isOwner =
     isAuthenticated && story && user &&
@@ -151,6 +168,7 @@ export default function StoryDetailScreen() {
             (res.data.story as any).story_metadata || (res.data.story as any).metadata || null;
           setMetadata(meta);
           setIsCanonical(meta?.is_canonical === true);
+          setIsFollowing(res.data.story.author.isFollowing || false);
         }
       } catch (err) {
         console.error("[StoryDetail] Fetch failed:", err);
@@ -180,6 +198,64 @@ export default function StoryDetailScreen() {
     if (res.ok && res.data?.comment) {
       setComments((prev) => [res.data!.comment, ...prev]);
       setNewComment("");
+    }
+  };
+
+  const handleShare = async () => {
+    if (!story) return;
+    try {
+      await Share.share({
+        title: story.title,
+        message: `"${story.title}" on eStory\n\nhttps://e-story-dapp.vercel.app/story/${story.id}`,
+      });
+    } catch {}
+  };
+
+  const handleFollow = async () => {
+    if (!story || !isAuthenticated) return;
+    const authorId = (story.author as any).id || story.author.wallet_address;
+    if (!authorId) return;
+    setIsFollowing(!isFollowing);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await apiPost("/api/social/follow", { targetUserId: authorId });
+  };
+
+  const handleTip = async () => {
+    if (!story || !isConnected) {
+      Alert.alert("Wallet Required", "Connect your wallet to send tips.");
+      return;
+    }
+    if (!story.author.wallet_address) {
+      Alert.alert("Cannot Tip", "This author hasn't connected a wallet.");
+      return;
+    }
+    setTipping(true);
+    try {
+      await tipCreator(story.author.wallet_address, tipAmount, story.id);
+      setShowTipModal(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      // Toast already shown by hook
+    } finally {
+      setTipping(false);
+    }
+  };
+
+  const handleUnlockPaywall = async () => {
+    if (!story || !isConnected) {
+      Alert.alert("Wallet Required", "Connect your wallet to unlock content.");
+      return;
+    }
+    if (!story.author.wallet_address) return;
+    setUnlocking(true);
+    try {
+      await payPaywall(story.author.wallet_address, String(story.paywallAmount), story.id);
+      setStory({ ...story, isPaid: true });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      // Toast already shown by hook
+    } finally {
+      setUnlocking(false);
     }
   };
 
@@ -271,12 +347,37 @@ export default function StoryDetailScreen() {
               size="lg"
               withGradientBorder
             />
-            <View style={{ marginLeft: 12 }}>
+            <View style={{ marginLeft: 12, flex: 1 }}>
               <Text style={{ fontWeight: "600", color: "#fff", fontSize: 15 }}>
                 {story.author.name || "Anonymous"}
               </Text>
               <Text style={{ fontSize: 12, color: "#64748b" }}>{story.timestamp}</Text>
             </View>
+            {isAuthenticated && !isOwner && (
+              <TouchableOpacity
+                onPress={handleFollow}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 4,
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 16,
+                  backgroundColor: isFollowing ? "rgba(99,102,241,0.15)" : "rgba(255,255,255,0.08)",
+                  borderWidth: 1,
+                  borderColor: isFollowing ? "rgba(99,102,241,0.4)" : "rgba(255,255,255,0.1)",
+                }}
+              >
+                {isFollowing ? (
+                  <UserCheck size={14} color="#818cf8" />
+                ) : (
+                  <UserPlus size={14} color="#94a3b8" />
+                )}
+                <Text style={{ fontSize: 12, fontWeight: "500", color: isFollowing ? "#818cf8" : "#94a3b8" }}>
+                  {isFollowing ? "Following" : "Follow"}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </AnimatedListItem>
 
@@ -315,10 +416,12 @@ export default function StoryDetailScreen() {
               </Text>
               <View style={{ marginTop: 16 }}>
                 <GradientButton
-                  onPress={() => {}}
-                  title={`Unlock for ${story.paywallAmount} $STORY`}
+                  onPress={handleUnlockPaywall}
+                  title={unlocking ? "Unlocking..." : `Unlock for ${story.paywallAmount} $STORY`}
                   gradient={GRADIENTS.primary}
                   fullWidth
+                  loading={unlocking}
+                  disabled={unlocking}
                 />
               </View>
             </GlassCard>
@@ -557,19 +660,96 @@ export default function StoryDetailScreen() {
         <AnimatedListItem index={7}>
           <GlassCard
             intensity="light"
-            style={{ flexDirection: "row", alignItems: "center", gap: 24, padding: 16, marginBottom: 16 }}
+            style={{ flexDirection: "row", alignItems: "center", gap: 20, padding: 16, marginBottom: 16 }}
           >
             <HeartButton isLiked={story.isLiked} count={story.likes} onPress={handleLike} />
             <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
               <MessageCircle size={22} color="#64748b" />
               <Text style={{ fontSize: 13, color: "#94a3b8" }}>{comments.length}</Text>
             </View>
-            <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-              <Coins size={22} color="#facc15" />
-              <Text style={{ fontSize: 13, color: "#94a3b8" }}>Tip</Text>
+            {!isOwner && (
+              <TouchableOpacity
+                onPress={() => setShowTipModal(true)}
+                style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
+              >
+                <Coins size={22} color="#facc15" />
+                <Text style={{ fontSize: 13, color: "#facc15" }}>Tip</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              onPress={handleShare}
+              style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
+            >
+              <Share2 size={22} color="#64748b" />
+              <Text style={{ fontSize: 13, color: "#94a3b8" }}>Share</Text>
             </TouchableOpacity>
           </GlassCard>
         </AnimatedListItem>
+
+        {/* Tip Modal */}
+        <Modal visible={showTipModal} transparent animationType="fade">
+          <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.7)" }}>
+            <GlassCard intensity="heavy" style={{ width: 300, padding: 24 }}>
+              <Text style={{ fontSize: 18, fontWeight: "700", color: "#fff", marginBottom: 4 }}>
+                Send a Tip
+              </Text>
+              <Text style={{ fontSize: 13, color: "#94a3b8", marginBottom: 16 }}>
+                Support {story.author.name || "this creator"} with $STORY tokens
+              </Text>
+              <View style={{ flexDirection: "row", gap: 8, marginBottom: 16 }}>
+                {["0.001", "0.01", "0.1"].map((amt) => (
+                  <TouchableOpacity
+                    key={amt}
+                    onPress={() => setTipAmount(amt)}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 10,
+                      borderRadius: 10,
+                      alignItems: "center",
+                      backgroundColor: tipAmount === amt ? "rgba(250,204,21,0.15)" : "rgba(255,255,255,0.05)",
+                      borderWidth: 1,
+                      borderColor: tipAmount === amt ? "rgba(250,204,21,0.4)" : "rgba(255,255,255,0.1)",
+                    }}
+                  >
+                    <Text style={{ fontSize: 14, fontWeight: "600", color: tipAmount === amt ? "#facc15" : "#94a3b8" }}>
+                      {amt} ETH
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <GlassCard intensity="light" style={{ padding: 0, marginBottom: 16 }}>
+                <TextInput
+                  value={tipAmount}
+                  onChangeText={setTipAmount}
+                  placeholder="Custom amount (ETH)"
+                  keyboardType="decimal-pad"
+                  style={{ padding: 14, fontSize: 15, color: "#fff" }}
+                  placeholderTextColor="#64748b"
+                />
+              </GlassCard>
+              <View style={{ flexDirection: "row", gap: 10 }}>
+                <TouchableOpacity
+                  onPress={() => setShowTipModal(false)}
+                  style={{ flex: 1, paddingVertical: 12, alignItems: "center" }}
+                >
+                  <Text style={{ fontSize: 14, color: "#94a3b8" }}>Cancel</Text>
+                </TouchableOpacity>
+                <View style={{ flex: 1 }}>
+                  <GradientButton
+                    onPress={handleTip}
+                    title={tipping ? "Sending..." : "Send Tip"}
+                    icon={<Send size={16} color="#fff" />}
+                    gradient={GRADIENTS.accent}
+                    fullWidth
+                    size="sm"
+                    loading={tipping}
+                    disabled={tipping || !tipAmount}
+                  />
+                </View>
+              </View>
+            </GlassCard>
+          </View>
+        </Modal>
 
         {/* Comments */}
         <View style={{ marginTop: 8 }}>

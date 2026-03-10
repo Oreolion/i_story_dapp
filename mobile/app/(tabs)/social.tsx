@@ -16,7 +16,8 @@ import Animated, {
   withSequence,
 } from "react-native-reanimated";
 import { router } from "expo-router";
-import { Search, Heart, MessageCircle, Share2, Lock } from "lucide-react-native";
+import { Search, Heart, MessageCircle, Share2, Lock, UserPlus, UserCheck } from "lucide-react-native";
+import { Share } from "react-native";
 import * as Haptics from "expo-haptics";
 import { useAuthStore } from "../../stores/authStore";
 import { apiGet, apiPost } from "../../lib/api";
@@ -113,6 +114,30 @@ export default function SocialScreen() {
     await apiPost("/api/social/like", { storyId });
   };
 
+  const handleFollow = async (authorId: string) => {
+    if (!isAuthenticated) {
+      router.push("/auth/login");
+      return;
+    }
+    setStories((prev) =>
+      prev.map((s) =>
+        (s.author as any).id === authorId || s.author.wallet_address === authorId
+          ? { ...s, author: { ...s.author, isFollowing: !s.author.isFollowing } }
+          : s
+      )
+    );
+    await apiPost("/api/social/follow", { targetUserId: authorId });
+  };
+
+  const handleShare = async (story: StoryDataType) => {
+    try {
+      await Share.share({
+        title: story.title,
+        message: `"${story.title}" on eStory\n\nhttps://e-story-dapp.vercel.app/story/${story.id}`,
+      });
+    } catch {}
+  };
+
   const filteredStories = stories.filter(
     (s) =>
       s.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -140,6 +165,17 @@ export default function SocialScreen() {
               </Text>
               <Text style={{ fontSize: 11, color: "#64748b" }}>{item.timestamp}</Text>
             </View>
+            {isAuthenticated && !item.author.isFollowing && (
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation?.();
+                  handleFollow((item.author as any).id || item.author.wallet_address || "");
+                }}
+                style={{ marginRight: 8 }}
+              >
+                <UserPlus size={16} color="#818cf8" />
+              </TouchableOpacity>
+            )}
             <Badge text={item.mood} />
           </View>
 
@@ -171,10 +207,13 @@ export default function SocialScreen() {
               <MessageCircle size={18} color="#64748b" />
               <Text style={{ fontSize: 13, color: "#94a3b8" }}>{item.comments}</Text>
             </View>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+            <TouchableOpacity
+              onPress={() => handleShare(item)}
+              style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
+            >
               <Share2 size={18} color="#64748b" />
-              <Text style={{ fontSize: 13, color: "#94a3b8" }}>{item.shares}</Text>
-            </View>
+              <Text style={{ fontSize: 13, color: "#94a3b8" }}>Share</Text>
+            </TouchableOpacity>
           </View>
         </GlassCard>
       </TouchableOpacity>
