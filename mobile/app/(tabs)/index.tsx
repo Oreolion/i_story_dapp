@@ -9,7 +9,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { Mic, BookOpen, Users, TrendingUp, Wallet } from "lucide-react-native";
+import { Mic, BookOpen, Users, TrendingUp, Wallet, Flame, Bell } from "lucide-react-native";
 import { useAccount } from "wagmi";
 import { useAuthStore } from "../../stores/authStore";
 import { apiGet } from "../../lib/api";
@@ -26,7 +26,7 @@ import {
 export default function HomeScreen() {
   const { user, isAuthenticated } = useAuthStore();
   const { address, isConnected } = useAccount();
-  const [stats, setStats] = useState({ stories: 0, books: 0, followers: 0 });
+  const [stats, setStats] = useState({ stories: 0, books: 0, streak: 0 });
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -36,15 +36,15 @@ export default function HomeScreen() {
       return;
     }
     try {
-      const res = await apiGet<{ user: { stories_count?: number } }>(
-        "/api/user/profile"
-      );
-      if (res.ok && res.data) {
-        setStats((prev) => ({
-          ...prev,
-          stories: res.data?.user?.stories_count || 0,
-        }));
-      }
+      const [profileRes, booksRes] = await Promise.all([
+        apiGet<{ user: { stories_count?: number } }>("/api/user/profile"),
+        apiGet<{ books?: { length?: number }; count?: number }>("/api/books"),
+      ]);
+      setStats((prev) => ({
+        ...prev,
+        stories: profileRes.data?.user?.stories_count || 0,
+        books: (booksRes.data as any)?.books?.length || (booksRes.data as any)?.count || 0,
+      }));
     } catch {} finally {
       setLoading(false);
     }
@@ -153,10 +153,10 @@ export default function HomeScreen() {
                     <StatCard value={stats.stories} label="Stories" color="#fff" />
                     <StatCard value={stats.books} label="Books" color="#fff" />
                     <StatCard
-                      value={0}
+                      value={stats.streak}
                       label="Streak"
-                      color="#4ade80"
-                      icon={<TrendingUp size={18} color="#4ade80" />}
+                      color="#fb923c"
+                      icon={<Flame size={18} color="#fb923c" />}
                     />
                   </>
                 )}

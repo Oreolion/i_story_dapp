@@ -13,8 +13,10 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { Mail, Lock, X } from "lucide-react-native";
+import { Mail, Lock, X, Wallet } from "lucide-react-native";
 import Toast from "react-native-toast-message";
+import { useAccount, useSignMessage } from "wagmi";
+import { useAppKit } from "@reown/appkit-react-native";
 import { useAuthStore } from "../../stores/authStore";
 import { signInWithGoogleNative } from "../../lib/googleAuth";
 import {
@@ -27,11 +29,15 @@ import {
 } from "../../components/ui";
 
 export default function LoginScreen() {
-  const { loginWithEmail, loginWithGoogleIdToken, resetPassword } = useAuthStore();
+  const { loginWithEmail, loginWithGoogleIdToken, loginWithWallet, resetPassword } = useAuthStore();
+  const { address, isConnected } = useAccount();
+  const { signMessageAsync } = useSignMessage();
+  const { open } = useAppKit();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [walletLoading, setWalletLoading] = useState(false);
 
   const handleEmailLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -83,6 +89,42 @@ export default function LoginScreen() {
             Alert.alert("Error", "Failed to send reset email. Try again.");
           }
         })();
+  };
+
+  // Auto-login after wallet connection
+  React.useEffect(() => {
+    if (isConnected && address && walletLoading) {
+      handleWalletLogin();
+    }
+  }, [isConnected, address]);
+
+  const handleWalletConnect = async () => {
+    setWalletLoading(true);
+    try {
+      await open();
+      // Login will be triggered by the useEffect above when wallet connects
+    } catch {
+      setWalletLoading(false);
+    }
+  };
+
+  const handleWalletLogin = async () => {
+    if (!address) {
+      setWalletLoading(false);
+      return;
+    }
+    try {
+      await loginWithWallet(address, async (message: string) => {
+        return await signMessageAsync({ message });
+      });
+      Toast.show({ type: "success", text1: "Signed in with wallet!" });
+      router.replace("/");
+    } catch (err) {
+      console.error("[Login] Wallet login failed:", err);
+      Toast.show({ type: "error", text1: "Wallet sign-in failed. Try again." });
+    } finally {
+      setWalletLoading(false);
+    }
   };
 
   const handleGoogleLogin = async () => {
@@ -230,6 +272,34 @@ export default function LoginScreen() {
                   </Text>
                 </TouchableOpacity>
               </GlassCard>
+            </AnimatedListItem>
+
+            {/* Wallet Sign In */}
+            <AnimatedListItem index={6}>
+              <View style={{ marginTop: 12 }}>
+                <GlassCard
+                  intensity="medium"
+                  style={{ overflow: "hidden" }}
+                >
+                  <TouchableOpacity
+                    onPress={handleWalletConnect}
+                    disabled={walletLoading}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 12,
+                      paddingVertical: 16,
+                      opacity: walletLoading ? 0.5 : 1,
+                    }}
+                  >
+                    <Wallet size={20} color="#a78bfa" />
+                    <Text style={{ fontSize: 16, fontWeight: "600", color: "#fff" }}>
+                      {walletLoading ? "Connecting..." : "Connect Wallet"}
+                    </Text>
+                  </TouchableOpacity>
+                </GlassCard>
+              </View>
             </AnimatedListItem>
 
             {/* Sign Up link */}

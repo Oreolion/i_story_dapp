@@ -1,4 +1,4 @@
-// Profile Screen - User info, achievements, settings
+// Profile Screen - User info, achievements, settings, avatar upload
 import React, { useState } from "react";
 import {
   View,
@@ -6,7 +6,9 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  Alert,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, {
   useSharedValue,
@@ -22,11 +24,13 @@ import {
   Edit3,
   Check,
   X,
+  Camera,
 } from "lucide-react-native";
 import Toast from "react-native-toast-message";
 import { useAccount } from "wagmi";
 import { useAppKit } from "@reown/appkit-react-native";
 import { useAuthStore } from "../../stores/authStore";
+import { apiUpload } from "../../lib/api";
 import {
   GlassCard,
   GradientButton,
@@ -46,6 +50,7 @@ export default function ProfileScreen() {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(user?.name || "");
   const [bio, setBio] = useState(user?.bio || "");
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   const signOutScale = useSharedValue(1);
   const signOutAnimated = useAnimatedStyle(() => ({
@@ -69,6 +74,44 @@ export default function ProfileScreen() {
       </SafeAreaView>
     );
   }
+
+  const handleAvatarPick = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission needed", "Photo library access is required to change your avatar.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    setUploadingAvatar(true);
+    try {
+      const asset = result.assets[0];
+      const formData = new FormData();
+      formData.append("file", {
+        uri: asset.uri,
+        type: asset.mimeType || "image/jpeg",
+        name: "avatar.jpg",
+      } as unknown as Blob);
+      if (user?.id) formData.append("userId", user.id);
+      formData.append("type", "avatar");
+      const res = await apiUpload<{ success: boolean; url: string }>("/api/user/profile", formData);
+      if (res.ok && res.data?.url) {
+        await updateProfile({ avatar: res.data.url });
+        Toast.show({ type: "success", text1: "Avatar updated!" });
+      } else {
+        Toast.show({ type: "error", text1: "Upload failed" });
+      }
+    } catch {
+      Toast.show({ type: "error", text1: "Avatar upload failed" });
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   const handleSave = async () => {
     try {
@@ -105,12 +148,33 @@ export default function ProfileScreen() {
         {/* Avatar & Name */}
         <AnimatedListItem index={1}>
           <GlassCard intensity="medium" style={{ padding: 24, alignItems: "center" }}>
-            <Avatar
-              uri={user.avatar}
-              name={user.name}
-              size="xl"
-              withGradientBorder
-            />
+            <TouchableOpacity onPress={handleAvatarPick} disabled={uploadingAvatar} activeOpacity={0.8}>
+              <View>
+                <Avatar
+                  uri={user.avatar}
+                  name={user.name}
+                  size="xl"
+                  withGradientBorder
+                />
+                <View
+                  style={{
+                    position: "absolute",
+                    bottom: 0,
+                    right: 0,
+                    width: 32,
+                    height: 32,
+                    borderRadius: 16,
+                    backgroundColor: "#818cf8",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderWidth: 2,
+                    borderColor: "#0f172a",
+                  }}
+                >
+                  <Camera size={14} color="#fff" />
+                </View>
+              </View>
+            </TouchableOpacity>
 
             {editing ? (
               <View style={{ marginTop: 16, width: "100%", gap: 12 }}>

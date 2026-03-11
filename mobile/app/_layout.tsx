@@ -5,6 +5,8 @@ import "../global.css";
 
 import React, { useEffect } from "react";
 import { Platform } from "react-native";
+import * as Notifications from "expo-notifications";
+import { router } from "expo-router";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -15,6 +17,7 @@ import Toast from "react-native-toast-message";
 
 import { wagmiAdapter, appKit } from "../lib/wagmi.config";
 import { useAuthStore } from "../stores/authStore";
+import { useNotifications } from "../hooks/useNotifications";
 
 // AppKit only works on native (iOS/Android), not web
 let AppKitModal: React.ComponentType | null = null;
@@ -48,42 +51,66 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function NotificationInitializer({ children }: { children: React.ReactNode }) {
+  useNotifications();
+
+  useEffect(() => {
+    // Handle notification taps — deep link to relevant screen
+    const subscription = Notifications.addNotificationResponseReceivedListener(
+      (response) => {
+        const data = response.notification.request.content.data;
+        if (data?.story_id) {
+          router.push(`/story/${data.story_id}`);
+        }
+      }
+    );
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  return <>{children}</>;
+}
+
 export default function RootLayout() {
   const content = (
     <WagmiProvider config={wagmiAdapter.wagmiConfig}>
       <QueryClientProvider client={queryClient}>
         <AuthInitializer>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: "#0f172a" },
-            }}
-          >
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen
-              name="story/[storyId]"
-              options={{ headerShown: false, presentation: "card" }}
-            />
-            <Stack.Screen
-              name="book/[bookId]"
-              options={{ headerShown: false, presentation: "card" }}
-            />
-            <Stack.Screen
-              name="auth/login"
-              options={{ headerShown: false, presentation: "modal" }}
-            />
-            <Stack.Screen
-              name="auth/signup"
-              options={{ headerShown: false, presentation: "modal" }}
-            />
-            <Stack.Screen
-              name="auth/onboarding"
-              options={{ headerShown: false, presentation: "modal" }}
-            />
-          </Stack>
-          {AppKitModal && <AppKitModal />}
-          <Toast />
-          <StatusBar style="light" />
+          <NotificationInitializer>
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: "#0f172a" },
+              }}
+            >
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen
+                name="story/[storyId]"
+                options={{ headerShown: false, presentation: "card" }}
+              />
+              <Stack.Screen
+                name="book/[bookId]"
+                options={{ headerShown: false, presentation: "card" }}
+              />
+              <Stack.Screen
+                name="auth/login"
+                options={{ headerShown: false, presentation: "modal" }}
+              />
+              <Stack.Screen
+                name="auth/signup"
+                options={{ headerShown: false, presentation: "modal" }}
+              />
+              <Stack.Screen
+                name="auth/onboarding"
+                options={{ headerShown: false, presentation: "modal" }}
+              />
+            </Stack>
+            {AppKitModal && <AppKitModal />}
+            <Toast />
+            <StatusBar style="light" />
+          </NotificationInitializer>
         </AuthInitializer>
       </QueryClientProvider>
     </WagmiProvider>
