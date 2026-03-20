@@ -26,7 +26,7 @@ const VALID_LIFE_DOMAINS = [
   'creativity', 'spirituality', 'family', 'adventure', 'learning', 'general'
 ] as const;
 
-const ANALYSIS_PROMPT = `You are a cognitive analysis engine for a personal journaling app. Analyze the following story and extract structured metadata.
+const ANALYSIS_PROMPT = `You are a cognitive analysis engine for a storytelling platform. Users write about anything — personal journals, history, geopolitics, culture, creative non-fiction, and more. Analyze the following story and extract structured metadata.
 
 Story:
 """
@@ -44,19 +44,21 @@ Extract and return ONLY valid JSON (no markdown, no code blocks, no explanation)
   "people_mentioned": ["name1", "name2"],
   "places_mentioned": ["place1", "place2"],
   "time_references": ["reference1", "reference2"],
-  "brief_insight": "A single sentence insight about this story's meaning or significance."
+  "brief_insight": "A single sentence insight about this story's meaning or significance.",
+  "actionable_advice": "A practical, encouraging suggestion based on the themes and content of this story."
 }
 
 Guidelines:
-- themes: 1-5 key themes from the story (e.g., "growth", "loss", "discovery", "connection")
+- themes: 1-5 key themes from the story (e.g., "growth", "loss", "discovery", "connection", "geopolitics", "culture", "history")
 - emotional_tone: MUST be one of: reflective, joyful, anxious, hopeful, melancholic, grateful, frustrated, peaceful, excited, uncertain, neutral
 - life_domain: MUST be one of: work, relationships, health, identity, growth, creativity, spirituality, family, adventure, learning, general
 - intensity_score: 0.0-1.0, how emotionally charged is this story?
-- significance_score: 0.0-1.0, how important is this event to the person's life story?
+- significance_score: 0.0-1.0, how important is this event to the person's life story or the topic explored?
 - people_mentioned: Extract proper names of people mentioned (empty array if none)
 - places_mentioned: Extract specific locations mentioned (empty array if none)
 - time_references: Extract time references like "last summer", "when I was 12", "yesterday" (empty array if none)
 - brief_insight: A compassionate, insightful one-sentence observation about the story's meaning
+- actionable_advice: A specific, practical suggestion the author could act on based on what they wrote. For personal stories, this could be a self-improvement tip or reflection prompt. For historical/geopolitical/cultural stories, this could be a suggestion to explore a related topic, research a source, or consider an alternative perspective. Keep it encouraging, not prescriptive. 1-2 sentences max.
 
 Return ONLY the JSON object, nothing else.`;
 
@@ -261,6 +263,9 @@ function sanitizeMetadata(metadata: Record<string, unknown>): Record<string, unk
       : [],
     brief_insight: typeof metadata.brief_insight === 'string'
       ? metadata.brief_insight.slice(0, 500)
+      : null,
+    actionable_advice: typeof metadata.actionable_advice === 'string'
+      ? metadata.actionable_advice.slice(0, 500)
       : null,
   };
 }

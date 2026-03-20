@@ -19,7 +19,7 @@ The key insight: **Chainlink doesn't replace your AI — it makes your AI trustw
 
 ## Privacy Architecture
 
-eStory is a personal journaling app. Users self-censor when their emotional inner world is broadcast on a public blockchain. The privacy-preserving CRE integration solves this with a **dual-write model**:
+eStory is a storytelling platform handling both private journals and public stories (history, geopolitics, culture, creative non-fiction). Authors self-censor when their analysis data is broadcast on a public blockchain. The privacy-preserving CRE integration solves this with a **dual-write model**:
 
 ### What's Public (On-Chain)
 - Quality tier (1-5): "High Quality" — not the exact score
@@ -45,7 +45,7 @@ Anyone can verify that a story was analyzed and meets quality standards. Only th
 
 ## What Triggers Verification?
 
-**It is triggered automatically when a user saves a journal entry.** There is no "Verify" button the user clicks.
+**It is triggered automatically when a user saves a story.** There is no "Verify" button the user clicks.
 
 In `app/api/journal/save/route.ts`, after the story is successfully saved to Supabase, the API fires off a background request to `/api/cre/trigger`. This is **fire-and-forget** — the save succeeds immediately, and CRE runs asynchronously.
 
@@ -377,14 +377,17 @@ Get-Content input.json | cre workflow simulate iStory_workflow --broadcast
 ```
 
 Notes
+
 - `--broadcast` requires the CRE runner's configured EVM signer to have testnet funds and the workflow `evm` config set to the correct chain.
 - If you only want to show the CRE logs without writing on-chain, run the simulate command without `--broadcast` and the runner will go through Steps 1-8 but skip a real transaction.
 EOF
 
 # Dry run (local only)
+
 cat input.json | cre workflow simulate iStory_workflow
 
 # Real on-chain write
+
 cat input.json | cre workflow simulate iStory_workflow --broadcast
 ```
 
@@ -416,3 +419,22 @@ cast call $CONTRACT_ADDRESS \
 # Returns: (true, 4, 0xabc...hash, 0xdef...commitment, 0x123...attestation, 1709123456)
 # NO scores, NO themes, NO wallet address visible
 ```
+
+
+### dev note
+
+#### here are the things i notice needs touching in app now
+
+- make sure the onbaording process is production ready and that the vault to be able to add/save files to device is also requested during onboarding
+- app should be Oauth or manual sign-up or registration first and adding web3 wallet should be requested during onboarding for users who want to add that
+- there is a error in the web url attached to email sent to users joining the waitlist, make sure it is correct as e-story-dapp.vercel.app although it is a free domain i will be adding the paid domain soon when it is ready so note that, or note to add it when it is . paid domain is estories.app purchased from cloudflare so we will be wiring that up neatly, so use this in waitlist instead
+- we will also be adding a feature so that users can add a new story to a particular story as a continuation and collection of that story
+- add very affordable pricing base on all you know on this project and faqs
+- also ai that finds themes can also suggest actionable advises depending on analyzed data from stories
+- Run Supabase migrations if not already done: `005_create_waitlist_table.sql`, `006_create_verified_metrics_tables.sql`
+- `/api/ai/reflection` missing auth guard
+- Short text analysis needs client-side guard (<50 chars)
+- Mainnet migration when conditions met (3000+ users, stable 4+ weeks)
+
+
+- using the development guide and design used in the project, create a structure that i can just copy to use in another project, it doesnt have to use the same dependencies or tools as they are obviously different apps for different things, what i need is architectural framework, design patterns that works here and is standard and conventional, including tests, securities, seo, mobile-app etc also make sure it is conventional and production ready before you see it as that. i just need something global my dev environment can always use as guard, something 100% production ready, well tested and guanrateed across everthing that makes a production app standard. 

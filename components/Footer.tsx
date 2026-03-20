@@ -87,7 +87,7 @@ export function Footer() {
                   <LogoMark size={36} />
                 </motion.div>
                 <span className="text-2xl font-bold bg-gradient-to-r from-[#d4a04a] via-[#9b7dd4] to-[#6c3dbd] bg-clip-text text-transparent">
-                  eStory
+                  eStories
                 </span>
               </Link>
               <p className="text-gray-600 dark:text-gray-400 leading-relaxed max-w-xs">
@@ -121,7 +121,7 @@ export function Footer() {
                 <motion.a
                   whileHover={{ scale: 1.1, rotate: 5 }}
                   whileTap={{ scale: 0.95 }}
-                  href="mailto:contact@estory.com"
+                  href="mailto:contact@estories.app"
                   className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-purple-100 dark:hover:bg-purple-900/30 hover:text-purple-600 transition-colors"
                   aria-label="Email"
                 >
@@ -240,11 +240,11 @@ export function Footer() {
               variants={itemVariants}
               className="text-sm text-gray-600 dark:text-gray-400"
             >
-              © 2026 EStory. All rights reserved. Built with{" "}
+              © 2026 EStories. All rights reserved. Built with{" "}
               <Heart className="w-4 h-4 inline text-red-500 animate-pulse" /> by
               the{" "}
               <span className="font-semibold text-purple-600 dark:text-purple-400">
-                eStory Team
+                eStories Team
               </span>
             </motion.p>
 

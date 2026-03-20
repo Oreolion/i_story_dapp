@@ -233,6 +233,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         // PRIORITY 5: Create new Google-only user (fresh Google sign-up)
+        // Set is_onboarded: false so they go through OnboardingModal to pick a username
         const { data: created, error: createErr } = await supabase
           .from("users")
           .upsert(
@@ -246,7 +247,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               avatar: user.user_metadata?.avatar_url ?? null,
               google_id: googleId,
               auth_provider: "google",
-              is_onboarded: true,
+              is_onboarded: false,
               wallet_address: null,
             },
             { onConflict: "id", ignoreDuplicates: true }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-hot-toast";
 
@@ -57,6 +58,8 @@ import {
 export default function RecordPage() {
   const { isConnected } = useApp();
   const { profile: authInfo } = useAuth();
+  const searchParams = useSearchParams();
+  const parentStoryId = searchParams.get("parentId");
 
   // Set background mode for this page
   useBackgroundMode('record');
@@ -65,6 +68,7 @@ export default function RecordPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [transcribedText, setTranscribedText] = useState("");
   const [entryTitle, setEntryTitle] = useState("");
+  const [parentStoryTitle, setParentStoryTitle] = useState<string | null>(null);
   
   // NEW: Visibility State
   const [isPublic, setIsPublic] = useState(false); // Default to Private
@@ -95,7 +99,7 @@ export default function RecordPage() {
   const { getAccessToken } = useAuth();
 
   // ─── Draft persistence (survives page reloads) ───────────────────────
-  const DRAFT_KEY = "estory_record_draft";
+  const DRAFT_KEY = "estories_record_draft";
 
   // Restore draft on mount
   useEffect(() => {
@@ -129,6 +133,19 @@ export default function RecordPage() {
     const timer = setTimeout(saveDraft, 500);
     return () => clearTimeout(timer);
   }, [saveDraft]);
+
+  // Fetch parent story title when continuing a story
+  useEffect(() => {
+    if (!parentStoryId || !supabase) return;
+    supabase
+      .from("stories")
+      .select("title")
+      .eq("id", parentStoryId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.title) setParentStoryTitle(data.title);
+      });
+  }, [parentStoryId, supabase]);
 
   // Helper to build auth headers from centralized token
   const getAuthHeaders = async (): Promise<Record<string, string>> => {
@@ -351,7 +368,7 @@ export default function RecordPage() {
           date: storyDate, // User-selected date
           timestamp: actualCreatedDate, // System upload time
           is_public: isPublic, // Visibility state
-          app: "EStory DApp",
+          app: "EStories DApp",
         };
 
         const token = await getAccessToken();
@@ -360,7 +377,7 @@ export default function RecordPage() {
         console.log("Story pinned to IPFS:", ipfsHash);
 
         // C. Save to Supabase via API route (bypasses RLS, works for both wallet & OAuth users)
-        const storyData = {
+        const storyData: Record<string, unknown> = {
           author_id: userId,
           author_wallet: authInfo.wallet_address,
           title: entryTitle,
@@ -373,6 +390,7 @@ export default function RecordPage() {
           is_public: isPublic,
           created_at: actualCreatedDate,
           story_date: backdatedStoryDate,
+          ...(parentStoryId ? { parent_story_id: parentStoryId } : {}),
         };
 
         const saveHeaders = await getAuthHeaders();
@@ -427,7 +445,8 @@ export default function RecordPage() {
         }
 
         // Trigger AI analysis in background (fire-and-forget)
-        if (insertedStory?.id) {
+        // Only analyze stories with enough content (API requires >= 50 chars)
+        if (insertedStory?.id && transcribedText.trim().length >= 50) {
           const analyzeHeaders = await getAuthHeaders();
           fetch("/api/ai/analyze", {
             method: "POST",
@@ -438,6 +457,11 @@ export default function RecordPage() {
             }),
             keepalive: true,
           }).catch((err) => console.warn("Analysis trigger failed:", err));
+        } else if (insertedStory?.id && transcribedText.trim().length < 50) {
+          toast("Story saved! Write more to unlock AI insights.", {
+            icon: "\u{1F4DD}",
+            duration: 4000,
+          });
         }
 
         return "Story saved & pinned to IPFS!";
@@ -624,6 +648,18 @@ export default function RecordPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Continuation Banner */}
+      {parentStoryId && parentStoryTitle && (
+        <Card className="border-[hsl(var(--memory-500)/0.3)] bg-[hsl(var(--memory-500)/0.05)] rounded-xl">
+          <CardContent className="py-3 px-4 flex items-center gap-3">
+            <FileText className="w-4 h-4 text-[hsl(var(--memory-500))] flex-shrink-0" />
+            <span className="text-sm text-gray-600 dark:text-gray-300">
+              Continuing: <strong className="text-gray-900 dark:text-white">{parentStoryTitle}</strong>
+            </span>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Entry Details (Title & Date) */}
       <Card className="card-elevated rounded-xl">

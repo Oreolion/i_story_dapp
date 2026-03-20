@@ -9,6 +9,7 @@ import { useApp } from "../../components/Provider";
 import { useAuth } from "../../components/AuthProvider";
 import { emailService } from "../utils/emailService";
 import { useStoryNFT } from "../hooks/useStoryNFT";
+import { useWalletGuard } from "../hooks/useWalletGuard";
 import { supabaseClient } from "../utils/supabase/supabaseClient";
 import { ipfsService } from "../utils/ipfsService";
 import { useBackgroundMode } from "@/contexts/BackgroundContext";
@@ -106,6 +107,7 @@ export default function ProfilePage() {
   useBackgroundMode('profile');
 
   const { mintBook, isPending: isMinting } = useStoryNFT();
+  const { requireWallet } = useWalletGuard();
 
   // Data State
   const [profileData, setProfileData] = useState<UserProfileData | null>(null);
@@ -147,7 +149,7 @@ export default function ProfilePage() {
     if (!authInfo?.id || !address) return;
     setIsLinkingWallet(true);
     try {
-      const message = `Link wallet ${address.toLowerCase()} to eStory account ${authInfo.id}`;
+      const message = `Link wallet ${address.toLowerCase()} to eStories account ${authInfo.id}`;
       const signature = await signMessageAsync({ message });
       const token = await getAccessToken();
       const res = await fetch("/api/auth/link-account", {
@@ -206,7 +208,7 @@ export default function ProfilePage() {
     setIsLinkingGoogle(true);
     try {
       // Step 1: Sign message to prove wallet ownership
-      const message = `Link Google account to eStory wallet ${address.toLowerCase()}\n\nTimestamp: ${Date.now()}`;
+      const message = `Link Google account to eStories wallet ${address.toLowerCase()}\n\nTimestamp: ${Date.now()}`;
       const signature = await signMessageAsync({ message });
 
       // Step 2: Get secure linking token from server
@@ -342,10 +344,9 @@ export default function ProfilePage() {
         
         setActivityData(listData);
 
-        // --- Heatmap Data (Last 6 Months) ---
+        // --- Heatmap Data (Last ~52 weeks, matching grid) ---
         const heatmap = [];
-        // Create a grid of roughly 24 weeks (approx 6 months)
-        for (let i = 168; i >= 0; i--) {
+        for (let i = 371; i >= 0; i--) {
             const d = new Date();
             d.setDate(now.getDate() - i);
             const dateStr = d.toISOString().split('T')[0];
@@ -442,6 +443,7 @@ export default function ProfilePage() {
   };
 
   const handleCompileDailyJournal = async () => {
+    if (!requireWallet("mint a Daily Journal NFT")) return;
     if (todaysStories.length < 2) return toast.error("Need at least 2 stories today to compile.");
     if (!authInfo?.id || !supabase) return;
 
@@ -453,7 +455,7 @@ export default function ProfilePage() {
        const metadata = {
            name: `Daily Journal - ${dateStr}`,
            description: `A collection of ${todaysStories.length} moments captured on ${dateStr}.`,
-           external_url: "https://estory.vercel.app",
+           external_url: "https://estories.app",
            attributes: [
                { trait_type: "Author", value: authInfo.name },
                { trait_type: "Date", value: dateStr },
@@ -776,9 +778,25 @@ export default function ProfilePage() {
                 <CardContent>
                   {/* Heatmap Grid - GitHub Style */}
                   <div className="flex flex-col space-y-2 mb-8">
-                    {/* Month Labels (Approximate distribution) */}
+                    {/* Dynamic Month Labels */}
                     <div className="flex justify-between px-8 text-xs text-gray-400 select-none">
-                      <span>Jan</span><span>Mar</span><span>May</span><span>Jul</span><span>Sep</span><span>Nov</span>
+                      {(() => {
+                        const today = new Date();
+                        const labels = [];
+                        // Show 12 months spanning the grid range
+                        for (let i = 11; i >= 0; i--) {
+                          const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+                          const label = d.toLocaleDateString('en-US', { month: 'short' });
+                          // Show year on Jan or first label
+                          const showYear = d.getMonth() === 0 || i === 11;
+                          labels.push(
+                            <span key={i} className="text-center">
+                              {label}{showYear ? ` '${String(d.getFullYear()).slice(2)}` : ''}
+                            </span>
+                          );
+                        }
+                        return labels;
+                      })()}
                     </div>
 
                     <div className="flex gap-2 items-start overflow-x-auto pb-2">

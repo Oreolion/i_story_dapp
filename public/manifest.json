@@ -1,7 +1,7 @@
 {
-  "name": "eStory - AI-Powered Blockchain Journaling",
-  "short_name": "eStory",
-  "description": "Record your life stories with AI transcription, store them on blockchain, and discover patterns in your narrative.",
+  "name": "eStories - AI-Powered Sovereign Storytelling Platform",
+  "short_name": "eStories",
+  "description": "Record and write stories about anything you're passionate about — personal journals, history, geopolitics, culture, creative non-fiction. AI-powered insights, blockchain provenance, and privacy by default.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",

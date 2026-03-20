@@ -19,7 +19,7 @@ interface WaitlistEmailProps {
 
 export const WaitlistEmail = ({ email }: WaitlistEmailProps) => {
   const previewText =
-    "You're on the EStory waitlist — we'll let you know when the mobile app launches.";
+    "You're on the EStories waitlist — we'll let you know when the mobile app launches.";
 
   return (
     <Html>
@@ -31,19 +31,21 @@ export const WaitlistEmail = ({ email }: WaitlistEmailProps) => {
             <Section className="mt-[32px]">
               <Heading className="text-black text-[24px] font-normal text-center p-0 my-[30px] mx-0">
                 You&apos;re on the list{" "}
-                <span className="font-bold text-amber-600">EStory</span>
+                <span className="font-bold text-amber-600">EStories</span>
               </Heading>
             </Section>
 
             <Text className="text-black text-[14px] leading-[24px]">
               Thanks for signing up! We&apos;ve added{" "}
-              <strong>{email}</strong> to the EStory mobile app waitlist.
+              <strong>{email}</strong> to the EStories mobile app waitlist.
             </Text>
 
             <Text className="text-black text-[14px] leading-[24px]">
-              EStory is the first decentralized voice journaling platform —
+              EStories is the first decentralized voice storytelling platform —
               capture your stories with your voice, get AI-powered insights,
-              and own your memories on-chain.
+              and own your narratives on-chain. Whether it&apos;s personal
+              journals, history, geopolitics, or cultural tales — your
+              stories deserve to be heard.
             </Text>
 
             <Text className="text-black text-[14px] leading-[24px]">
@@ -53,10 +55,10 @@ export const WaitlistEmail = ({ email }: WaitlistEmailProps) => {
 
             <Section className="text-center mt-[32px] mb-[32px]">
               <Link
-                href="https://estory.vercel.app"
+                href="https://estories.app"
                 className="bg-[#d4a04a] rounded text-white text-[12px] font-semibold no-underline text-center px-5 py-3"
               >
-                Try EStory Web App
+                Try EStories Web App
               </Link>
             </Section>
 
@@ -64,7 +66,7 @@ export const WaitlistEmail = ({ email }: WaitlistEmailProps) => {
 
             <Text className="text-[#666666] text-[12px] leading-[24px]">
               You received this email because {email} was signed up for the
-              EStory waitlist. If this wasn&apos;t you, you can safely ignore
+              EStories waitlist. If this wasn&apos;t you, you can safely ignore
               this email.
             </Text>
           </Container>

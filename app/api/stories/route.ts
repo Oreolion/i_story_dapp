@@ -55,12 +55,13 @@ export async function POST(req: NextRequest) {
       is_public,
       created_at,
       story_date,
+      parent_story_id,
     } = body ?? {};
 
-    // Basic validation
-    if (!author_id || !author_wallet || !title || !content) {
+    // Basic validation (author_wallet is optional for Google-only users)
+    if (!author_id || !title || !content) {
       return NextResponse.json(
-        { error: "Missing required fields (author_id, author_wallet, title, content)." },
+        { error: "Missing required fields (author_id, title, content)." },
         { status: 400 }
       );
     }
@@ -75,7 +76,7 @@ export async function POST(req: NextRequest) {
 
     const admin = createSupabaseAdminClient();
 
-    // Extra safety: verify that this user exists + wallet matches
+    // Extra safety: verify that this user exists
     const { data: userRow, error: userErr } = await admin
       .from("users")
       .select("id, wallet_address")
@@ -87,14 +88,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 401 });
     }
 
-    if (userRow.wallet_address !== author_wallet.toLowerCase()) {
-      console.warn("[API /stories] wallet mismatch for user", author_id);
-      return NextResponse.json({ error: "Wallet mismatch" }, { status: 401 });
+    // Verify wallet matches if both sides have one (skip for Google-only users)
+    if (author_wallet && userRow.wallet_address) {
+      if (userRow.wallet_address.toLowerCase() !== author_wallet.toLowerCase()) {
+        console.warn("[API /stories] wallet mismatch for user", author_id);
+        return NextResponse.json({ error: "Wallet mismatch" }, { status: 401 });
+      }
     }
 
     const insertData: Record<string, unknown> = {
       author_id,
-      author_wallet: author_wallet.toLowerCase(),
+      author_wallet: author_wallet?.toLowerCase() ?? userRow.wallet_address ?? null,
       title,
       content,
       has_audio: !!has_audio,
@@ -111,6 +115,7 @@ export async function POST(req: NextRequest) {
     // Optional date fields
     if (created_at) insertData.created_at = created_at;
     if (story_date) insertData.story_date = story_date;
+    if (parent_story_id) insertData.parent_story_id = parent_story_id;
 
     const { data: inserted, error: insertError } = await admin
       .from("stories")

@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 
 export const runtime = "edge";
-export const alt = "eStory - AI-Powered Blockchain Journaling";
+export const alt = "eStories - AI-Powered Sovereign Storytelling";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -55,7 +55,7 @@ export default async function OGImage() {
             marginBottom: 16,
           }}
         >
-          eStory
+          eStories
         </div>
 
         {/* Tagline */}
@@ -69,7 +69,7 @@ export default async function OGImage() {
             maxWidth: 700,
           }}
         >
-          AI-Powered Blockchain Journaling
+          AI-Powered Sovereign Storytelling
         </div>
 
         {/* Feature badges */}
@@ -108,7 +108,7 @@ export default async function OGImage() {
             color: "rgba(255,255,255,0.5)",
           }}
         >
-          estory.vercel.app
+          estories.app
         </div>
       </div>
     ),

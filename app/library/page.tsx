@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description:
     "Browse your personal journal archive. View stories, compiled books, themes, and life patterns discovered by AI.",
   openGraph: {
-    title: "Your Story Archive | eStory",
+    title: "Your Story Archive | eStories",
     description:
       "Browse your personal journal archive and discover AI-powered patterns.",
   },

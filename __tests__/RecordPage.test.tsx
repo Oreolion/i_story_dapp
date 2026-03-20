@@ -87,6 +87,11 @@ vi.mock("../components/Provider", () => ({
   }),
 }));
 
+// Mock next/navigation
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 // Mock BackgroundContext (3D background provider)
 vi.mock("../contexts/BackgroundContext", () => ({
   useBackground: () => ({

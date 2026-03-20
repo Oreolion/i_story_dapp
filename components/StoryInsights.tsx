@@ -356,6 +356,23 @@ export function StoryInsights({ storyId, storyText }: StoryInsightsProps) {
             </div>
           )}
 
+          {/* Actionable Advice */}
+          {metadata.actionable_advice && (
+            <div className="p-4 bg-[hsl(var(--memory-500)/0.1)] dark:bg-[hsl(var(--memory-500)/0.15)] rounded-lg border border-[hsl(var(--memory-500)/0.2)]">
+              <div className="flex items-start space-x-3">
+                <TrendingUp className="w-5 h-5 text-[hsl(var(--memory-500))] flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-medium text-[hsl(var(--memory-600))] dark:text-[hsl(var(--memory-400))] mb-1">
+                    Suggested Next Step
+                  </p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    {metadata.actionable_advice}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Emotional Tone & Life Domain */}
           <div className="flex flex-wrap gap-3">
             <div className="flex items-center space-x-2">

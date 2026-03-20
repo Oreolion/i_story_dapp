@@ -15,6 +15,7 @@ import { StoryDataType, EmotionalTone } from "@/app/types";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { VerifiedMetricsCard } from "@/components/VerifiedMetricsCard";
 import { useVerifiedMetrics } from "@/app/hooks/useVerifiedMetrics";
+import { useWalletGuard } from "@/app/hooks/useWalletGuard";
 
 interface StoryCardProps {
   story: StoryDataType;
@@ -58,6 +59,7 @@ export function StoryCard({
   const [isPaying, setIsPaying] = useState(false);
   const [isTipping, setIsTipping] = useState(false);
   const { metrics: verifiedMetrics, proof: verifiedProof, isPending: isVerifyPending, isVerified, isAuthor: isVerifyAuthor } = useVerifiedMetrics(story.id?.toString() || null);
+  const { requireWallet } = useWalletGuard();
   const { writeContract, data: tipHash } = useWriteContract();
   const { writeContract: payContract, data: payHash } = useWriteContract();
 
@@ -76,13 +78,14 @@ export function StoryCard({
   }, [isTxSuccess, payHash, onUnlock, story.id]);
 
   const handleTip = () => {
+    if (!requireWallet("tip authors")) return;
     setIsTipping(true);
     writeContract({
       address: ESTORY_TOKEN_ADDRESS as `0x${string}`,
       abi: eStoryTokenABI.abi,
       functionName: "tipCreator",
       args: [
-        story.author_wallet.username as `0x${string}`,
+        story.author_wallet.wallet_address as `0x${string}`,
         parseEther(tipAmount.toString()),
         BigInt(story.id),
       ],
@@ -90,6 +93,7 @@ export function StoryCard({
   };
 
   const handlePaywall = () => {
+    if (!requireWallet("unlock premium content")) return;
     if (story.paywallAmount === 0) return;
     setIsPaying(true);
     payContract({
@@ -97,7 +101,7 @@ export function StoryCard({
       abi: eStoryTokenABI.abi,
       functionName: "payPaywall",
       args: [
-        story.author_wallet.username as `0x${string}`,
+        story.author_wallet.wallet_address as `0x${string}`,
         parseEther(story.paywallAmount.toString()),
         BigInt(story.id),
       ],

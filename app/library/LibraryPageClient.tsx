@@ -50,8 +50,10 @@ import {
   Tags,
   Compass,
   ChevronDown,
+  FolderOpen,
+  Trash2,
 } from "lucide-react";
-import { moodColors, StoryWithMetadata } from "../types/index";
+import { moodColors, StoryWithMetadata, StoryCollection } from "../types/index";
 
 // Import pattern components
 import { ThemesView } from "@/components/patterns/ThemesView";
@@ -184,6 +186,13 @@ export default function LibraryPage() {
   const [newBookDesc, setNewBookDesc] = useState("");
   const [isSavingBook, setIsSavingBook] = useState(false);
 
+  // Collections State
+  const [collections, setCollections] = useState<StoryCollection[]>([]);
+  const [isCollectionsLoading, setIsCollectionsLoading] = useState(false);
+  const [isCreateCollectionOpen, setIsCreateCollectionOpen] = useState(false);
+  const [newCollectionTitle, setNewCollectionTitle] = useState("");
+  const [newCollectionDesc, setNewCollectionDesc] = useState("");
+
   // --- 1. Fetch Data ---
   const fetchData = async () => {
     if (!authInfo?.id || !supabase) return;
@@ -272,6 +281,68 @@ export default function LibraryPage() {
     else setIsLoading(false);
   }, [authInfo?.id, supabase]);
 
+  // --- 1b. Fetch Collections ---
+  const fetchCollections = async () => {
+    const token = await getAccessToken();
+    if (!token) return;
+    setIsCollectionsLoading(true);
+    try {
+      const res = await fetch("/api/stories/collections", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const { collections: data } = await res.json();
+        setCollections(data || []);
+      }
+    } catch (err) {
+      console.error("[LIBRARY] Collections fetch error:", err);
+    } finally {
+      setIsCollectionsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (authInfo?.id) fetchCollections();
+  }, [authInfo?.id]);
+
+  const handleCreateCollection = async () => {
+    if (!newCollectionTitle.trim()) return toast.error("Title is required");
+    const token = await getAccessToken();
+    if (!token) return toast.error("Not authenticated");
+
+    try {
+      const res = await fetch("/api/stories/collections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ title: newCollectionTitle.trim(), description: newCollectionDesc.trim() || null }),
+      });
+      if (!res.ok) throw new Error("Failed to create collection");
+      toast.success("Collection created!");
+      setIsCreateCollectionOpen(false);
+      setNewCollectionTitle("");
+      setNewCollectionDesc("");
+      fetchCollections();
+    } catch {
+      toast.error("Failed to create collection");
+    }
+  };
+
+  const handleDeleteCollection = async (collectionId: string) => {
+    const token = await getAccessToken();
+    if (!token) return;
+    try {
+      const res = await fetch(`/api/stories/collections/${collectionId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to delete");
+      toast.success("Collection deleted");
+      fetchCollections();
+    } catch {
+      toast.error("Failed to delete collection");
+    }
+  };
+
   // --- 2. Filtering & Grouping ---
   const filteredEntries = useMemo(
     () =>
@@ -342,7 +413,7 @@ export default function LibraryPage() {
       const metadata = {
         name: newBookTitle,
         description: newBookDesc,
-        external_url: "https://estory.vercel.app",
+        external_url: "https://estories.app",
         attributes: [
           { trait_type: "Author", value: authInfo.name },
           { trait_type: "Stories", value: selectedStories.length },
@@ -491,12 +562,15 @@ export default function LibraryPage() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 mb-6">
+        <TabsList className="grid w-full grid-cols-4 sm:grid-cols-7 mb-6">
           <TabsTrigger value="all" className="text-xs sm:text-sm">
             <FileText className="w-4 h-4 mr-1 hidden sm:inline" /> All
           </TabsTrigger>
           <TabsTrigger value="stories" className="text-xs sm:text-sm">
             <Calendar className="w-4 h-4 mr-1 hidden sm:inline" /> Stories
+          </TabsTrigger>
+          <TabsTrigger value="collections" className="text-xs sm:text-sm">
+            <FolderOpen className="w-4 h-4 mr-1 hidden sm:inline" /> Collections
           </TabsTrigger>
           <TabsTrigger value="books" className="text-xs sm:text-sm">
             <BookOpen className="w-4 h-4 mr-1 hidden sm:inline" /> Books
@@ -572,6 +646,94 @@ export default function LibraryPage() {
                   onCardClick={handleCardClick}
                 />
               ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Collections Tab */}
+        <TabsContent value="collections">
+          {isCollectionsLoading ? (
+            <LoadingSpinner />
+          ) : (
+            <div className="space-y-6">
+              <div className="flex justify-end">
+                <Button
+                  onClick={() => setIsCreateCollectionOpen(true)}
+                  className="bg-gradient-to-r from-[hsl(var(--memory-600))] to-[hsl(var(--insight-600))]"
+                >
+                  <Plus className="w-4 h-4 mr-2" /> New Collection
+                </Button>
+              </div>
+              {collections.length === 0 ? (
+                <Card className="card-elevated rounded-xl">
+                  <CardContent className="py-12 text-center space-y-4">
+                    <div className="w-16 h-16 mx-auto bg-[hsl(var(--memory-500)/0.15)] rounded-full flex items-center justify-center">
+                      <FolderOpen className="w-8 h-8 text-[hsl(var(--memory-500))]" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">No Collections Yet</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        Group related stories into collections — like a series or thematic anthology.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {collections.map((col, index) => (
+                    <motion.div
+                      key={col.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                    >
+                      <Card
+                        className="card-elevated rounded-xl cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all group"
+                        onClick={() => router.push(`/library/collections/${col.id}`)}
+                      >
+                        <CardContent className="p-4 space-y-3">
+                          <div className="flex items-start gap-3">
+                            <div className="p-2 rounded-lg bg-[hsl(var(--memory-500)/0.1)] flex-shrink-0">
+                              <FolderOpen className="w-4 h-4 text-[hsl(var(--memory-500))]" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-1 group-hover:text-[hsl(var(--memory-500))] transition-colors">
+                                {col.title}
+                              </h3>
+                              <div className="flex items-center gap-2 mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                <span>{col.story_count} {col.story_count === 1 ? "story" : "stories"}</span>
+                                <span className="w-1 h-1 rounded-full bg-gray-300" />
+                                <span>{new Date(col.updated_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
+                                {col.is_public ? (
+                                  <Globe className="w-3 h-3 text-emerald-500" />
+                                ) : (
+                                  <Lock className="w-3 h-3 text-gray-400" />
+                                )}
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteCollection(col.id);
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4 text-red-500" />
+                            </Button>
+                          </div>
+                          {col.description && (
+                            <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
+                              {col.description}
+                            </p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </TabsContent>
@@ -763,6 +925,50 @@ export default function LibraryPage() {
                 <Sparkles className="w-4 h-4 mr-2" />
               )}
               {isMinting ? "Minting NFT..." : "Create Collection"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Collection Dialog */}
+      <Dialog open={isCreateCollectionOpen} onOpenChange={setIsCreateCollectionOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>New Collection</DialogTitle>
+            <DialogDescription>
+              Group related stories into a series or thematic collection.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="col-title">Collection Title</Label>
+              <Input
+                id="col-title"
+                placeholder='e.g., "The History of West African Trade Routes"'
+                value={newCollectionTitle}
+                onChange={(e) => setNewCollectionTitle(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="col-desc">Description (optional)</Label>
+              <Textarea
+                id="col-desc"
+                placeholder="What connects these stories?"
+                value={newCollectionDesc}
+                onChange={(e) => setNewCollectionDesc(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCreateCollectionOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateCollection}
+              disabled={!newCollectionTitle.trim()}
+              className="bg-gradient-to-r from-[hsl(var(--memory-600))] to-[hsl(var(--insight-600))]"
+            >
+              <FolderOpen className="w-4 h-4 mr-2" /> Create Collection
             </Button>
           </DialogFooter>
         </DialogContent>

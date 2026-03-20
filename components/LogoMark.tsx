@@ -70,37 +70,48 @@ export function LogoMark({
         <path
           d="M 22,76 Q 55,81 88,86 C 87,108 87,134 88,156 Q 55,153 22,152 Z"
           fill="url(#lLP)"
-          opacity=".82"
+          opacity="1"
         />
         <path
           d="M 24,77 Q 55,81.5 86,86"
           stroke="rgba(255,255,255,.2)"
-          strokeWidth=".6"
+          strokeWidth="1"
+          fill="none"
+        />
+        <path
+          d="M 22,76 L 22,152"
+          stroke="rgba(255,255,255,.1)"
+          strokeWidth="1"
           fill="none"
         />
         <path
           d="M 87,88 C 86,108 86,134 87,154"
-          stroke="rgba(0,0,0,.08)"
-          strokeWidth="1.2"
+          stroke="rgba(0,0,0,.12)"
+          strokeWidth="1.8"
           fill="none"
         />
         {/* Right page */}
         <path
           d="M 92,86 Q 128,79 168,72 L 168,150 Q 128,153 92,156 Z"
           fill="url(#lRP)"
-          opacity=".85"
+          opacity="1"
         />
         <path
           d="M 94,86 Q 130,79.5 166,73"
           stroke="rgba(255,255,255,.25)"
-          strokeWidth=".6"
+          strokeWidth="1"
           fill="none"
         />
         <path
           d="M 93,88 C 94,108 94,134 93,154"
-          stroke="rgba(0,0,0,.06)"
-          strokeWidth="1.2"
+          stroke="rgba(0,0,0,.1)"
+          strokeWidth="1.8"
           fill="none"
+        />
+        <path
+          d="M 168,73 L 168,150"
+          stroke="rgba(255,255,255,.12)"
+          strokeWidth="1.5"
         />
         {/* Spine */}
         <line
@@ -301,19 +312,25 @@ export function LogoMark({
       <path
         d="M 22,76 Q 55,81 88,86 C 87,108 87,134 88,156 Q 55,153 22,152 Z"
         fill="url(#dLP)"
-        opacity=".88"
+        opacity="1"
         filter="url(#pageShadow)"
       />
       <path
-        d="M 24,77 Q 55,81.5 86,86"
+        d="M 22,76 Q 55,81 88,86"
+        stroke="rgba(255,255,255,.18)"
+        strokeWidth="1"
+        fill="none"
+      />
+      <path
+        d="M 22,76 L 22,152"
         stroke="rgba(255,255,255,.1)"
-        strokeWidth=".7"
+        strokeWidth="1"
         fill="none"
       />
       <path
         d="M 87,88 C 86,108 86,134 87,154"
-        stroke="rgba(0,0,0,.15)"
-        strokeWidth="1.5"
+        stroke="rgba(0,0,0,.2)"
+        strokeWidth="1.8"
         fill="none"
       />
 
@@ -321,25 +338,25 @@ export function LogoMark({
       <path
         d="M 92,86 Q 128,79 168,72 L 168,150 Q 128,153 92,156 Z"
         fill="url(#dRP)"
-        opacity=".9"
+        opacity="1"
         filter="url(#pageShadow)"
       />
       <path
-        d="M 94,86 Q 130,79.5 166,73"
-        stroke="rgba(255,255,255,.12)"
-        strokeWidth=".7"
+        d="M 92,86 Q 130,79.5 168,72"
+        stroke="rgba(255,255,255,.18)"
+        strokeWidth="1"
         fill="none"
       />
       <path
         d="M 93,88 C 94,108 94,134 93,154"
-        stroke="rgba(0,0,0,.12)"
-        strokeWidth="1.5"
+        stroke="rgba(0,0,0,.18)"
+        strokeWidth="1.8"
         fill="none"
       />
       <path
         d="M 168,73 L 168,150"
-        stroke="rgba(255,255,255,.06)"
-        strokeWidth="1.2"
+        stroke="rgba(255,255,255,.12)"
+        strokeWidth="1.5"
       />
 
       {/* Spine */}

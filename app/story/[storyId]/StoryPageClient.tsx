@@ -14,6 +14,7 @@ import { useAuth } from "../../../components/AuthProvider";
 import { useEStoryToken } from "../../hooks/useIStoryToken";
 import { useStoryProtocol } from "../../hooks/useStoryProtocol";
 import { useStoryNFT } from "../../hooks/useStoryNFT";
+import { useWalletGuard } from "../../hooks/useWalletGuard";
 import { supabaseClient } from "../../utils/supabase/supabaseClient";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,7 +54,8 @@ import {
   Send,
   Edit,
   KeyRound,
-  Globe, 
+  Globe,
+  PenLine,
 } from "lucide-react";
 
 export default function StoryPage({
@@ -84,7 +86,7 @@ export default function StoryPage({
     hash: payHash,
   } = useStoryProtocol();
   const { mintBook, isPending: isMinting } = useStoryNFT();
-  //   const likeSystem = useLikeSystem();
+  const { requireWallet } = useWalletGuard();
 
   // State
   const [story, setStory] = useState<StoryDataType | null>(null);
@@ -322,7 +324,7 @@ export default function StoryPage({
   };
 
   const handleLike = async () => {
-    if (!isConnected) return toast.error("Please connect your wallet");
+    if (!authInfo) return toast.error("Please sign in to like stories");
     if (!story) return;
 
     try {
@@ -348,8 +350,8 @@ export default function StoryPage({
   };
 
   const handleTip = async () => {
-    if (!isConnected) return toast.error("Please connect your wallet");
-    if (!story) return; // Removed eStoryToken check as it was not defined in original
+    if (!requireWallet("tip authors")) return;
+    if (!story) return;
 
     try {
       setIsTipping(true);
@@ -418,7 +420,8 @@ export default function StoryPage({
   };
 
   const handleFollow = async () => {
-    if (!isConnected || !address) return toast.error("Connect wallet to follow");
+    if (!requireWallet("follow authors")) return;
+    if (!address) return;
     if (!story?.author?.wallet_address) return;
 
     const prevState = isFollowingAuthor;
@@ -456,7 +459,7 @@ export default function StoryPage({
   };
 
   const handleMintStory = async () => {
-    if (!isConnected) return toast.error("Connect wallet");
+    if (!requireWallet("mint NFTs")) return;
     if (!story?.numeric_id) return;
     if (!supabase) return toast.error("Database not available");
 
@@ -755,7 +758,7 @@ export default function StoryPage({
 
             {/* Actions */}
             <div className="flex justify-between items-center">
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <Button
                   variant={isLiked ? "default" : "outline"}
                   className={
@@ -782,6 +785,14 @@ export default function StoryPage({
                   <Sparkles className="w-4 h-4 mr-2" />{" "}
                   {isMinting ? "Minting..." : "Mint NFT"}
                 </Button>
+                {isAuthor && (
+                  <Button
+                    variant="outline"
+                    onClick={() => router.push(`/record?parentId=${storyId}`)}
+                  >
+                    <PenLine className="w-4 h-4 mr-2" /> Continue Story
+                  </Button>
+                )}
               </div>
               <Button
                 variant="ghost"

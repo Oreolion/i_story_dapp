@@ -68,9 +68,9 @@ export async function POST(req: NextRequest) {
     try {
       if (process.env.RESEND_API_KEY) {
         const { error: emailError } = await resend.emails.send({
-          from: "EStory <onboarding@resend.dev>",
+          from: "EStories <onboarding@resend.dev>",
           to: [email],
-          subject: "You're on the EStory waitlist!",
+          subject: "You're on the EStories waitlist!",
           react: WaitlistEmail({ email }),
         });
 

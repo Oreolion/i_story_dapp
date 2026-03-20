@@ -26,18 +26,18 @@ export async function POST(req: NextRequest) {
     switch (type) {
       case "welcome":
         emailComponent = WelcomeEmail({ username: username || "Storyteller" });
-        subject = "Welcome to EStory";
+        subject = "Welcome to EStories";
         break;
       case "waitlist":
         emailComponent = WaitlistEmail({ email });
-        subject = "You're on the EStory waitlist!";
+        subject = "You're on the EStories waitlist!";
         break;
       default:
         return NextResponse.json({ error: "Invalid email type" }, { status: 400 });
     }
 
     const data = await resend.emails.send({
-      from: "EStory <onboarding@resend.dev>",
+      from: "EStories <onboarding@resend.dev>",
       to: [email],
       subject: subject,
       react: emailComponent,

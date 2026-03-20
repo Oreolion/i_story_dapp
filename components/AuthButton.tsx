@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "./AuthProvider";
 import { useAccount, useDisconnect } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { AuthModal } from "./AuthModal";
-import { OnboardingModal } from "./OnboardingModal";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -17,6 +17,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LogOut, User, Link as LinkIcon } from "lucide-react";
 
 export function AuthButton() {
+  const router = useRouter();
+  const pathname = usePathname();
   const { profile, needsOnboarding, signOut } = useAuth();
   const { isConnected } = useAccount();
   const { disconnect } = useDisconnect();
@@ -26,6 +28,13 @@ export function AuthButton() {
     await signOut();
     disconnect();
   };
+
+  // Redirect to onboarding page when needed (unless already there)
+  useEffect(() => {
+    if (needsOnboarding && profile && pathname !== "/onboarding") {
+      router.push("/onboarding");
+    }
+  }, [needsOnboarding, profile, pathname, router]);
 
   // Not authenticated at all
   if (!profile && !isConnected) {
@@ -51,19 +60,14 @@ export function AuthButton() {
     return <ConnectButton showBalance={false} chainStatus="none" />;
   }
 
-  // Needs onboarding (first-time wallet user)
+  // Needs onboarding — show a minimal button while redirect happens
   if (needsOnboarding && profile) {
     return (
-      <>
-        <ConnectButton.Custom>
-          {({ account, chain, openChainModal, openAccountModal }) => (
-            <Button variant="outline" size="sm" onClick={openAccountModal}>
-              {account?.displayName ?? "Connected"}
-            </Button>
-          )}
-        </ConnectButton.Custom>
-        <OnboardingModal isOpen={true} onComplete={() => {}} />
-      </>
+      <Button variant="outline" size="sm" disabled>
+        {profile.auth_provider === "google"
+          ? (profile.name ?? "Setting up...")
+          : "Setting up..."}
+      </Button>
     );
   }
 

@@ -15,10 +15,10 @@ export async function POST(req: NextRequest) {
       ipfs_hash,
     } = body ?? {};
 
-    // Basic validation
+    // Basic validation (author_wallet optional for Google-only users,
+    // but books/minting is a Web3 feature so wallet is strongly recommended)
     if (
       !author_id ||
-      !author_wallet ||
       !title ||
       !Array.isArray(story_ids) ||
       story_ids.length === 0
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "Missing required fields (author_id, author_wallet, title, story_ids[]).",
+            "Missing required fields (author_id, title, story_ids[]).",
         },
         { status: 400 }
       );
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
 
     const admin = createSupabaseAdminClient();
 
-    // 1) Verify user exists + wallet matches
+    // 1) Verify user exists
     const { data: userRow, error: userErr } = await admin
       .from("users")
       .select("id, wallet_address")
@@ -46,9 +46,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 401 });
     }
 
-    if (userRow.wallet_address !== author_wallet.toLowerCase()) {
-      console.warn("[API /books] wallet mismatch for user", author_id);
-      return NextResponse.json({ error: "Wallet mismatch" }, { status: 401 });
+    // Verify wallet matches if both sides have one
+    if (author_wallet && userRow.wallet_address) {
+      if (userRow.wallet_address.toLowerCase() !== author_wallet.toLowerCase()) {
+        console.warn("[API /books] wallet mismatch for user", author_id);
+        return NextResponse.json({ error: "Wallet mismatch" }, { status: 401 });
+      }
     }
 
     // 2) Insert book
@@ -56,7 +59,7 @@ export async function POST(req: NextRequest) {
       .from("books")
       .insert({
         author_id,
-        author_wallet: author_wallet.toLowerCase(),
+        author_wallet: author_wallet?.toLowerCase() ?? userRow.wallet_address ?? null,
         title,
         description: description ?? null,
         story_ids,

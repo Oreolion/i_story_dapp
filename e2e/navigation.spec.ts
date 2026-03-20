@@ -10,7 +10,7 @@ test('Landing page loads and navigation works', async ({ page }) => {
   await expect(page.getByText('Loading Wallet Connectors...')).not.toBeVisible({ timeout: 30000 });
 
   // 3. Check Title
-  await expect(page).toHaveTitle(/EStory/i);
+  await expect(page).toHaveTitle(/EStories/i);
   
   // 4. Verify Hero Text
   await expect(page.getByRole('heading', { name: /Your Life/i })).toBeVisible({ timeout: 10000 });

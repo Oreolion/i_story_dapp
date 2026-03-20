@@ -13,6 +13,8 @@
 | `waitlist` | Pre-launch email capture |
 | `verified_metrics` | CRE-verified story metrics (full data, author-only access) |
 | `verification_logs` | CRE verification request audit log |
+| `story_collections` | User-created story collections/series |
+| `collection_stories` | Junction table: stories in collections (many-to-many) |
 
 **Storage Bucket:** `story-audio` - Audio file uploads
 
@@ -129,6 +131,43 @@ CREATE TABLE verification_logs (
 CREATE INDEX idx_verification_logs_story ON verification_logs(story_id);
 CREATE INDEX idx_verification_logs_status ON verification_logs(status);
 ```
+
+## Story Collections Tables
+
+```sql
+-- Story collections for organizing story series
+CREATE TABLE story_collections (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  description TEXT,
+  author_id UUID NOT NULL,
+  cover_image_url TEXT,
+  is_public BOOLEAN DEFAULT false,
+  story_count INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_collections_author ON story_collections(author_id);
+CREATE INDEX idx_collections_public ON story_collections(is_public) WHERE is_public = true;
+
+-- Junction table: stories in collections (many-to-many, position-ordered)
+CREATE TABLE collection_stories (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  collection_id UUID NOT NULL REFERENCES story_collections(id) ON DELETE CASCADE,
+  story_id UUID NOT NULL REFERENCES stories(id) ON DELETE CASCADE,
+  position INTEGER DEFAULT 0,
+  added_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(collection_id, story_id)
+);
+
+CREATE INDEX idx_collection_stories_collection ON collection_stories(collection_id);
+CREATE INDEX idx_collection_stories_story ON collection_stories(story_id);
+```
+
+**Also added by migration 007:**
+- `stories.parent_story_id` — UUID FK to `stories(id)` for story continuations
+- `story_metadata.actionable_advice` — TEXT column for AI-generated writing advice
 
 ## Planned Tables (Phase 1-3)
 

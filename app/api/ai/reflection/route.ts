@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createSupabaseAdminClient } from "@/app/utils/supabase/supabaseAdmin";
+import { validateAuthOrReject, isAuthError } from "@/lib/auth";
 
 // ============================================================================
 // Configuration Constants
@@ -144,14 +145,19 @@ function parseAndValidateReflection(
 
 export async function GET(req: NextRequest) {
   try {
+    const authResult = await validateAuthOrReject(req);
+    if (isAuthError(authResult)) return authResult;
+    const authenticatedUserId = authResult;
+
     const { searchParams } = new URL(req.url);
-    const userId = searchParams.get("userId");
+    const userId = searchParams.get("userId") || authenticatedUserId;
     const limit = parseInt(searchParams.get("limit") || "5");
 
-    if (!userId) {
+    // Users can only fetch their own reflections
+    if (userId !== authenticatedUserId) {
       return NextResponse.json(
-        { error: "Missing required parameter: userId" },
-        { status: 400 }
+        { error: "You can only access your own reflections" },
+        { status: 403 }
       );
     }
 
@@ -203,6 +209,10 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const authResult = await validateAuthOrReject(req);
+    if (isAuthError(authResult)) return authResult;
+    const authenticatedUserId = authResult;
+
     // Check API key configuration
     const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
     if (!apiKey) {
@@ -214,11 +224,12 @@ export async function POST(req: NextRequest) {
 
     // Parse request body
     const body = await req.json();
-    const { userId, userWallet } = body;
+    const { userWallet } = body;
+    const userId = authenticatedUserId;
 
-    if (!userId || !userWallet) {
+    if (!userWallet) {
       return NextResponse.json(
-        { error: "Missing required fields: userId and userWallet" },
+        { error: "Missing required field: userWallet" },
         { status: 400 }
       );
     }

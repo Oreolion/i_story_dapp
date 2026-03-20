@@ -78,6 +78,13 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) {
+      // Handle username uniqueness violation from DB constraint
+      if (error.code === "23505" && error.message?.includes("username")) {
+        return NextResponse.json(
+          { error: "Username is not available" },
+          { status: 409 }
+        );
+      }
       console.error("[ONBOARDING] Update error:", error);
       return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }

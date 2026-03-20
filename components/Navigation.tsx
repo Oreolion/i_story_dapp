@@ -54,7 +54,7 @@ export function Navigation() {
               <LogoMark size={28} />
             </motion.div>
             <span className="text-xl font-bold bg-gradient-to-r from-[#d4a04a] via-[#9b7dd4] to-[#6c3dbd] bg-clip-text text-transparent">
-              eStory
+              eStories
             </span>
           </Link>
 

@@ -17,7 +17,7 @@ interface WelcomeEmailProps {
 }
 
 export const WelcomeEmail = ({ username }: WelcomeEmailProps) => {
-  const previewText = `Welcome to EStory, ${username}!`;
+  const previewText = `Welcome to EStories, ${username}!`;
 
   return (
     <Html>
@@ -28,19 +28,19 @@ export const WelcomeEmail = ({ username }: WelcomeEmailProps) => {
           <Container className="border border-solid border-[#eaeaea] rounded my-[40px] mx-auto p-[20px] max-w-[465px]">
             <Section className="mt-[32px]">
               <Heading className="text-black text-[24px] font-normal text-center p-0 my-[30px] mx-0">
-                Welcome to <span className="font-bold text-amber-600">EStory</span>
+                Welcome to <span className="font-bold text-amber-600">EStories</span>
               </Heading>
             </Section>
             <Text className="text-black text-[14px] leading-[24px]">
               Hello {username},
             </Text>
             <Text className="text-black text-[14px] leading-[24px]">
-              You have successfully connected your wallet and set up your profile on the first decentralized voice journaling platform.
+              You have successfully set up your profile on the first decentralized voice storytelling platform. Write about anything you&apos;re passionate about — personal reflections, history, geopolitics, culture, or creative non-fiction.
             </Text>
             <Section className="text-center mt-[32px] mb-[32px]">
               <Button
                 className="bg-[#d4a04a] rounded text-white text-[12px] font-semibold no-underline text-center px-5 py-3"
-                href="https://estory.vercel.app/record"
+                href="https://estories.app/record"
               >
                 Record Your First Story
               </Button>

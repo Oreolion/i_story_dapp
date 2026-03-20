@@ -1,4 +1,4 @@
-# eStory — Privacy-Preserving AI Powered Voice Journal and Human Story/memory and meaning making infrastrucutre. Trustless and tamper proof quality and significance metrics Verification via Chainlink CRE
+# eStory — Privacy-Preserving AI-Powered Sovereign Storytelling Platform. Trustless and Tamper-Proof Quality and Significance Metrics Verification via Chainlink CRE
 
 ![Chainlink CRE](https://img.shields.io/badge/Chainlink-CRE-375BD2?logo=chainlink)
 ![Base Sepolia](https://img.shields.io/badge/Base-Sepolia-blue?logo=ethereum)
@@ -7,7 +7,7 @@
 ![Solidity](https://img.shields.io/badge/Solidity-0.8.20-363636?logo=solidity)
 ![Gemini](https://img.shields.io/badge/Gemini-2.5_Flash-4285F4?logo=google)
 
-> Privacy-preserving AI powered Voice first journal/memory infrastructure, tamper proof and trustless quality and significance metrics verification via Chainlink CRE on Base L2
+> Privacy-preserving AI-powered voice-first storytelling platform — from personal journals to history, geopolitics, and cultural narratives. Tamper-proof and trustless quality and significance metrics verification via Chainlink CRE on Base L2
 
 ---
 
@@ -39,15 +39,15 @@ eStory is a convergent solution to three compounding crises in human civilizatio
 
 ### The Ancient Crisis — Memory Extinction
 
-Throughout history, the vast majority of human experience has simply vanished. Oral traditions died with their keepers. Before recording technology, entire lifetimes of personal narrative — the daily emotions, reflections, turning points — were permanently lost. We remember less than 1% of our lived experience. Humanity has always lacked infrastructure to capture and preserve the individual story at scale.
+Throughout history, the vast majority of human experience has simply vanished. Oral traditions died with their keepers. Cultural narratives, indigenous knowledge, and local histories disappeared when communities couldn't preserve them. Before recording technology, entire lifetimes of personal and collective narrative — the daily emotions, reflections, turning points, historical accounts, and cultural wisdom — were permanently lost. Humanity has always lacked infrastructure to capture and preserve stories at scale — whether personal journals or chronicles of civilizations.
 
 ### The Present Crisis — The Unexamined Life at Scale
 
-We are living through a civilizational inflection point — the AI revolution — comparable to the Renaissance and the Industrial Revolution. Future generations will look back at this era and ask how we navigated it, what we felt, what we feared, what we hoped for. Yet most people are too overwhelmed to document it. Journaling declutters the mind, reduces anxiety, and sharpens thinking — science has proven this repeatedly — but platforms that could enable it harvest our most intimate data with zero transparency. AI systems analyze our behavior, but we can't verify their outputs or trust their operators. There's no ownership of insights derived from your own words, and no privacy guarantee that survives a terms-of-service update. The people living through this historic moment need a sovereign space to process it — and a guarantee that their reflections remain theirs.
+We are living through a civilizational inflection point — the AI revolution — comparable to the Renaissance and the Industrial Revolution. Future generations will look back at this era and ask how we navigated it, what we felt, what we feared, what we hoped for. Yet most people are too overwhelmed to document it. Writing — whether personal journals, historical analysis, geopolitical commentary, or cultural storytelling — declutters the mind, reduces anxiety, and sharpens thinking. Science has proven this repeatedly. But platforms that could enable it harvest our most intimate data with zero transparency. AI systems analyze our behavior, but we can't verify their outputs or trust their operators. There's no ownership of insights derived from your own words, and no privacy guarantee that survives a terms-of-service update. The people living through this historic moment need a sovereign space to process it — whether through private reflection or public storytelling — and a guarantee that their narratives remain theirs.
 
 ### The Emerging Crisis — The Meaning Void
 
-As AI automates work at an accelerating pace, millions will lose not just jobs but their primary source of identity and purpose. When the thing you did for a living no longer needs you, an existential vacuum opens. People will search for what fills that gap — and storytelling, journaling, and creative self-expression are among the oldest and most fulfilling answers humanity has ever found. But in a world flooded with AI-generated content, how do you prove your story is authentically yours? Without verifiable provenance, genuine human narrative drowns in synthetic noise. The tools people turn to for meaning must also protect the authenticity of what they create.
+As AI automates work at an accelerating pace, millions will lose not just jobs but their primary source of identity and purpose. When the thing you did for a living no longer needs you, an existential vacuum opens. People will search for what fills that gap — and storytelling, creative self-expression, and the craft of writing are among the oldest and most fulfilling answers humanity has ever found. The act of writing about history, analyzing geopolitics, preserving cultural narratives, or documenting personal growth isn't just recording — it's a practice that builds skill, deepens understanding, and creates purpose. But in a world flooded with AI-generated content, how do you prove your story is authentically yours? Without verifiable provenance, genuine human narrative drowns in synthetic noise. The tools people turn to for meaning must also protect the authenticity of what they create.
 
 ### The Trust Gap
 
@@ -72,9 +72,11 @@ Anyone can verify that a story was analyzed and meets quality standards. Only th
 
 ## What is eStory?
 
-eStory is a Web3 AI-powered voice journaling dApp built on Base (Ethereum L2). Users record personal stories via voice, get AI transcription and enhancement, then publish to a social feed where stories can be liked, tipped, paywalled, and minted as NFTs.
+eStory is a Web3 AI-powered sovereign storytelling platform built on Base (Ethereum L2). Users write and record stories about anything they're passionate about — personal journals, historical narratives, geopolitical analysis, cultural stories, creative non-fiction — using voice or text. AI transcribes, enhances, and analyzes each story, providing craft feedback that helps users become better storytellers over time. Stories can be kept private in an encrypted vault or published to a social feed where they can be liked, tipped, paywalled, and minted as NFTs.
 
-**Key features:** Voice recording, AI transcription (ElevenLabs Scribe), AI story analysis (Gemini 2.5 Flash), client-side encryption (AES-256-GCM vault), social feed, tipping, paywall system, NFT minting, follow system, notifications, CRE-verified metrics
+**Story types:** Personal journals & reflections, historical essays & analysis, geopolitical commentary, cultural narratives & oral histories, creative non-fiction & memoirs
+
+**Key features:** Voice recording, AI transcription (ElevenLabs Scribe), AI story analysis & craft feedback (Gemini 2.5 Flash), client-side encryption (AES-256-GCM vault), social feed, tipping, paywall system, NFT minting, follow system, notifications, CRE-verified metrics, storytelling improvement tracking
 
 **Tech stack:** Next.js 15, React 19, Tailwind CSS 4, shadcn/ui, Wagmi 2 / Viem, RainbowKit, Hardhat, Supabase, Google Gemini 2.5 Flash, ElevenLabs Scribe, Claude SDK, Dexie.js (IndexedDB), Web Crypto API, Resend, Base Sepolia
 
@@ -82,7 +84,7 @@ eStory is a Web3 AI-powered voice journaling dApp built on Base (Ethereum L2). U
 
 ## Privacy Architecture
 
-eStory is a personal journaling app. Users self-censor when their emotional inner world is broadcast on a public blockchain. The privacy-preserving CRE integration solves this with a **dual-write model**:
+eStory handles deeply personal and valuable content — from private journals to publishable stories. Users self-censor when their analysis data is broadcast on a public blockchain. The privacy-preserving CRE integration solves this with a **dual-write model**:
 
 ### What's Public (On-Chain)
 
@@ -701,7 +703,7 @@ cast call 0x158e08BCD918070C1703E8b84a6E2524D2AE5e4c \
 
 4. **Metrics Hash Integrity Proofs** — The `metricsHash` is a zero-knowledge-like proof — anyone with the full metrics can verify the hash matches, without the hash revealing the metrics.
 
-5. **Real Use Case Alignment** — Combining verifiable AI with privacy is perfect for journals — arguably the highest-trust-importance use case. People won't share journals if it means full analysis results are public.
+5. **Real Use Case Alignment** — Combining verifiable AI with privacy is perfect for storytelling — from private journals to public essays on history and geopolitics. Authors need verified quality metrics for paywalled content, while keeping personal analysis private. The same platform serves both intimate reflection and publishable non-fiction.
 
 6. **Graceful Fallback** — If CRE isn't deployed, the system falls back to direct Gemini analysis (no on-chain proof, but same AI quality). Production-ready thinking.
 
@@ -742,4 +744,4 @@ cast call 0x158e08BCD918070C1703E8b84a6E2524D2AE5e4c \
 
 ---
 
-*Verified stories. Private by default. Powered by Chainlink CRE on Base.*
+*Verified stories. Private by default. From personal journals to world-changing narratives. Powered by Chainlink CRE on Base.*

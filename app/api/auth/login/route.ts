@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Verify nonce (replay prevention)
-    const nonceResult = verifyNonce(address, message);
+    const nonceResult = await verifyNonce(address, message);
     if (!nonceResult.valid) {
       return NextResponse.json(
         { error: nonceResult.error || "Invalid nonce" },
