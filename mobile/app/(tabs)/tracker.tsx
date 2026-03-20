@@ -24,6 +24,7 @@ import {
   Check,
   Circle,
   Sparkles,
+  Flame,
 } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { useAuthStore } from "../../stores/authStore";
@@ -121,6 +122,7 @@ export default function TrackerScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [generatingJournal, setGeneratingJournal] = useState(false);
+  const [streak, setStreak] = useState(0);
 
   const today = formatDate(new Date());
 
@@ -130,6 +132,8 @@ export default function TrackerScreen() {
       const res = await apiGet<{
         habits: Habit[];
         dailyLog: DailyLog | null;
+        streak?: number;
+        recentLogs?: DailyLog[];
       }>(`/api/habits?user_id=${user.id}&date=${today}`);
       if (res.ok && res.data) {
         setHabits(res.data.habits || []);
@@ -137,6 +141,24 @@ export default function TrackerScreen() {
           setDailyLog(res.data.dailyLog);
           setSelectedMood(res.data.dailyLog.mood || "");
           setNotes(res.data.dailyLog.notes || "");
+        }
+        // Calculate streak from recent logs or use server-provided value
+        if (res.data.streak !== undefined) {
+          setStreak(res.data.streak);
+        } else if (res.data.recentLogs) {
+          let s = 0;
+          const d = new Date();
+          for (const log of res.data.recentLogs) {
+            const logDate = formatDate(new Date(log.date));
+            const expected = formatDate(d);
+            if (logDate === expected && log.completed_habit_ids.length > 0) {
+              s++;
+              d.setDate(d.getDate() - 1);
+            } else {
+              break;
+            }
+          }
+          setStreak(s);
         }
       }
     } catch (err) {
@@ -307,14 +329,35 @@ export default function TrackerScreen() {
         {/* Header */}
         <AnimatedListItem index={0}>
           <View style={{ paddingHorizontal: 16, paddingVertical: 16 }}>
-            <Text style={{ fontSize: 24, fontWeight: "700", color: "#fff" }}>Daily Tracker</Text>
-            <Text style={{ fontSize: 13, color: "#94a3b8" }}>
-              {new Date().toLocaleDateString("en-US", {
-                weekday: "long",
-                month: "long",
-                day: "numeric",
-              })}
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+              <View>
+                <Text style={{ fontSize: 24, fontWeight: "700", color: "#fff" }}>Daily Tracker</Text>
+                <Text style={{ fontSize: 13, color: "#94a3b8" }}>
+                  {new Date().toLocaleDateString("en-US", {
+                    weekday: "long",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </Text>
+              </View>
+              {streak > 0 && (
+                <View style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 6,
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 16,
+                  backgroundColor: "rgba(251,146,60,0.15)",
+                  borderWidth: 1,
+                  borderColor: "rgba(251,146,60,0.3)",
+                }}>
+                  <Flame size={16} color="#fb923c" />
+                  <Text style={{ fontSize: 14, fontWeight: "700", color: "#fb923c" }}>{streak}</Text>
+                  <Text style={{ fontSize: 11, color: "#fb923c" }}>day streak</Text>
+                </View>
+              )}
+            </View>
           </View>
         </AnimatedListItem>
 
