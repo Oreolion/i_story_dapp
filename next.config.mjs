@@ -69,6 +69,7 @@ const nextConfig = {
               "img-src 'self' data: https: blob:",
               "font-src 'self' data: https://fonts.gstatic.com",
               "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.elevenlabs.io https://api.pinata.cloud https://*.walletconnect.com wss://*.walletconnect.com https://*.walletconnect.org wss://*.walletconnect.org https://sepolia.base.org https://*.alchemy.com https://*.infura.io https://*.rpc.thirdweb.com https://api.web3modal.org https://*.reown.com https://cca-lite.coinbase.com https://*.coinbase.com https://rpc.walletconnect.org https://rpc.walletconnect.com",
+              "media-src 'self' https://*.supabase.co blob:",
               "frame-src 'self' https://*.walletconnect.com https://*.walletconnect.org https://*.reown.com",
             ].join("; "),
           },
