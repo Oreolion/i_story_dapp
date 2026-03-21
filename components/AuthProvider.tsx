@@ -536,7 +536,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             data: { session: existingSession },
           } = await supabase.auth.getSession();
 
-          if (existingSession?.user) {
+          // Only trust the session if it's not expired
+          const sessionValid = existingSession?.expires_at
+            && existingSession.expires_at * 1000 > Date.now() + 60_000;
+
+          if (existingSession?.user && sessionValid) {
             console.log(
               "[AUTH] Active Supabase session detected — skipping wallet auto-login. Use 'Link Wallet' to connect."
             );
@@ -561,37 +565,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             ? localStorage.getItem(WALLET_TOKEN_KEY)
             : null;
 
-        if (storedToken && supabase) {
-          // Validate that the user still exists
-          const { data: existing } = await supabase
-            .from("users")
-            .select("*")
-            .eq("wallet_address", addrLower)
-            .maybeSingle();
-
-          if (existing) {
-            setUnifiedProfile(existing, null);
-            return;
+        if (storedToken) {
+          // Validate JWT is not expired before trusting it
+          let tokenValid = false;
+          try {
+            const base64 = storedToken.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+            const payload = JSON.parse(atob(base64));
+            tokenValid = payload.exp && payload.exp * 1000 > Date.now() + 30_000;
+          } catch {
+            // Malformed token
           }
-          // Token exists but user not found — clear stale token
+
+          if (tokenValid && supabase) {
+            // Token is still valid — check user exists in DB
+            const { data: existing } = await supabase
+              .from("users")
+              .select("*")
+              .eq("wallet_address", addrLower)
+              .maybeSingle();
+
+            if (existing) {
+              setUnifiedProfile(existing, null);
+              return; // Happy path: valid JWT + user exists
+            }
+          }
+
+          // Token expired or invalid — clear it, fall through to re-authenticate
           localStorage.removeItem(WALLET_TOKEN_KEY);
         }
 
-        // ── Step 2: Check if there's a user row matching this wallet
-        if (supabase) {
-          const { data: existing } = await supabase
-            .from("users")
-            .select("*")
-            .eq("wallet_address", addrLower)
-            .maybeSingle();
+        // ── Step 2: User exists but no valid JWT → must re-authenticate
+        // Don't short-circuit here — fall through to Step 3 to get a fresh JWT.
+        // Without a JWT, API calls will fail with 401.
 
-          if (existing) {
-            setUnifiedProfile(existing, null);
-            return;
-          }
-        }
-
-        // ── Step 3: No stored token, no session, no existing user → MetaMask signature flow
+        // ── Step 3: Authenticate via MetaMask signature → get fresh JWT
         signInAttemptRef.current = true;
 
         try {

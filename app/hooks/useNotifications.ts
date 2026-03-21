@@ -58,8 +58,8 @@ interface UseNotificationsReturn {
 // ============================================
 
 export function useNotifications(): UseNotificationsReturn {
-  const { address, isConnected } = useAccount();
-  const { getAccessToken } = useAuth();
+  const { isConnected } = useAccount();
+  const { getAccessToken, profile, isLoading: isAuthLoading } = useAuth();
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -76,14 +76,12 @@ export function useNotifications(): UseNotificationsReturn {
    */
   const fetchNotifications = useCallback(
     async (params: FetchNotificationsParams = {}) => {
-      if (!isConnected) {
-        setError("Not connected");
+      if (!isConnected || isAuthLoading) {
         return;
       }
 
       const token = await getAccessToken();
       if (!token) {
-        setError("No auth token found");
         return;
       }
 
@@ -130,14 +128,14 @@ export function useNotifications(): UseNotificationsReturn {
         setLoading(false);
       }
     },
-    [isConnected, getAccessToken, notifications]
+    [isConnected, isAuthLoading, getAccessToken, notifications]
   );
 
   /**
    * Fetch unread notification count
    */
   const fetchUnreadCount = useCallback(async () => {
-    if (!isConnected) return;
+    if (!isConnected || isAuthLoading) return;
 
     const token = await getAccessToken();
     if (!token) return;
@@ -160,7 +158,7 @@ export function useNotifications(): UseNotificationsReturn {
     } catch (err) {
       console.error("Error fetching unread count:", err);
     }
-  }, [isConnected, getAccessToken]);
+  }, [isConnected, isAuthLoading, getAccessToken]);
 
   /**
    * Create a new notification
@@ -384,21 +382,11 @@ export function useNotifications(): UseNotificationsReturn {
    * Subscribe to real-time notifications (polling)
    */
   const subscribe = useCallback(() => {
-    if (!isConnected) return;
+    if (!isConnected || isAuthLoading) return;
 
-    // Initial fetch
     fetchUnreadCount();
     fetchNotifications();
-
-    // Set up polling interval (check every 10 seconds)
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-    }
-
-    pollingIntervalRef.current = setInterval(() => {
-      fetchUnreadCount();
-    }, 10000);
-  }, [isConnected, fetchNotifications, fetchUnreadCount]);
+  }, [isConnected, isAuthLoading, fetchNotifications, fetchUnreadCount]);
 
   /**
    * Unsubscribe from notifications
@@ -416,17 +404,37 @@ export function useNotifications(): UseNotificationsReturn {
   }, []);
 
   /**
-   * Auto-subscribe on mount if connected
+   * Auto-fetch on mount when auth is ready, poll unread count on a stable interval
    */
   useEffect(() => {
-    if (isConnected) {
-      subscribe();
-    }
+    if (!isConnected || isAuthLoading || !profile?.id) return;
+
+    // Initial fetch (once)
+    fetchUnreadCount();
+    fetchNotifications();
+
+    // Poll unread count every 30 seconds — stable interval, no cascade
+    pollingIntervalRef.current = setInterval(() => {
+      getAccessToken().then((token) => {
+        if (!token) return;
+        fetch("/api/notifications?count=true", {
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        })
+          .then((res) => res.ok ? res.json() : null)
+          .then((data) => { if (data?.success) setUnreadCount(data.unreadCount); })
+          .catch(() => {});
+      });
+    }, 30000);
 
     return () => {
-      unsubscribe();
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
     };
-  }, [isConnected, subscribe, unsubscribe]);
+    // Only re-run when auth state truly changes, NOT when callbacks/state update
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected, isAuthLoading, profile?.id]);
 
   return {
     notifications,

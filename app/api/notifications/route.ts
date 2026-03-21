@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
+import { validateAuthOrReject, isAuthError } from "@/lib/auth";
 
 // Lazy Supabase Admin Client (avoids build-time initialization)
 function getSupabase() {
@@ -55,33 +56,6 @@ interface Notification {
 // ============================================
 // Helper Functions
 // ============================================
-
-/**
- * Validate user authentication
- */
-async function validateAuth(request: NextRequest): Promise<string | null> {
-  try {
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return null;
-    }
-
-    const token = authHeader.substring(7);
-    const {
-      data: { user },
-      error,
-    } = await supabase().auth.getUser(token);
-
-    if (error || !user) {
-      return null;
-    }
-
-    return user.id;
-  } catch (error) {
-    console.error("Auth validation error:", error);
-    return null;
-  }
-}
 
 /**
  * Get user from wallet address
@@ -170,6 +144,9 @@ async function getUserNotifications(
       .range(offset, offset + limit - 1);
 
     if (error) {
+      if (error.code === "42P01" || error.message?.includes("does not exist")) {
+        return { notifications: [], total: 0 };
+      }
       console.error("Error fetching notifications:", error);
       return null;
     }
@@ -287,6 +264,9 @@ async function getUnreadCount(userId: string): Promise<number> {
       .eq("read", false);
 
     if (error) {
+      if (error.code === "42P01" || error.message?.includes("does not exist")) {
+        return 0;
+      }
       console.error("Error getting unread count:", error);
       return 0;
     }
@@ -308,10 +288,9 @@ async function getUnreadCount(userId: string): Promise<number> {
  */
 export async function GET(request: NextRequest) {
   try {
-    const userId = await validateAuth(request);
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await validateAuthOrReject(request);
+    if (isAuthError(authResult)) return authResult;
+    const userId = authResult;
 
     // Get query parameters
     const searchParams = request.nextUrl.searchParams;
@@ -374,10 +353,9 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const userId = await validateAuth(request);
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await validateAuthOrReject(request);
+    if (isAuthError(authResult)) return authResult;
+    const userId = authResult;
 
     const body = await request.json();
     const {
@@ -468,10 +446,9 @@ export async function POST(request: NextRequest) {
  */
 export async function PUT(request: NextRequest) {
   try {
-    const userId = await validateAuth(request);
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await validateAuthOrReject(request);
+    if (isAuthError(authResult)) return authResult;
+    const userId = authResult;
 
     const body = await request.json();
     const { notificationId, read, markAllAsRead } = body;
@@ -551,10 +528,9 @@ export async function PUT(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
   try {
-    const userId = await validateAuth(request);
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await validateAuthOrReject(request);
+    if (isAuthError(authResult)) return authResult;
+    const userId = authResult;
 
     const body = await request.json();
     const { notificationId, deleteAll } = body;
