@@ -96,24 +96,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // ─── Centralized token accessor ──────────────────────────────────────
   // All pages/components use this instead of their own getAuthHeaders().
-  // Priority: 1) Supabase session (Google/OAuth) → 2) stored wallet JWT
+  // Priority: 1) stored wallet JWT → 2) Supabase session (Google/OAuth)
+  //
+  // Wallet JWT takes priority because supabase.auth.getSession() can return
+  // a stale/expired cached session, which shadows a valid wallet JWT and
+  // causes 401s. Wallet JWTs are explicitly issued for API auth and are
+  // more reliable.
   const getAccessToken = useCallback(async (): Promise<string | null> => {
-    // 1. Try Supabase session (Google OAuth users, or returning wallet users
-    //    who still have a valid Supabase session from earlier)
+    // 1. Try stored wallet JWT (wallet-authenticated users)
+    if (typeof window !== "undefined") {
+      const walletToken = localStorage.getItem(WALLET_TOKEN_KEY);
+      if (walletToken) {
+        // Quick expiry check — decode JWT payload without verification
+        try {
+          const base64 = walletToken.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+          const payload = JSON.parse(atob(base64));
+          if (payload.exp && payload.exp * 1000 > Date.now() + 30_000) {
+            return walletToken;
+          }
+          // Expired — clear stale token so user can re-authenticate
+          localStorage.removeItem(WALLET_TOKEN_KEY);
+        } catch {
+          // Malformed JWT — clear it
+          localStorage.removeItem(WALLET_TOKEN_KEY);
+        }
+      }
+    }
+
+    // 2. Try Supabase session (Google OAuth users)
     try {
       if (supabase) {
         const { data } = await supabase.auth.getSession();
-        const token = data?.session?.access_token;
-        if (token) return token;
+        const session = data?.session;
+        if (session?.access_token) {
+          // Verify session isn't expired (with 60s buffer)
+          if (session.expires_at && session.expires_at * 1000 > Date.now() + 60_000) {
+            return session.access_token;
+          }
+          // Session expired — attempt refresh
+          const { data: refreshed } = await supabase.auth.refreshSession();
+          if (refreshed?.session?.access_token) {
+            return refreshed.session.access_token;
+          }
+        }
       }
     } catch {
-      // Supabase session unavailable — try wallet JWT
-    }
-
-    // 2. Try stored wallet JWT
-    if (typeof window !== "undefined") {
-      const walletToken = localStorage.getItem(WALLET_TOKEN_KEY);
-      if (walletToken) return walletToken;
+      // Supabase session unavailable
     }
 
     return null;

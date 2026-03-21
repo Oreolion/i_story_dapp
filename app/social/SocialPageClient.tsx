@@ -160,18 +160,25 @@ export default function SocialPage() {
           ),
         ] as string[];
 
-        // 4. Fetch follow status for all authors (if user is connected)
+        // 4. Fetch follow status for all authors (if user is authenticated)
         let followingMap: Record<string, boolean> = {};
         if (address && authorWallets.length > 0) {
           try {
-            const headers = await getAuthHeaders();
-            const followRes = await fetch(
-              `/api/social/follow?follower_wallet=${address.toLowerCase()}&followed_wallets=${authorWallets.join(",")}`,
-              { headers }
-            );
-            if (followRes.ok) {
-              const { following } = await followRes.json();
-              followingMap = following || {};
+            const token = await getAccessToken();
+            if (token) {
+              const followRes = await fetch(
+                `/api/social/follow?follower_wallet=${address.toLowerCase()}&followed_wallets=${authorWallets.join(",")}`,
+                {
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                  },
+                }
+              );
+              if (followRes.ok) {
+                const { following } = await followRes.json();
+                followingMap = following || {};
+              }
             }
           } catch (err) {
             console.error("[SOCIAL PAGE] Follow status fetch error:", err);

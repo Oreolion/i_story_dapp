@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useAccount } from "wagmi";
 import { toast } from "react-hot-toast";
+import { useAuth } from "../../components/AuthProvider";
 
 
 // ============================================
@@ -58,6 +59,7 @@ interface UseNotificationsReturn {
 
 export function useNotifications(): UseNotificationsReturn {
   const { address, isConnected } = useAccount();
+  const { getAccessToken } = useAuth();
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -70,14 +72,6 @@ export function useNotifications(): UseNotificationsReturn {
   const abortControllerRef = useRef<AbortController | null>(null);
 
   /**
-   * Get auth token from localStorage
-   */
-  const getAuthToken = useCallback(() => {
-    if (typeof window === "undefined") return null;
-    return localStorage.getItem("supabase-auth-token");
-  }, []);
-
-  /**
    * Fetch notifications from API
    */
   const fetchNotifications = useCallback(
@@ -87,7 +81,7 @@ export function useNotifications(): UseNotificationsReturn {
         return;
       }
 
-      const token = getAuthToken();
+      const token = await getAccessToken();
       if (!token) {
         setError("No auth token found");
         return;
@@ -136,7 +130,7 @@ export function useNotifications(): UseNotificationsReturn {
         setLoading(false);
       }
     },
-    [isConnected, getAuthToken, notifications]
+    [isConnected, getAccessToken, notifications]
   );
 
   /**
@@ -145,7 +139,7 @@ export function useNotifications(): UseNotificationsReturn {
   const fetchUnreadCount = useCallback(async () => {
     if (!isConnected) return;
 
-    const token = getAuthToken();
+    const token = await getAccessToken();
     if (!token) return;
 
     try {
@@ -166,7 +160,7 @@ export function useNotifications(): UseNotificationsReturn {
     } catch (err) {
       console.error("Error fetching unread count:", err);
     }
-  }, [isConnected, getAuthToken]);
+  }, [isConnected, getAccessToken]);
 
   /**
    * Create a new notification
@@ -175,7 +169,7 @@ export function useNotifications(): UseNotificationsReturn {
     async (
       payload: Omit<Notification, "id" | "user_id" | "read" | "created_at">
     ) => {
-      const token = getAuthToken();
+      const token = await getAccessToken();
       if (!token) {
         setError("No auth token found");
         return;
@@ -211,7 +205,7 @@ export function useNotifications(): UseNotificationsReturn {
         toast.error(message);
       }
     },
-    [getAuthToken, notifications]
+    [getAccessToken, notifications]
   );
 
   /**
@@ -219,7 +213,7 @@ export function useNotifications(): UseNotificationsReturn {
    */
   const markAsRead = useCallback(
     async (notificationId: string) => {
-      const token = getAuthToken();
+      const token = await getAccessToken();
       if (!token) {
         setError("No auth token found");
         return;
@@ -257,14 +251,14 @@ export function useNotifications(): UseNotificationsReturn {
         console.error("Error marking notification as read:", err);
       }
     },
-    [getAuthToken, notifications, unreadCount]
+    [getAccessToken, notifications, unreadCount]
   );
 
   /**
    * Mark all notifications as read
    */
   const markAllAsRead = useCallback(async () => {
-    const token = getAuthToken();
+    const token = await getAccessToken();
     if (!token) {
       setError("No auth token found");
       return;
@@ -298,14 +292,14 @@ export function useNotifications(): UseNotificationsReturn {
       setError(message);
       console.error("Error marking all as read:", err);
     }
-  }, [getAuthToken, notifications]);
+  }, [getAccessToken, notifications]);
 
   /**
    * Delete a notification
    */
   const deleteNotification = useCallback(
     async (notificationId: string) => {
-      const token = getAuthToken();
+      const token = await getAccessToken();
       if (!token) {
         setError("No auth token found");
         return;
@@ -341,14 +335,14 @@ export function useNotifications(): UseNotificationsReturn {
         console.error("Error deleting notification:", err);
       }
     },
-    [getAuthToken, notifications]
+    [getAccessToken, notifications]
   );
 
   /**
    * Delete all notifications
    */
   const deleteAllNotifications = useCallback(async () => {
-    const token = getAuthToken();
+    const token = await getAccessToken();
     if (!token) {
       setError("No auth token found");
       return;
@@ -384,7 +378,7 @@ export function useNotifications(): UseNotificationsReturn {
       setError(message);
       console.error("Error deleting all notifications:", err);
     }
-  }, [getAuthToken]);
+  }, [getAccessToken]);
 
   /**
    * Subscribe to real-time notifications (polling)
