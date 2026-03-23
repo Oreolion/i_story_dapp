@@ -53,10 +53,22 @@ import {
   Loader2,
   Edit3,
   Sparkles,
+  AlertTriangle,
+  Trash2,
 } from "lucide-react";
 
 import { WeeklyReflectionSection } from "@/components/WeeklyReflection";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { TestnetBanner } from "@/components/TestnetBanner";
 
 // --- Types ---
 interface UserProfileData {
@@ -140,6 +152,9 @@ export default function ProfilePage() {
   const [isLinkingGoogle, setIsLinkingGoogle] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [currentTab, setCurrentTab] = useState("overview");
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
   // Track intent to link wallet — when user clicks "Connect Wallet" and
   // the RainbowKit modal opens, we need to auto-continue after they connect
@@ -442,6 +457,36 @@ export default function ProfilePage() {
       toast.success("Preference updated");
   };
 
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== "DELETE") return;
+    setIsDeleting(true);
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        toast.error("Not authenticated");
+        return;
+      }
+      const res = await fetch("/api/user", {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error(data.error || "Failed to delete account");
+        return;
+      }
+      toast.success("Account deleted successfully");
+      setDeleteConfirmOpen(false);
+      // Sign out and redirect
+      window.localStorage.clear();
+      window.location.href = "/";
+    } catch {
+      toast.error("Failed to delete account");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleCompileDailyJournal = async () => {
     if (!requireWallet("mint a Daily Journal NFT")) return;
     if (todaysStories.length < 2) return toast.error("Need at least 2 stories today to compile.");
@@ -526,6 +571,7 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-20">
+      <TestnetBanner />
       {/* Header */}
       <div className="text-center space-y-4">
         <motion.div
@@ -1052,7 +1098,7 @@ export default function ProfilePage() {
                   {/* Preferences Section */}
                   <div className="space-y-4 border-t pt-6 dark:border-gray-700">
                       <h3 className="text-lg font-semibold">Preferences</h3>
-                      
+
                       <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                           <div className="space-y-0.5">
                               <Label className="text-base">Email Notifications</Label>
@@ -1084,6 +1130,85 @@ export default function ProfilePage() {
                              {preferences.aiEnhancement ? "On" : "Off"}
                           </Button>
                       </div>
+                  </div>
+
+                  {/* Danger Zone */}
+                  <div className="space-y-4 border-t border-red-200 dark:border-red-900/50 pt-6">
+                    <h3 className="text-lg font-semibold text-red-600 dark:text-red-400 flex items-center gap-2">
+                      <AlertTriangle className="w-5 h-5" />
+                      Danger Zone
+                    </h3>
+                    <div className="p-4 border border-red-200 dark:border-red-900/50 rounded-lg bg-red-50/50 dark:bg-red-950/20">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="space-y-1">
+                          <p className="font-medium text-sm">Delete Account</p>
+                          <p className="text-xs text-muted-foreground">
+                            Permanently delete your account and all associated data.
+                            On-chain data (NFTs, transactions) will persist on the blockchain.
+                          </p>
+                        </div>
+                        <Dialog open={deleteConfirmOpen} onOpenChange={(open) => {
+                          setDeleteConfirmOpen(open);
+                          if (!open) setDeleteConfirmText("");
+                        }}>
+                          <DialogTrigger asChild>
+                            <Button variant="destructive" size="sm">
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete Account
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle className="flex items-center gap-2 text-red-600">
+                                <AlertTriangle className="w-5 h-5" />
+                                Delete Account
+                              </DialogTitle>
+                              <DialogDescription>
+                                This action cannot be undone. This will permanently delete your
+                                account, stories, collections, and all associated data.
+                                On-chain data (NFTs, transactions, verified metrics) will persist
+                                on the blockchain.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-2 py-4">
+                              <Label htmlFor="delete-confirm" className="text-sm">
+                                Type <strong>DELETE</strong> to confirm:
+                              </Label>
+                              <Input
+                                id="delete-confirm"
+                                value={deleteConfirmText}
+                                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                                placeholder="DELETE"
+                                className="font-mono"
+                              />
+                            </div>
+                            <DialogFooter>
+                              <Button
+                                variant="outline"
+                                onClick={() => setDeleteConfirmOpen(false)}
+                                disabled={isDeleting}
+                              >
+                                Cancel
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                onClick={handleDeleteAccount}
+                                disabled={deleteConfirmText !== "DELETE" || isDeleting}
+                              >
+                                {isDeleting ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Deleting...
+                                  </>
+                                ) : (
+                                  "Permanently Delete"
+                                )}
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

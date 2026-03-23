@@ -28,10 +28,9 @@ const footerLinks = {
     { name: "Blog", href: "#blog" },
   ],
   legal: [
-    { name: "Privacy Policy", href: "#privacy" },
-    { name: "Terms of Service", href: "#terms" },
-    { name: "Cookie Policy", href: "#cookies" },
-    { name: "Contact", href: "#contact" },
+    { name: "Privacy Policy", href: "/privacy" },
+    { name: "Terms of Service", href: "/terms" },
+    { name: "Contact", href: "mailto:contact@estories.app" },
   ],
 };
 

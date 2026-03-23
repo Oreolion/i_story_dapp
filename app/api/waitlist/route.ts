@@ -3,7 +3,11 @@ import { Resend } from "resend";
 import WaitlistEmail from "@/components/emails/WaitlistEmail";
 import { createSupabaseAdminClient } from "@/app/utils/supabase/supabaseAdmin";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let _resend: Resend | null = null;
+function getResend() {
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY);
+  return _resend;
+}
 
 /** Basic email format validation. */
 function isValidEmail(email: string): boolean {
@@ -67,7 +71,7 @@ export async function POST(req: NextRequest) {
     // Send confirmation email (best-effort — don't fail the request)
     try {
       if (process.env.RESEND_API_KEY) {
-        const { error: emailError } = await resend.emails.send({
+        const { error: emailError } = await getResend().emails.send({
           from: "EStories <onboarding@resend.dev>",
           to: [email],
           subject: "You're on the EStories waitlist!",

@@ -37,6 +37,7 @@ import { StoryInsights } from '@/components/StoryInsights';
 import { CanonicalBadge } from '@/components/CanonicalBadge';
 import { VerifiedBadge } from '@/components/VerifiedBadge';
 import { VerifiedMetricsCard } from '@/components/VerifiedMetricsCard';
+import { TestnetBanner } from '@/components/TestnetBanner';
 import { useStoryMetadata } from '../../hooks/useStoryMetadata';
 import { useVerifiedMetrics } from '../../hooks/useVerifiedMetrics';
 
@@ -558,6 +559,7 @@ export default function StoryPage({
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-20">
+      <TestnetBanner />
       {/* Top Navigation */}
       <div className="flex justify-between items-center">
         <Button variant="ghost" size="sm" onClick={() => router.back()}>

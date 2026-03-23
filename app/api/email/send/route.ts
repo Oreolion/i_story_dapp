@@ -4,7 +4,11 @@ import WelcomeEmail from "@/components/emails/WelcomeEmail";
 import WaitlistEmail from "@/components/emails/WaitlistEmail";
 import { validateAuthOrReject, isAuthError } from "@/lib/auth";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let _resend: Resend | null = null;
+function getResend() {
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY);
+  return _resend;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -36,7 +40,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Invalid email type" }, { status: 400 });
     }
 
-    const data = await resend.emails.send({
+    const data = await getResend().emails.send({
       from: "EStories <onboarding@resend.dev>",
       to: [email],
       subject: subject,

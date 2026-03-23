@@ -80,8 +80,9 @@ const ALLOWED_ORIGINS = [
   "http://localhost:8081",  // Expo web dev server
   "http://localhost:19006", // Expo web (alternate port)
   "http://localhost:3000",  // Next.js dev server
-  "https://e-story-dapp.vercel.app",
-  "https://istory.vercel.app",
+  "https://estories.app",
+  "https://www.estories.app",
+  "https://e-story-dapp.vercel.app", // Legacy Vercel deployment
 ];
 
 function getCorsHeaders(origin: string | null): Record<string, string> {
