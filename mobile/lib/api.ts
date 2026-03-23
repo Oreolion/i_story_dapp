@@ -1,4 +1,4 @@
-// e-Story Mobile - API Client
+// eStories Mobile - API Client
 // Wraps all fetch calls with API_BASE_URL prefix and Bearer token from SecureStore
 
 import Constants from "expo-constants";

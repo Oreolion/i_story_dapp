@@ -1,4 +1,4 @@
-// iStory Mobile - Smart Contract Addresses & ABIs
+// eStories Mobile - Smart Contract Addresses & ABIs
 // Ported from web lib/contracts.ts
 
 export const STORY_TOKEN_ADDRESS =

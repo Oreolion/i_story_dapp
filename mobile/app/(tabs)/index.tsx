@@ -76,14 +76,14 @@ export default function HomeScreen() {
         >
           <AnimatedListItem index={0}>
             <GradientText
-              text={user?.name ? `Welcome, ${user.name}` : "Welcome to e-Story"}
+              text={user?.name ? `Welcome, ${user.name}` : "Welcome to eStories"}
               gradient={GRADIENTS.primary}
               style={{ fontSize: 28, lineHeight: 36 }}
             />
           </AnimatedListItem>
           <AnimatedListItem index={1}>
             <Text style={{ marginTop: 6, fontSize: 15, color: "#94a3b8" }}>
-              Your voice. Your story. On-chain forever.
+              Write about anything you're passionate about. AI-powered insights, blockchain provenance, and privacy by default.
             </Text>
           </AnimatedListItem>
         </LinearGradient>
@@ -208,7 +208,7 @@ export default function HomeScreen() {
                     lineHeight: 20,
                   }}
                 >
-                  Connect your wallet or sign in with Google to begin recording
+                  Connect your wallet or sign in with Google to start writing
                   stories.
                 </Text>
                 <View style={{ marginTop: 16, width: "100%" }}>

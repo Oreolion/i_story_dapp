@@ -2,7 +2,7 @@ import { ExpoConfig, ConfigContext } from "expo/config";
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  name: "e-Story",
+  name: "eStories",
   slug: "estory-mobile",
   version: "1.0.0",
   orientation: "portrait",
@@ -16,15 +16,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   ios: {
     supportsTablet: true,
-    bundleIdentifier: "com.estory.mobile",
-    associatedDomains: ["applinks:e-story-dapp.vercel.app"],
+    bundleIdentifier: "app.estories.mobile",
+    associatedDomains: ["applinks:estories.app"],
     infoPlist: {
       NSMicrophoneUsageDescription:
-        "e-Story needs microphone access to record voice journals.",
+        "eStories needs microphone access to record your stories.",
       NSSpeechRecognitionUsageDescription:
-        "e-Story uses speech recognition to transcribe your stories.",
+        "eStories uses speech recognition to transcribe your stories.",
       NSCameraUsageDescription:
-        "e-Story needs camera access to update your profile photo.",
+        "eStories needs camera access to update your profile photo.",
     },
   },
   android: {
@@ -32,12 +32,38 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       foregroundImage: "./assets/adaptive-icon.png",
       backgroundColor: "#0f172a",
     },
-    package: "com.estory.mobile",
+    package: "app.estories.mobile",
     permissions: [
       "RECORD_AUDIO",
       "CAMERA",
       "POST_NOTIFICATIONS",
       "VIBRATE",
+    ],
+    intentFilters: [
+      {
+        action: "VIEW",
+        autoVerify: true,
+        data: [
+          {
+            scheme: "https",
+            host: "estories.app",
+            pathPrefix: "/story/",
+          },
+        ],
+        category: ["BROWSABLE", "DEFAULT"],
+      },
+      {
+        action: "VIEW",
+        autoVerify: true,
+        data: [
+          {
+            scheme: "https",
+            host: "estories.app",
+            pathPrefix: "/book/",
+          },
+        ],
+        category: ["BROWSABLE", "DEFAULT"],
+      },
     ],
   },
   web: {
@@ -58,7 +84,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       "expo-av",
       {
         microphonePermission:
-          "Allow e-Story to access your microphone for voice recording.",
+          "Allow eStories to access your microphone for voice recording.",
       },
     ],
   ],

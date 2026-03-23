@@ -1,4 +1,4 @@
-// e-Story Mobile - Auth Store (Zustand)
+// eStories Mobile - Auth Store (Zustand)
 // Replaces web AuthProvider.tsx context with Zustand store for RN
 
 import { create } from "zustand";
@@ -38,6 +38,7 @@ interface AuthState {
   signupWithEmail: (data: SignupData) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   fetchProfile: () => Promise<void>;
   completeOnboarding: (data: OnboardingData) => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
@@ -227,6 +228,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (err) {
       console.error("[Auth] Logout failed:", err);
     }
+  },
+
+  deleteAccount: async () => {
+    const res = await api("/api/user", { method: "DELETE" });
+    if (!res.ok) {
+      throw new Error(res.error || "Failed to delete account");
+    }
+    await supabase.auth.signOut();
+    await clearAuthToken();
+    await removeItem(TOKEN_KEY);
+    await removeItem(REFRESH_KEY);
+    set({ user: null, isAuthenticated: false, authMethod: null });
   },
 
   fetchProfile: async () => {
