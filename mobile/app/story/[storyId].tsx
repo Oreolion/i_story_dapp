@@ -63,6 +63,7 @@ import {
   SkeletonLoader,
   GRADIENTS,
 } from "../../components/ui";
+import { TestnetBanner } from "../../components/TestnetBanner";
 
 const DOMAIN_ICONS: Record<string, React.ComponentType<any>> = {
   work: Briefcase,
@@ -206,7 +207,7 @@ export default function StoryDetailScreen() {
     try {
       await Share.share({
         title: story.title,
-        message: `"${story.title}" on eStory\n\nhttps://e-story-dapp.vercel.app/story/${story.id}`,
+        message: `"${story.title}" on eStories\n\nhttps://e-story-dapp.vercel.app/story/${story.id}`,
       });
     } catch {}
   };
@@ -337,6 +338,19 @@ export default function StoryDetailScreen() {
             )}
           </View>
         </AnimatedListItem>
+
+        {/* Continuation indicator */}
+        {story.parent_story_id && (
+          <TouchableOpacity
+            onPress={() => router.push(`/story/${story.parent_story_id}`)}
+            activeOpacity={0.8}
+          >
+            <GlassCard intensity="light" style={{ flexDirection: "row", alignItems: "center", gap: 8, padding: 10, marginBottom: 8 }}>
+              <FileText size={14} color="#a78bfa" />
+              <Text style={{ fontSize: 12, color: "#a78bfa" }}>Continuation of a previous story — tap to view</Text>
+            </GlassCard>
+          </TouchableOpacity>
+        )}
 
         {/* Author */}
         <AnimatedListItem index={1}>
@@ -476,12 +490,26 @@ export default function StoryDetailScreen() {
                   </Text>
                 </GlassCard>
               )}
+
+              {/* Actionable Advice */}
+              {metadata.actionable_advice && (
+                <GlassCard intensity="light" withBorder={false} style={{ padding: 12, marginTop: 8 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                    <Lightbulb size={14} color="#facc15" />
+                    <Text style={{ fontSize: 12, fontWeight: "600", color: "#facc15" }}>Writing Advice</Text>
+                  </View>
+                  <Text style={{ fontSize: 12, lineHeight: 18, color: "#cbd5e1" }}>
+                    {metadata.actionable_advice}
+                  </Text>
+                </GlassCard>
+              )}
             </GlassCard>
           </AnimatedListItem>
         )}
 
         {/* Verified Metrics Section */}
         <AnimatedListItem index={5}>
+          <TestnetBanner />
           {isVerifying ? (
             <GlassCard intensity="medium" style={{ padding: 20, marginBottom: 16, alignItems: "center" }}>
               <SkeletonLoader variant="line" count={3} />

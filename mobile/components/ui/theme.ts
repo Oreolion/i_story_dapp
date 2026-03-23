@@ -27,6 +27,8 @@ export const GRADIENTS: Record<string, GradientColors> = {
   hero: ["#1e1b4b", "#0f172a", "#0f172a"],
   warm: ["#f59e0b", "#ef4444"],
   tabIndicator: ["#7c3aed", "#a78bfa"],
+  gold: ["#d4a04a", "#b8860b"],
+  brand: ["#9b7dd4", "#6c3dbd"],
 };
 
 export const SHADOWS = {

@@ -11,7 +11,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // iStory brand colors (matching web app)
+        // eStories brand colors (matching web app)
         primary: {
           DEFAULT: "hsl(262.1, 83.3%, 57.8%)",
           foreground: "hsl(210, 20%, 98%)",

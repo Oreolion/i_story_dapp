@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "e-Story",
+    "name": "eStories",
     "slug": "estory-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -15,14 +15,14 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.estory.mobile"
+      "bundleIdentifier": "app.estories.mobile"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0f172a"
       },
-      "package": "com.estory.mobile",
+      "package": "app.estories.mobile",
       "edgeToEdgeEnabled": true
     },
     "web": {

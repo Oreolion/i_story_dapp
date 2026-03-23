@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -64,7 +65,7 @@ export default function SignupScreen() {
         email: email.trim(),
         password,
       });
-      Toast.show({ type: "success", text1: "Welcome to e-Story!" });
+      Toast.show({ type: "success", text1: "Welcome to eStories!" });
       router.replace("/");
     } catch (err) {
       console.error("[Signup] Email signup failed:", err);
@@ -236,12 +237,30 @@ export default function SignupScreen() {
             </GlassCard>
 
             {/* Sign In link */}
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, paddingTop: 32, paddingBottom: 16 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, paddingTop: 32, paddingBottom: 8 }}>
               <Text style={{ fontSize: 13, color: "#94a3b8" }}>Already have an account?</Text>
               <TouchableOpacity onPress={() => router.back()}>
                 <Text style={{ fontSize: 13, fontWeight: "600", color: "#a78bfa" }}>Sign In</Text>
               </TouchableOpacity>
             </View>
+
+            {/* Terms */}
+            <Text style={{ textAlign: "center", fontSize: 11, color: "#64748b", paddingBottom: 16 }}>
+              By creating an account, you agree to our{" "}
+              <Text
+                style={{ color: "#a78bfa", textDecorationLine: "underline" }}
+                onPress={() => Linking.openURL("https://estories.app/terms")}
+              >
+                Terms of Service
+              </Text>
+              {" "}and{" "}
+              <Text
+                style={{ color: "#a78bfa", textDecorationLine: "underline" }}
+                onPress={() => Linking.openURL("https://estories.app/privacy")}
+              >
+                Privacy Policy
+              </Text>
+            </Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

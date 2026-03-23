@@ -106,6 +106,14 @@ export default function RootLayout() {
                 name="auth/onboarding"
                 options={{ headerShown: false, presentation: "modal" }}
               />
+              <Stack.Screen
+                name="collection/[collectionId]"
+                options={{ headerShown: false, presentation: "card" }}
+              />
+              <Stack.Screen
+                name="pricing/index"
+                options={{ headerShown: false, presentation: "modal" }}
+              />
             </Stack>
             {AppKitModal && <AppKitModal />}
             <Toast />

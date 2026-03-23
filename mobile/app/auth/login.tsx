@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -173,14 +174,14 @@ export default function LoginScreen() {
             >
               <AnimatedListItem index={0}>
                 <GradientText
-                  text="e-Story"
+                  text="eStories"
                   gradient={GRADIENTS.primary}
                   style={{ fontSize: 40 }}
                 />
               </AnimatedListItem>
               <AnimatedListItem index={1}>
                 <Text style={{ marginTop: 8, textAlign: "center", fontSize: 15, color: "#94a3b8", lineHeight: 22 }}>
-                  Your voice. Your story.{"\n"}On-chain forever.
+                  AI-powered sovereign storytelling.{"\n"}Your stories, on-chain forever.
                 </Text>
               </AnimatedListItem>
             </LinearGradient>
@@ -312,7 +313,20 @@ export default function LoginScreen() {
 
             {/* Terms */}
             <Text style={{ textAlign: "center", fontSize: 11, color: "#64748b", paddingBottom: 16 }}>
-              By continuing, you agree to our Terms of Service and Privacy Policy
+              By continuing, you agree to our{" "}
+              <Text
+                style={{ color: "#a78bfa", textDecorationLine: "underline" }}
+                onPress={() => Linking.openURL("https://estories.app/terms")}
+              >
+                Terms of Service
+              </Text>
+              {" "}and{" "}
+              <Text
+                style={{ color: "#a78bfa", textDecorationLine: "underline" }}
+                onPress={() => Linking.openURL("https://estories.app/privacy")}
+              >
+                Privacy Policy
+              </Text>
             </Text>
           </View>
         </ScrollView>

@@ -1,4 +1,4 @@
-// e-Story Mobile - Supabase Client
+// eStories Mobile - Supabase Client
 // Uses cross-platform StorageAdapter (SecureStore on native, sessionStorage on web)
 
 import "react-native-url-polyfill/auto";
