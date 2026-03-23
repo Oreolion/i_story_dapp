@@ -1,5 +1,5 @@
-// Library/Archive Screen - Personal stories, books, themes, life areas
-import React, { useState } from "react";
+// Library/Archive Screen - Personal stories, books, themes, life areas, collections
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   RefreshControl,
   ScrollView,
+  TextInput,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -29,10 +31,14 @@ import {
   TreePine,
   ChevronDown,
   ChevronRight,
+  FolderPlus,
+  Folder,
 } from "lucide-react-native";
+import Toast from "react-native-toast-message";
 import { useAuthStore } from "../../stores/authStore";
 import { usePatterns } from "../../hooks/usePatterns";
-import type { StoryWithMetadata, LifeDomain } from "../../types";
+import { useCollections } from "../../hooks/useCollections";
+import type { StoryWithMetadata, StoryCollection, LifeDomain } from "../../types";
 import {
   GlassCard,
   GradientButton,
@@ -41,9 +47,10 @@ import {
   StatCard,
   SectionHeader,
   GRADIENTS,
+  GLASS,
 } from "../../components/ui";
 
-type LibraryTab = "all" | "stories" | "books" | "key-moments" | "themes" | "life-areas";
+type LibraryTab = "all" | "stories" | "collections" | "books" | "key-moments" | "themes" | "life-areas";
 
 const DOMAIN_ICONS: Record<LifeDomain, React.ComponentType<any>> = {
   work: Briefcase,
@@ -89,14 +96,65 @@ export default function LibraryScreen() {
     isLoading,
     refetch,
   } = usePatterns();
+  const {
+    collections,
+    loading: collectionsLoading,
+    fetchCollections,
+    createCollection,
+    deleteCollection,
+  } = useCollections();
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<LibraryTab>("all");
   const [expandedThemes, setExpandedThemes] = useState<Set<string>>(new Set());
+  const [showNewCollection, setShowNewCollection] = useState(false);
+  const [newCollectionTitle, setNewCollectionTitle] = useState("");
+  const [newCollectionDesc, setNewCollectionDesc] = useState("");
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchCollections();
+    }
+  }, [isAuthenticated]);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await refetch();
+    await Promise.all([refetch(), fetchCollections()]);
     setRefreshing(false);
+  };
+
+  const handleCreateCollection = async () => {
+    if (!newCollectionTitle.trim()) {
+      Toast.show({ type: "error", text1: "Title is required" });
+      return;
+    }
+    const result = await createCollection(
+      newCollectionTitle.trim(),
+      newCollectionDesc.trim() || undefined
+    );
+    if (result) {
+      Toast.show({ type: "success", text1: "Collection created!" });
+      setNewCollectionTitle("");
+      setNewCollectionDesc("");
+      setShowNewCollection(false);
+    } else {
+      Toast.show({ type: "error", text1: "Failed to create collection" });
+    }
+  };
+
+  const handleDeleteCollection = (id: string, title: string) => {
+    Alert.alert("Delete Collection", `Delete "${title}"? Stories won't be affected.`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          const success = await deleteCollection(id);
+          if (success) {
+            Toast.show({ type: "success", text1: "Collection deleted" });
+          }
+        },
+      },
+    ]);
   };
 
   const toggleTheme = (theme: string) => {
@@ -323,7 +381,149 @@ export default function LibraryScreen() {
     );
   };
 
-  const tabs: LibraryTab[] = ["all", "stories", "books", "key-moments", "themes", "life-areas"];
+  const renderCollectionsView = () => (
+    <View style={{ paddingHorizontal: 16, paddingBottom: 32 }}>
+      {/* Create New Collection */}
+      {showNewCollection ? (
+        <GlassCard intensity="medium" style={{ padding: 16, marginBottom: 16 }}>
+          <GlassCard
+            intensity="light"
+            style={{ paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8 }}
+          >
+            <TextInput
+              value={newCollectionTitle}
+              onChangeText={setNewCollectionTitle}
+              placeholder="Collection title"
+              style={{ fontSize: 15, color: "#fff" }}
+              placeholderTextColor="#64748b"
+              autoFocus
+            />
+          </GlassCard>
+          <GlassCard
+            intensity="light"
+            style={{ paddingHorizontal: 12, paddingVertical: 10, marginBottom: 12 }}
+          >
+            <TextInput
+              value={newCollectionDesc}
+              onChangeText={setNewCollectionDesc}
+              placeholder="Description (optional)"
+              style={{ fontSize: 14, color: "#cbd5e1" }}
+              placeholderTextColor="#64748b"
+              multiline
+            />
+          </GlassCard>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <View style={{ flex: 1 }}>
+              <GradientButton
+                onPress={handleCreateCollection}
+                title="Create"
+                gradient={GRADIENTS.success}
+                fullWidth
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <GradientButton
+                onPress={() => {
+                  setShowNewCollection(false);
+                  setNewCollectionTitle("");
+                  setNewCollectionDesc("");
+                }}
+                title="Cancel"
+                gradient={GRADIENTS.error}
+                fullWidth
+              />
+            </View>
+          </View>
+        </GlassCard>
+      ) : (
+        <TouchableOpacity
+          onPress={() => setShowNewCollection(true)}
+          activeOpacity={0.8}
+          style={{ marginBottom: 16 }}
+        >
+          <GlassCard
+            intensity="light"
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              padding: 16,
+              borderStyle: "dashed",
+              borderWidth: 1,
+              borderColor: GLASS.light.border,
+            }}
+          >
+            <FolderPlus size={20} color="#a78bfa" />
+            <Text style={{ fontSize: 14, fontWeight: "500", color: "#a78bfa" }}>
+              New Collection
+            </Text>
+          </GlassCard>
+        </TouchableOpacity>
+      )}
+
+      {/* Collections List */}
+      {collections.length === 0 && !collectionsLoading ? (
+        <View style={{ alignItems: "center", paddingVertical: 48 }}>
+          <Folder size={40} color="#64748b" />
+          <Text style={{ marginTop: 12, color: "#94a3b8" }}>
+            No collections yet. Create one to organize your stories.
+          </Text>
+        </View>
+      ) : (
+        collections.map((col, idx) => (
+          <AnimatedListItem key={col.id} index={idx}>
+            <TouchableOpacity
+              onPress={() => router.push(`/collection/${col.id}`)}
+              onLongPress={() => handleDeleteCollection(col.id, col.title)}
+              activeOpacity={0.8}
+            >
+              <GlassCard intensity="light" style={{ padding: 16, marginBottom: 12 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 10,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      backgroundColor: "rgba(167,139,250,0.15)",
+                    }}
+                  >
+                    <Folder size={20} color="#a78bfa" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 15, fontWeight: "600", color: "#fff" }}>
+                      {col.title}
+                    </Text>
+                    {col.description && (
+                      <Text
+                        style={{ marginTop: 2, fontSize: 12, color: "#94a3b8" }}
+                        numberOfLines={1}
+                      >
+                        {col.description}
+                      </Text>
+                    )}
+                  </View>
+                  <View style={{ alignItems: "flex-end" }}>
+                    <Badge
+                      text={`${col.story_count} ${col.story_count === 1 ? "story" : "stories"}`}
+                    />
+                    <Badge
+                      text={col.is_public ? "Public" : "Private"}
+                      variant={col.is_public ? "success" : "warning"}
+                    />
+                  </View>
+                </View>
+              </GlassCard>
+            </TouchableOpacity>
+          </AnimatedListItem>
+        ))
+      )}
+    </View>
+  );
+
+  const tabs: LibraryTab[] = ["all", "stories", "collections", "books", "key-moments", "themes", "life-areas"];
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#0f172a" }}>
@@ -418,7 +618,15 @@ export default function LibraryScreen() {
       </ScrollView>
 
       {/* Tab Content */}
-      {activeTab === "themes" ? (
+      {activeTab === "collections" ? (
+        <ScrollView
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          {renderCollectionsView()}
+        </ScrollView>
+      ) : activeTab === "themes" ? (
         <ScrollView
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />

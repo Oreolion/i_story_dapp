@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
+  Linking,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -25,6 +26,7 @@ import {
   Check,
   X,
   Camera,
+  Trash2,
 } from "lucide-react-native";
 import Toast from "react-native-toast-message";
 import { useAccount } from "wagmi";
@@ -41,9 +43,10 @@ import {
   GRADIENTS,
   ANIMATION,
 } from "../../components/ui";
+import { TestnetBanner } from "../../components/TestnetBanner";
 
 export default function ProfileScreen() {
-  const { user, isAuthenticated, logout, updateProfile } =
+  const { user, isAuthenticated, logout, deleteAccount, updateProfile } =
     useAuthStore();
   const { address, isConnected } = useAccount();
   const { open } = useAppKit();
@@ -126,6 +129,29 @@ export default function ProfileScreen() {
   const handleLogout = async () => {
     await logout();
     router.replace("/");
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "Delete Account",
+      "This will permanently delete your account and all off-chain data. On-chain data (NFTs, transactions) cannot be removed. This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteAccount();
+              Toast.show({ type: "success", text1: "Account deleted" });
+              router.replace("/");
+            } catch {
+              Toast.show({ type: "error", text1: "Failed to delete account. Try again." });
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -234,6 +260,7 @@ export default function ProfileScreen() {
         <AnimatedListItem index={2}>
           <View style={{ marginTop: 16 }}>
             <SectionHeader title="Connected Accounts" />
+            <TestnetBanner />
             <GlassCard intensity="light" style={{ padding: 16 }}>
               {/* Wallet */}
               <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 8 }}>
@@ -314,6 +341,39 @@ export default function ProfileScreen() {
                   <Text style={{ color: "#f87171", fontSize: 15, fontWeight: "500" }}>Sign Out</Text>
                 </GlassCard>
               </Animated.View>
+            </TouchableOpacity>
+          </View>
+        </AnimatedListItem>
+
+        {/* Delete Account */}
+        <AnimatedListItem index={4}>
+          <View style={{ marginTop: 8 }}>
+            <TouchableOpacity onPress={handleDeleteAccount} activeOpacity={0.8}>
+              <GlassCard
+                intensity="light"
+                style={{
+                  padding: 16,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 12,
+                  borderColor: "rgba(239,68,68,0.1)",
+                }}
+              >
+                <Trash2 size={20} color="#ef4444" />
+                <Text style={{ color: "#f87171", fontSize: 15, fontWeight: "500" }}>Delete Account</Text>
+              </GlassCard>
+            </TouchableOpacity>
+          </View>
+        </AnimatedListItem>
+
+        {/* Legal Links */}
+        <AnimatedListItem index={5}>
+          <View style={{ marginTop: 24, marginBottom: 16, alignItems: "center", gap: 8 }}>
+            <TouchableOpacity onPress={() => Linking.openURL("https://estories.app/privacy")}>
+              <Text style={{ fontSize: 12, color: "#64748b", textDecorationLine: "underline" }}>Privacy Policy</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => Linking.openURL("https://estories.app/terms")}>
+              <Text style={{ fontSize: 12, color: "#64748b", textDecorationLine: "underline" }}>Terms of Service</Text>
             </TouchableOpacity>
           </View>
         </AnimatedListItem>

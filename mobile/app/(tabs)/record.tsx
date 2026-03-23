@@ -105,20 +105,21 @@ export default function RecordScreen() {
   const [storyDate, setStoryDate] = useState(getTodayString());
   const [duration, setDuration] = useState(0);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [parentStoryId, setParentStoryId] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isBusy = step === "transcribing" || step === "enhancing" || step === "saving";
   const hasContent = !!(enhancedText || transcript);
 
   // === Draft Persistence ===
-  const DRAFT_KEY = "estory_draft";
+  const DRAFT_KEY = "estories_record_draft";
 
   const saveDraft = useCallback(async () => {
     if (!title && !transcript && !enhancedText && !tags) return;
     try {
       await AsyncStorage.setItem(
         DRAFT_KEY,
-        JSON.stringify({ title, transcript, enhancedText, tags, selectedMood, isPublic, storyDate, inputMode })
+        JSON.stringify({ title, transcript, enhancedText, tags, selectedMood, isPublic, storyDate, inputMode, parentStoryId })
       );
     } catch {}
   }, [title, transcript, enhancedText, tags, selectedMood, isPublic, storyDate, inputMode]);
@@ -136,6 +137,7 @@ export default function RecordScreen() {
       if (draft.isPublic !== undefined) setIsPublic(draft.isPublic);
       if (draft.storyDate) setStoryDate(draft.storyDate);
       if (draft.inputMode) setInputMode(draft.inputMode);
+      if (draft.parentStoryId) setParentStoryId(draft.parentStoryId);
       if (draft.title || draft.transcript || draft.enhancedText) {
         setStep("recorded");
         Toast.show({ type: "info", text1: "Draft restored", text2: "Your previous entry was recovered" });
@@ -303,7 +305,7 @@ export default function RecordScreen() {
         setTranscript(res.data.text);
         // Auto-generate title on first transcription
         if (!title) {
-          setTitle(`Journal Entry - ${formatDisplayDate(storyDate)}`);
+          setTitle(`Story Entry - ${formatDisplayDate(storyDate)}`);
         }
         setStep("recorded");
         Toast.show({ type: "success", text1: "Transcription complete!" });
@@ -416,6 +418,7 @@ export default function RecordScreen() {
           is_public: isPublic,
           story_date: storyDate,
           ...(audioUrl && { audio_url: audioUrl }),
+          ...(parentStoryId && { parent_story_id: parentStoryId }),
         },
       });
 

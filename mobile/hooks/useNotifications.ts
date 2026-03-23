@@ -1,4 +1,4 @@
-// Hook: Notifications CRUD + push token registration
+// Hook: Notifications CRUD + push token registration + polling with subscribe/unsubscribe
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
@@ -17,25 +17,63 @@ Notifications.setNotificationHandler({
   }),
 });
 
+interface FetchParams {
+  limit?: number;
+  offset?: number;
+  unreadOnly?: boolean;
+}
+
 export function useNotifications() {
   const { isAuthenticated } = useAuthStore();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const subscribedRef = useRef(false);
 
-  const fetchNotifications = useCallback(async () => {
-    if (!isAuthenticated) return;
-    try {
-      const res = await apiGet<{ notifications: Notification[] }>("/api/notifications");
-      if (res.ok && res.data?.notifications) {
-        setNotifications(res.data.notifications);
-        setUnreadCount(res.data.notifications.filter((n) => !n.is_read).length);
+  const fetchNotifications = useCallback(
+    async (params?: FetchParams) => {
+      if (!isAuthenticated) return;
+      setLoading(true);
+      try {
+        const query = new URLSearchParams();
+        if (params?.limit) query.set("limit", String(params.limit));
+        if (params?.offset) query.set("offset", String(params.offset));
+        if (params?.unreadOnly) query.set("unreadOnly", "true");
+
+        const qs = query.toString();
+        const path = `/api/notifications${qs ? `?${qs}` : ""}`;
+        const res = await apiGet<{
+          notifications: Notification[];
+          unreadCount?: number;
+          hasMore?: boolean;
+        }>(path);
+
+        if (res.ok && res.data?.notifications) {
+          if (params?.offset && params.offset > 0) {
+            // Append for pagination
+            setNotifications((prev) => [...prev, ...res.data!.notifications]);
+          } else {
+            setNotifications(res.data.notifications);
+          }
+          if (typeof res.data.unreadCount === "number") {
+            setUnreadCount(res.data.unreadCount);
+          } else {
+            setUnreadCount(
+              res.data.notifications.filter((n) => !n.is_read).length
+            );
+          }
+          setHasMore(res.data.hasMore ?? false);
+        }
+      } catch (err) {
+        console.error("[useNotifications] Fetch failed:", err);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error("[useNotifications] Fetch failed:", err);
-    }
-  }, [isAuthenticated]);
+    },
+    [isAuthenticated]
+  );
 
   const markAsRead = async (id: string) => {
     await apiPut("/api/notifications", { id, is_read: true });
@@ -43,6 +81,12 @@ export function useNotifications() {
       prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
     );
     setUnreadCount((prev) => Math.max(0, prev - 1));
+  };
+
+  const markAllAsRead = async () => {
+    await apiPut("/api/notifications", { mark_all_read: true });
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    setUnreadCount(0);
   };
 
   const deleteNotification = async (id: string) => {
@@ -53,7 +97,8 @@ export function useNotifications() {
   const registerPushToken = async () => {
     if (!Device.isDevice) return;
     try {
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      const { status: existingStatus } =
+        await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
       if (existingStatus !== "granted") {
         const { status } = await Notifications.requestPermissionsAsync();
@@ -62,7 +107,6 @@ export function useNotifications() {
       if (finalStatus !== "granted") return;
 
       const tokenData = await Notifications.getExpoPushTokenAsync();
-      // Send token to backend for push notifications
       await apiPost("/api/notifications", {
         type: "push_token",
         token: tokenData.data,
@@ -73,24 +117,42 @@ export function useNotifications() {
     }
   };
 
+  const subscribe = useCallback(() => {
+    if (subscribedRef.current || !isAuthenticated) return;
+    subscribedRef.current = true;
+    fetchNotifications();
+    registerPushToken();
+    pollRef.current = setInterval(fetchNotifications, 30000);
+  }, [isAuthenticated, fetchNotifications]);
+
+  const unsubscribe = useCallback(() => {
+    subscribedRef.current = false;
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
+
+  // Auto-subscribe when authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      fetchNotifications();
-      registerPushToken();
-      // Poll every 30 seconds
-      pollRef.current = setInterval(fetchNotifications, 30000);
+      subscribe();
+    } else {
+      unsubscribe();
     }
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
-  }, [isAuthenticated, fetchNotifications]);
+    return unsubscribe;
+  }, [isAuthenticated, subscribe, unsubscribe]);
 
   return {
     notifications,
     unreadCount,
     loading,
+    hasMore,
     fetchNotifications,
     markAsRead,
+    markAllAsRead,
     deleteNotification,
+    subscribe,
+    unsubscribe,
   };
 }

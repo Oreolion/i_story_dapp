@@ -11,7 +11,7 @@
         "simulator": false
       },
       "env": {
-        "API_BASE_URL": "https://istory.vercel.app"
+        "API_BASE_URL": "https://e-story-dapp.vercel.app"
       }
     },
     "development-simulator": {
@@ -21,14 +21,31 @@
         "simulator": true
       },
       "env": {
-        "API_BASE_URL": "https://istory.vercel.app"
+        "API_BASE_URL": "https://e-story-dapp.vercel.app"
       }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "API_BASE_URL": "https://e-story-dapp.vercel.app"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "API_BASE_URL": "https://e-story-dapp.vercel.app"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "android": {
+        "serviceAccountKeyPath": "./google-services.json",
+        "track": "internal"
+      }
     }
   }
 }

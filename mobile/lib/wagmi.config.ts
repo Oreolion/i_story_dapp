@@ -1,4 +1,4 @@
-// e-Story Mobile - Wagmi + Reown AppKit Configuration
+// eStories Mobile - Wagmi + Reown AppKit Configuration
 // Replaces web lib/wagmi.config.ts (RainbowKit → Reown AppKit)
 
 import { createAppKit } from "@reown/appkit-react-native";
@@ -38,13 +38,13 @@ const baseSepolia: AppKitNetwork = {
 const networks: [AppKitNetwork, ...AppKitNetwork[]] = [baseSepolia];
 
 const metadata = {
-  name: "e-Story",
-  description: "Web3 AI-powered voice journaling dApp",
-  url: "https://istory.vercel.app",
-  icons: ["https://istory.vercel.app/icon.png"],
+  name: "eStories",
+  description: "AI-powered sovereign storytelling platform",
+  url: "https://e-story-dapp.vercel.app",
+  icons: ["https://e-story-dapp.vercel.app/icon-192.png"],
   redirect: {
     native: "estory://",
-    universal: "https://istory.vercel.app",
+    universal: "https://e-story-dapp.vercel.app",
   },
 };
 

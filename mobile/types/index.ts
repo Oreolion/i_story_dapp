@@ -1,4 +1,4 @@
-// iStory Mobile - Shared TypeScript Types
+// eStories Mobile - Shared TypeScript Types
 // Ported from web app/types/index.ts (mock data removed, moodColors adapted for RN)
 
 export interface AuthorProfile {
@@ -34,6 +34,7 @@ export interface StoryDataType {
   is_public: boolean;
   story_date: string;
   created_at: string;
+  parent_story_id?: string | null;
 }
 
 export interface StoryCardProps {
@@ -120,6 +121,7 @@ export interface StoryMetadata {
   places_mentioned: string[];
   time_references: string[];
   brief_insight: string | null;
+  actionable_advice: string | null;
   analysis_status?: AnalysisStatus;
   created_at: string;
   updated_at: string;
@@ -144,6 +146,9 @@ export interface Notification {
   is_read: boolean;
   story_id?: string;
   from_user_id?: string;
+  related_user_id?: string;
+  link?: string;
+  metadata?: Record<string, unknown>;
   created_at: string;
 }
 
@@ -216,6 +221,32 @@ export interface ReflectionResponse {
 export interface ReflectionRequest {
   userId: string;
   userWallet: string;
+}
+
+// === Story Collections Types ===
+
+export interface StoryCollection {
+  id: string;
+  title: string;
+  description: string | null;
+  author_id: string;
+  cover_image_url: string | null;
+  is_public: boolean;
+  story_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CollectionStory {
+  id: string;
+  collection_id: string;
+  story_id: string;
+  position: number;
+  added_at: string;
+}
+
+export interface CollectionWithStories extends StoryCollection {
+  stories: StoryDataType[];
 }
 
 // === Dual Authentication Types ===
