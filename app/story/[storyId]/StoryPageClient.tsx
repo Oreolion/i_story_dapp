@@ -32,7 +32,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { StoryDataType, CommentDataTypes, moodColors } from '../../types/index';
+import { StoryDataType, CommentDataTypes, moodColors, getStoryTypeConfig } from '../../types/index';
 import { StoryInsights } from '@/components/StoryInsights';
 import { CanonicalBadge } from '@/components/CanonicalBadge';
 import { VerifiedBadge } from '@/components/VerifiedBadge';
@@ -130,7 +130,7 @@ export default function StoryPage({
           .from("stories")
           .select(
             `
-            id, numeric_id, title, content, teaser, created_at, story_date, is_public, likes, shares, has_audio, audio_url, mood, tags, paywall_amount,
+            id, numeric_id, title, content, teaser, created_at, story_date, is_public, likes, shares, has_audio, audio_url, mood, tags, paywall_amount, story_type,
             author:users!stories_author_wallet_fkey (
               id, name, username, avatar, wallet_address, followers_count, badges
             )
@@ -166,6 +166,7 @@ export default function StoryPage({
             mood: storyData.mood || "neutral",
             tags: storyData.tags || [],
             paywallAmount: storyData.paywall_amount || 0,
+            story_type: storyData.story_type || undefined,
             author: {
               id: authorData?.id,
               name: authorData?.name || null,
@@ -620,6 +621,11 @@ export default function StoryPage({
                       txHash={verifiedMetrics?.on_chain_tx_hash}
                       qualityTier={verifiedProof?.qualityTier}
                     />
+                    {story.story_type && story.story_type !== "personal_journal" && (
+                      <Badge variant="secondary" className="text-xs bg-white/20 text-white border-white/30">
+                        {getStoryTypeConfig(story.story_type).shortLabel}
+                      </Badge>
+                    )}
                   </div>
                 </div>
                 

@@ -11,6 +11,7 @@ import { useAuth } from "../../components/AuthProvider";
 import { supabaseClient } from "../../app/utils/supabase/supabaseClient";
 import { ipfsService } from "../../app/utils/ipfsService";
 import { useBackgroundMode } from "@/contexts/BackgroundContext";
+import { STORY_TYPES, type StoryType } from "@/app/types";
 
 // Vault — local encrypted storage (optional, non-blocking)
 import {
@@ -53,7 +54,25 @@ import {
   Lock,   // NEW: For Private icon
   Unlock, // NEW: For Public icon
   Undo2,
+  BookOpen,
+  Landmark,
+  Globe2,
+  Users,
+  Feather,
+  CheckCircle2,
 } from "lucide-react";
+
+const STORY_TYPE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  BookOpen, Landmark, Globe2, Users, Feather,
+};
+
+const STORY_TYPE_COLORS: Record<string, { bg: string; border: string; text: string }> = {
+  memory:  { bg: "bg-[hsl(var(--memory-500)/0.12)]",  border: "border-[hsl(var(--memory-500)/0.4)]",  text: "text-[hsl(var(--memory-600))] dark:text-[hsl(var(--memory-400))]" },
+  story:   { bg: "bg-[hsl(var(--story-500)/0.12)]",   border: "border-[hsl(var(--story-500)/0.4)]",   text: "text-[hsl(var(--story-600))] dark:text-[hsl(var(--story-400))]" },
+  insight: { bg: "bg-[hsl(var(--insight-500)/0.12)]",  border: "border-[hsl(var(--insight-500)/0.4)]",  text: "text-[hsl(var(--insight-600))] dark:text-[hsl(var(--insight-400))]" },
+  growth:  { bg: "bg-[hsl(var(--growth-500)/0.12)]",  border: "border-[hsl(var(--growth-500)/0.4)]",  text: "text-[hsl(var(--growth-600))] dark:text-[hsl(var(--growth-400))]" },
+  rose:    { bg: "bg-rose-500/12",                     border: "border-rose-500/40",                    text: "text-rose-600 dark:text-rose-400" },
+};
 
 export default function RecordPage() {
   const { isConnected } = useApp();
@@ -70,7 +89,10 @@ export default function RecordPage() {
   const [entryTitle, setEntryTitle] = useState("");
   const [parentStoryTitle, setParentStoryTitle] = useState<string | null>(null);
   
-  // NEW: Visibility State
+  // Story Type
+  const [storyType, setStoryType] = useState<StoryType>("personal_journal");
+
+  // Visibility State
   const [isPublic, setIsPublic] = useState(false); // Default to Private
 
   // NEW: Date Selection for Backdating (Defaults to Today)
@@ -92,6 +114,7 @@ export default function RecordPage() {
   // Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const supabase = supabaseClient;
 
@@ -111,6 +134,7 @@ export default function RecordPage() {
       if (draft.entryTitle) setEntryTitle(draft.entryTitle);
       if (draft.storyDate) setStoryDate(draft.storyDate);
       if (draft.isPublic !== undefined) setIsPublic(draft.isPublic);
+      if (draft.storyType) setStoryType(draft.storyType);
       toast.success("Restored unsaved draft");
     } catch {
       // Corrupt draft — ignore
@@ -125,9 +149,9 @@ export default function RecordPage() {
     }
     sessionStorage.setItem(
       DRAFT_KEY,
-      JSON.stringify({ transcribedText, entryTitle, storyDate, isPublic })
+      JSON.stringify({ transcribedText, entryTitle, storyDate, isPublic, storyType })
     );
-  }, [transcribedText, entryTitle, storyDate, isPublic]);
+  }, [transcribedText, entryTitle, storyDate, isPublic, storyType]);
 
   useEffect(() => {
     const timer = setTimeout(saveDraft, 500);
@@ -368,6 +392,7 @@ export default function RecordPage() {
           date: storyDate, // User-selected date
           timestamp: actualCreatedDate, // System upload time
           is_public: isPublic, // Visibility state
+          story_type: storyType,
           app: "EStories DApp",
         };
 
@@ -390,6 +415,7 @@ export default function RecordPage() {
           is_public: isPublic,
           created_at: actualCreatedDate,
           story_date: backdatedStoryDate,
+          story_type: storyType,
           ...(parentStoryId ? { parent_story_id: parentStoryId } : {}),
         };
 
@@ -454,6 +480,7 @@ export default function RecordPage() {
             body: JSON.stringify({
               storyId: insertedStory.id,
               storyText: transcribedText,
+              storyType,
             }),
             keepalive: true,
           }).catch((err) => console.warn("Analysis trigger failed:", err));
@@ -478,6 +505,8 @@ export default function RecordPage() {
         setEntryTitle("");
         setAudioBlob(null);
         setRecordingDuration(0);
+        setStoryType("personal_journal");
+        setPreEnhanceText(null);
         // Clear draft after successful save
         sessionStorage.removeItem(DRAFT_KEY);
         return msg;
@@ -730,6 +759,41 @@ export default function RecordPage() {
             </div>
 
           </div>
+
+            {/* Story Type Selector */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-gray-500">
+                Story Type
+              </Label>
+              <div className="flex flex-wrap gap-2">
+                {STORY_TYPES.map((type) => {
+                  const Icon = STORY_TYPE_ICONS[type.icon];
+                  const colors = STORY_TYPE_COLORS[type.color] || STORY_TYPE_COLORS.memory;
+                  const isSelected = storyType === type.value;
+                  return (
+                    <button
+                      key={type.value}
+                      type="button"
+                      onClick={() => !isBusy && setStoryType(type.value)}
+                      disabled={isBusy}
+                      className={`
+                        inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium
+                        transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed
+                        ${isSelected
+                          ? `${colors.bg} ${colors.border} ${colors.text}`
+                          : "bg-transparent border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600"
+                        }
+                      `}
+                    >
+                      {Icon && <Icon className="w-3.5 h-3.5" />}
+                      <span className="hidden sm:inline">{type.label}</span>
+                      <span className="sm:hidden">{type.shortLabel}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
         </CardContent>
 
         <CardHeader>
@@ -776,12 +840,55 @@ export default function RecordPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <Textarea
-            placeholder="Your transcribed text will appear here, or you can type directly..."
+            ref={textareaRef}
+            placeholder={STORY_TYPES.find((t) => t.value === storyType)?.placeholder || "Your transcribed text will appear here, or you can type directly..."}
             value={transcribedText}
-            onChange={(e) => setTranscribedText(e.target.value)}
-            className="min-h-[200px] text-base leading-relaxed resize-none"
+            onChange={(e) => {
+              setTranscribedText(e.target.value);
+              // Auto-grow textarea
+              const el = textareaRef.current;
+              if (el) {
+                el.style.height = "auto";
+                el.style.height = `${Math.min(el.scrollHeight, 600)}px`;
+              }
+            }}
+            onKeyDown={(e) => {
+              // Ctrl+Enter / Cmd+Enter to save
+              if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                e.preventDefault();
+                if (transcribedText.trim() && entryTitle.trim() && !isBusy) {
+                  saveEntry();
+                }
+              }
+            }}
+            className="min-h-[200px] max-h-[600px] text-base leading-relaxed resize-none overflow-y-auto"
             disabled={isBusy}
           />
+
+          {/* Word count + AI threshold indicator */}
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            {(() => {
+              const wordCount = transcribedText.trim() ? transcribedText.trim().split(/\s+/).length : 0;
+              const readingTime = Math.max(1, Math.ceil(wordCount / 200));
+              const aiReady = transcribedText.trim().length >= 50;
+              return (
+                <>
+                  <span>{wordCount} {wordCount === 1 ? "word" : "words"}</span>
+                  <span className="text-gray-300 dark:text-gray-600">&middot;</span>
+                  <span>{readingTime} min read</span>
+                  <span className="text-gray-300 dark:text-gray-600">&middot;</span>
+                  {aiReady ? (
+                    <span className="flex items-center gap-1 text-[hsl(var(--growth-500))]">
+                      <CheckCircle2 className="w-3 h-3" /> AI Insights Ready
+                    </span>
+                  ) : (
+                    <span className="text-gray-400">Write 50+ characters to unlock AI insights</span>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+
           <Separator />
           <div className="flex flex-col sm:flex-row gap-4">
             <Button
@@ -833,6 +940,9 @@ export default function RecordPage() {
               {isPublic ? 'Publish & Save' : 'Save Privately'}
             </Button>
           </div>
+          <p className="text-xs text-muted-foreground text-right">
+            <kbd className="px-1.5 py-0.5 rounded bg-muted text-[10px] font-mono">Ctrl+Enter</kbd> to save
+          </p>
         </CardContent>
       </Card>
 

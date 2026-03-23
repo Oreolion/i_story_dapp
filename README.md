@@ -1,4 +1,4 @@
-# eStory — Privacy-Preserving AI-Powered Sovereign Storytelling Platform. Trustless and Tamper-Proof Quality and Significance Metrics Verification via Chainlink CRE
+# eStories — Privacy-Preserving AI-Powered Sovereign Storytelling Platform. Trustless and Tamper-Proof Quality and Significance Metrics Verification via Chainlink CRE
 
 ![Chainlink CRE](https://img.shields.io/badge/Chainlink-CRE-375BD2?logo=chainlink)
 ![Base Sepolia](https://img.shields.io/badge/Base-Sepolia-blue?logo=ethereum)
@@ -15,7 +15,7 @@
 
 - [The Problem — Three Civilizational Crises](#the-problem--three-civilizational-crises)
 - [The Solution](#the-solution)
-- [What is eStory?](#what-is-estory)
+- [What is eStories?](#what-is-estories)
 - [Privacy Architecture](#privacy-architecture)
 - [How It Works — The Full Pipeline](#how-it-works--the-full-pipeline)
 - [CRE Workflow Deep Dive](#cre-workflow-deep-dive)
@@ -35,7 +35,7 @@
 
 ## The Problem — Three Civilizational Crises
 
-eStory is a convergent solution to three compounding crises in human civilization:
+eStories is a convergent solution to three compounding crises in human civilization:
 
 ### The Ancient Crisis — Memory Extinction
 
@@ -59,7 +59,7 @@ Even beyond these crises, content marketplaces have a fundamental trust problem.
 
 ## The Solution
 
-**eStory uses Chainlink CRE to make AI-generated content metrics verifiable, trustless, and privacy-preserving.**
+**eStories uses Chainlink CRE to make AI-generated content metrics verifiable, trustless, and privacy-preserving.**
 
 Instead of trusting a single server, Chainlink's Decentralized Oracle Network (DON) runs the same AI analysis across multiple independent nodes inside encrypted enclaves. The nodes reach consensus, and the system performs a **dual-write**:
 
@@ -70,9 +70,9 @@ Anyone can verify that a story was analyzed and meets quality standards. Only th
 
 ---
 
-## What is eStory?
+## What is eStories?
 
-eStory is a Web3 AI-powered sovereign storytelling platform built on Base (Ethereum L2). Users write and record stories about anything they're passionate about — personal journals, historical narratives, geopolitical analysis, cultural stories, creative non-fiction — using voice or text. AI transcribes, enhances, and analyzes each story, providing craft feedback that helps users become better storytellers over time. Stories can be kept private in an encrypted vault or published to a social feed where they can be liked, tipped, paywalled, and minted as NFTs.
+eStories is a Web3 AI-powered sovereign storytelling platform built on Base (Ethereum L2). Users write and record stories about anything they're passionate about — personal journals, historical narratives, geopolitical analysis, cultural stories, creative non-fiction — using voice or text. AI transcribes, enhances, and analyzes each story, providing craft feedback that helps users become better storytellers over time. Stories can be kept private in an encrypted vault or published to a social feed where they can be liked, tipped, paywalled, and minted as NFTs.
 
 **Story types:** Personal journals & reflections, historical essays & analysis, geopolitical commentary, cultural narratives & oral histories, creative non-fiction & memoirs
 
@@ -84,7 +84,7 @@ eStory is a Web3 AI-powered sovereign storytelling platform built on Base (Ether
 
 ## Privacy Architecture
 
-eStory handles deeply personal and valuable content — from private journals to publishable stories. Users self-censor when their analysis data is broadcast on a public blockchain. The privacy-preserving CRE integration solves this with a **dual-write model**:
+eStories handles deeply personal and valuable content — from private journals to publishable stories. Users self-censor when their analysis data is broadcast on a public blockchain. The privacy-preserving CRE integration solves this with a **dual-write model**:
 
 ### What's Public (On-Chain)
 
@@ -195,7 +195,7 @@ const workflow = CRE.init({
   triggers: [new HTTPTrigger()],
   config: {
     geminiModel: "gemini-2.5-flash",
-    callbackUrl: "https://app.estory.xyz/api/cre/callback",
+    callbackUrl: "https://app.eStories.xyz/api/cre/callback",
     owner: "vault-don-owner",
     evms: [{ chainId: 84532 /* Base Sepolia */, gasLimit: 500000 }],
   },
@@ -636,7 +636,7 @@ cat demo-input.json | cre workflow simulate iStory_workflow --broadcast
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-CRE Workflow: eStory Privacy-Preserving Verification
+CRE Workflow: eStories Privacy-Preserving Verification
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [Step 1] Processing story: 11111111-1111-4111-8111-111111111111
 [Step 2] Querying Gemini AI (confidential enclave)...
@@ -695,7 +695,7 @@ cast call 0x158e08BCD918070C1703E8b84a6E2524D2AE5e4c \
 
 ## What Makes This Novel
 
-1. **Privacy-First Design** — Most CRE projects store full data on-chain. eStory stores only cryptographic proofs, preserving user privacy while enabling auditability.
+1. **Privacy-First Design** — Most CRE projects store full data on-chain. eStories stores only cryptographic proofs, preserving user privacy while enabling auditability.
 
 2. **Dual-Write Architecture** — Simultaneously writes minimal proofs on-chain (immutable, auditable) and full metrics off-chain (private, author-only). This is a sophisticated pattern for privacy-preserving verifiable compute.
 

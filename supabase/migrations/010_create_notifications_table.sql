@@ -26,7 +26,15 @@ CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
 -- Allow all operations via service role (admin client used by API routes)
-CREATE POLICY "Service role full access"
-  ON notifications FOR ALL
-  USING (true)
-  WITH CHECK (true);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'notifications' AND policyname = 'Service role full access'
+  ) THEN
+    CREATE POLICY "Service role full access"
+      ON notifications FOR ALL
+      USING (true)
+      WITH CHECK (true);
+  END IF;
+END
+$$;

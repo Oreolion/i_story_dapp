@@ -298,6 +298,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     storyId = body.storyId || "unknown";
     let storyText = body.storyText;
+    const storyType: string | undefined = body.storyType;
 
     // Input validation
     if (!body.storyId || !storyText) {
@@ -376,8 +377,21 @@ export async function POST(req: NextRequest) {
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
+      // Build story-type-specific prompt context
+      const storyTypeContext: Record<string, string> = {
+        personal_journal: "This is a personal journal entry. Focus on emotional depth, personal growth, self-awareness, and reflective patterns. Prioritize life_domain accuracy and emotional_tone nuance.",
+        historical_narrative: "This is a historical narrative. Focus on historical significance, cultural context, factual references, and the narrative's contribution to preserving collective memory. Weight significance_score toward historical importance.",
+        geopolitical_analysis: "This is a geopolitical analysis. Focus on analytical rigor, multiple perspectives, power dynamics, and systemic implications. Favor themes like 'geopolitics', 'power', 'policy'. Use life_domain 'general' or 'learning' unless another clearly fits.",
+        cultural_tale: "This is a cultural tale or tradition being preserved. Focus on cultural preservation, oral tradition markers, community values, and intergenerational knowledge transfer. Weight significance_score toward cultural importance.",
+        creative_nonfiction: "This is creative non-fiction. Focus on literary craft, narrative structure, voice, imagery, and the author's storytelling technique. Note both the content themes and the artistic choices.",
+      };
+
+      const typeContext = storyType && storyTypeContext[storyType]
+        ? `\n\nContext: ${storyTypeContext[storyType]}\n`
+        : "";
+
       // Generate analysis with retry logic
-      const prompt = ANALYSIS_PROMPT.replace("{STORY_TEXT}", storyText);
+      const prompt = ANALYSIS_PROMPT.replace("{STORY_TEXT}", storyText) + typeContext;
       const { text: analysisText, attempt } = await callGeminiWithRetry(model, prompt, storyId);
 
       // Parse and validate the response

@@ -11,7 +11,7 @@ import eStoryTokenABI from "@/lib/abis/iStoryToken.json";
 import { parseEther } from "viem";
 import Image from "next/image";
 import { Heart, MessageCircle, Share2, Calendar, Globe, Lock, Star, Headphones } from "lucide-react";
-import { StoryDataType, EmotionalTone } from "@/app/types";
+import { StoryDataType, EmotionalTone, getStoryTypeConfig } from "@/app/types";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { VerifiedMetricsCard } from "@/components/VerifiedMetricsCard";
 import { useVerifiedMetrics } from "@/app/hooks/useVerifiedMetrics";
@@ -230,6 +230,12 @@ export function StoryCard({
                     <Headphones className="w-3.5 h-3.5 mr-1 text-[hsl(var(--memory-500))]" />
                     <span className="text-xs text-[hsl(var(--memory-500))]">Audio</span>
                   </div>
+                )}
+
+                {(story as any).story_type && (story as any).story_type !== "personal_journal" && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 font-medium">
+                    {getStoryTypeConfig((story as any).story_type).shortLabel}
+                  </Badge>
                 )}
 
                 <span className="text-muted-foreground">{story.author_wallet?.followers} followers</span>

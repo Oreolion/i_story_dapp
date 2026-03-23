@@ -1,3 +1,72 @@
+// ============================================
+// Story Types
+// ============================================
+
+export type StoryType =
+  | "personal_journal"
+  | "historical_narrative"
+  | "geopolitical_analysis"
+  | "cultural_tale"
+  | "creative_nonfiction";
+
+export const STORY_TYPES: {
+  value: StoryType;
+  label: string;
+  shortLabel: string;
+  icon: string;
+  color: string;
+  placeholder: string;
+}[] = [
+  {
+    value: "personal_journal",
+    label: "Personal Journal",
+    shortLabel: "Journal",
+    icon: "BookOpen",
+    color: "memory",
+    placeholder: "What happened today? How did it make you feel?",
+  },
+  {
+    value: "historical_narrative",
+    label: "Historical Narrative",
+    shortLabel: "History",
+    icon: "Landmark",
+    color: "story",
+    placeholder: "What event or moment in history are you preserving?",
+  },
+  {
+    value: "geopolitical_analysis",
+    label: "Geopolitical Analysis",
+    shortLabel: "Geopolitics",
+    icon: "Globe2",
+    color: "insight",
+    placeholder: "What's your analysis of current events?",
+  },
+  {
+    value: "cultural_tale",
+    label: "Cultural Tale",
+    shortLabel: "Culture",
+    icon: "Users",
+    color: "growth",
+    placeholder: "What story, tradition, or knowledge are you passing on?",
+  },
+  {
+    value: "creative_nonfiction",
+    label: "Creative Non-Fiction",
+    shortLabel: "Creative",
+    icon: "Feather",
+    color: "rose",
+    placeholder: "Tell your story with literary craft...",
+  },
+];
+
+export function getStoryTypeConfig(type?: string) {
+  return STORY_TYPES.find((t) => t.value === type) || STORY_TYPES[0];
+}
+
+// ============================================
+// Core Types
+// ============================================
+
 export interface AuthorProfile {
   id?: string; // Optional: Supabase ID
   name: string | null;
@@ -32,6 +101,7 @@ export interface StoryDataType {
   story_date: string;
   created_at: string;
   parent_story_id?: string | null;
+  story_type?: StoryType;
 }
 
 export interface StoryCardProps {

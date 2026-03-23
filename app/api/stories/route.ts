@@ -56,6 +56,7 @@ export async function POST(req: NextRequest) {
       created_at,
       story_date,
       parent_story_id,
+      story_type,
     } = body ?? {};
 
     // Basic validation (author_wallet is optional for Google-only users)
@@ -116,6 +117,7 @@ export async function POST(req: NextRequest) {
     if (created_at) insertData.created_at = created_at;
     if (story_date) insertData.story_date = story_date;
     if (parent_story_id) insertData.parent_story_id = parent_story_id;
+    if (story_type) insertData.story_type = story_type;
 
     const { data: inserted, error: insertError } = await admin
       .from("stories")
