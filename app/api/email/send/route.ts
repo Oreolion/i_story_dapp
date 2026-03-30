@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     }
 
     const data = await getResend().emails.send({
-      from: "EStories <onboarding@resend.dev>",
+      from: "EStories <noreply@estories.app>",
       to: [email],
       subject: subject,
       react: emailComponent,

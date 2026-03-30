@@ -64,6 +64,9 @@ function getRateLimit(pathname: string): number {
   // Email endpoint: prevent spam
   if (pathname === "/api/email/send") return 5;
 
+  // Payment endpoints: prevent abuse
+  if (pathname.startsWith("/api/payment/")) return 10;
+
   // Default for all other API routes
   if (pathname.startsWith("/api/")) return 60;
 

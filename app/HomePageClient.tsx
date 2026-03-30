@@ -541,14 +541,15 @@ export default function HomePage() {
           <CardContent className="pt-6 space-y-4">
             <Quote className="w-6 h-6 text-[hsl(var(--memory-500)/0.3)]" />
             <p className="text-muted-foreground italic leading-relaxed text-lg">
-              &ldquo;I built eStories because I needed it — I wanted something
-              with less friction and that can also help me improove over time. Other platforms force you to type which is a bottleneck and makes
-              journaling or writing harder, my most important thoughts became trapped
-              on services and platforms I didn&apos;t control. Your journal, story and voice shouldn&apos;t
-              belong to a company — it should belong to you. We are living
-              through one of the most important time in human history, People
-              should write more and care more about their stories, their voice, and their
-              histories and how it is written.&rdquo;
+              &ldquo;I built eStories because I needed it — a tool with less
+              friction that could also help me improve over time. Other platforms
+              force you to type, which makes journaling and writing harder. My most
+              important thoughts ended up trapped on services I didn&apos;t control.
+              Your stories and your voice shouldn&apos;t belong to a company — they
+              should belong to you. We are living through one of the most important
+              periods in human history. People should write more, care more about
+              their stories, and take ownership of how their histories are
+              written.&rdquo;
             </p>
             <div className="flex items-center gap-3 pt-4 border-t border-[hsl(var(--memory-500)/0.1)]">
               <div className="w-10 h-10 rounded-full bg-[hsl(var(--memory-500)/0.15)] flex items-center justify-center text-[hsl(var(--memory-500))] font-medium text-sm">
@@ -771,7 +772,7 @@ export default function HomePage() {
               {[
                 {
                   q: "What can I write about on eStories?",
-                  a: "Anything you're passionate about! Personal journals, historical narratives, geopolitical analysis, cultural stories, creative non-fiction, memoirs, travel writing — the platform is for all forms of storytelling. Private stories stay encrypted; public stories can earn tips and paywall revenue.",
+                  a: "Anything you're passionate about! Personal journals, historical narratives, geopolitical analysis, cultural stories, creative non-fiction, memoirs, travel writing — the platform is for all forms of storytelling. Private stories stay encrypted; public stories can be shared with the community.",
                 },
                 {
                   q: "How does the AI help me become a better writer?",
@@ -783,11 +784,11 @@ export default function HomePage() {
                 },
                 {
                   q: "Do I need a crypto wallet?",
-                  a: "No! Sign up with Google or email. A crypto wallet is optional — it unlocks Web3 features like tipping, paywalls, NFT book minting, and on-chain provenance. Add one anytime from your profile.",
+                  a: "No! Sign up with Google or email. A crypto wallet is optional — it will unlock future Web3 features like tipping, paywalls, NFT book minting, and on-chain provenance when we launch on mainnet. Add one anytime from your profile.",
                 },
                 {
                   q: "What are $STORY tokens?",
-                  a: "$STORY is an ERC-20 token on Base (Ethereum L2) for the creator economy: tips, paywalled stories, and NFT minting. Transactions are fast and low-cost. You don't need tokens to read free stories or write your own.",
+                  a: "$STORY is an ERC-20 token on Base (Ethereum L2) being developed for the creator economy — tipping, paywalled stories, and NFT minting. It is currently on testnet and will launch on mainnet once the platform reaches critical adoption. You don't need tokens to use eStories today.",
                 },
                 {
                   q: "What is CRE-verified quality?",
@@ -795,7 +796,7 @@ export default function HomePage() {
                 },
                 {
                   q: "How do story collections work?",
-                  a: "Group related stories into collections — like a series on history or a year of personal growth. Continue existing stories as linked threads. Collections can be minted as NFT books on the blockchain.",
+                  a: "Group related stories into collections — like a series on history or a year of personal growth. Continue existing stories as linked threads. In the future, collections will be mintable as NFT books on the blockchain.",
                 },
                 {
                   q: "Can I cancel anytime?",

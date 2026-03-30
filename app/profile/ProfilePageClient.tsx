@@ -723,13 +723,13 @@ export default function ProfilePage() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <Button 
-                            onClick={handleCompileDailyJournal} 
-                            disabled={isMinting}
-                            className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                        <Button
+                            disabled
+                            className="w-full bg-purple-600/50 text-white cursor-not-allowed"
+                            title="NFT minting coming to mainnet"
                         >
-                            {isMinting ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : <BookOpen className="w-4 h-4 mr-2"/>}
-                            {isMinting ? "Minting..." : `Compile Daily Journal (${new Date().toLocaleDateString()})`}
+                            <BookOpen className="w-4 h-4 mr-2"/>
+                            Compile Daily Journal (Coming to Mainnet)
                         </Button>
                     </CardContent>
                  </Card>

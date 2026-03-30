@@ -281,12 +281,12 @@ export function StoryCard({
                 {story.teaser || "Premium content locked behind paywall"}
               </p>
               <Button
-                onClick={(e) => { e.stopPropagation(); e.preventDefault(); handlePaywall(); }}
-                disabled={isPaying}
+                disabled
                 size="sm"
-                className="btn-solid-story"
+                className="btn-solid-story opacity-50 cursor-not-allowed"
+                title="Paywall unlocking coming soon with USDC"
               >
-                {isPaying ? "Processing..." : `Unlock for ${story.paywallAmount} $STORY`}
+                Unlock Story (Coming Soon)
               </Button>
             </div>
             {/* Show verified metrics preview for paywalled content */}
@@ -349,27 +349,17 @@ export function StoryCard({
             </Button>
           </div>
 
-          {/* Tipping */}
+          {/* Tipping — disabled until mainnet */}
           <div className="flex items-center gap-2">
             <Button
               size="sm"
               variant="ghost"
-              onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleTip(); }}
-              disabled={isTipping}
-              className="text-[hsl(var(--story-500))] hover:text-[hsl(var(--story-400))] hover:bg-[hsl(var(--story-500)/0.1)]"
+              disabled
+              title="Tipping with USDC coming soon"
+              className="text-muted-foreground opacity-50 cursor-not-allowed"
             >
-              {isTipping ? "Tipping..." : `Tip ${tipAmount}`}
+              Tip <span className="text-[10px] ml-1 uppercase tracking-wide">Soon</span>
             </Button>
-            <input
-              title="Tip amount"
-              type="range"
-              min="1"
-              max="50"
-              value={tipAmount}
-              onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
-              onChange={(e) => { e.stopPropagation(); setTipAmount(Number(e.target.value)); }}
-              className="w-16 h-1.5 bg-[hsl(var(--void-light))] rounded-lg appearance-none cursor-pointer"
-            />
           </div>
         </div>
       </CardContent>

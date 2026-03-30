@@ -774,7 +774,12 @@ export default function RecordPage() {
                     <button
                       key={type.value}
                       type="button"
-                      onClick={() => !isBusy && setStoryType(type.value)}
+                      onClick={() => {
+                        if (isBusy) return;
+                        setStoryType(type.value);
+                        // Personal journals default to private, all others to public
+                        setIsPublic(type.value !== "personal_journal");
+                      }}
                       disabled={isBusy}
                       className={`
                         inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium

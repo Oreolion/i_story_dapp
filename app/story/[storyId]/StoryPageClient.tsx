@@ -710,14 +710,15 @@ export default function StoryPage({
                   <p className="text-gray-500">
                     Support the author to read the full story.
                   </p>
-                  <div className="flex justify-center pt-4">
+                  <div className="flex flex-col items-center gap-2 pt-4">
                     <Button
                       size="lg"
-                      className="bg-linear-to-r from-purple-600 to-indigo-600 shadow-lg hover:scale-105 transition-transform"
-                      onClick={() => setShowPaywallDialog(true)}
+                      disabled
+                      className="bg-linear-to-r from-purple-600 to-indigo-600 shadow-lg opacity-50 cursor-not-allowed"
                     >
-                      Unlock for {story.paywallAmount} $ESTORY
+                      Unlock Story
                     </Button>
+                    <p className="text-xs text-muted-foreground">Paywall unlocking coming soon with USDC on mainnet</p>
                   </div>
                   <div className="absolute inset-0 -z-10 opacity-10 blur-sm p-8 select-none overflow-hidden">
                     {story.teaser || "This content is hidden behind a paywall..."}
@@ -781,17 +782,22 @@ export default function StoryPage({
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => setShowTipDialog(true)}
+                  disabled
+                  title="Tipping with USDC coming soon"
+                  className="opacity-50 cursor-not-allowed"
                 >
                   <Sparkles className="w-4 h-4 mr-2 text-yellow-500" /> Tip
+                  <span className="ml-1 text-[10px] uppercase tracking-wide text-muted-foreground">Soon</span>
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={handleMintStory}
-                  disabled={isMinting}
+                  disabled
+                  title="NFT minting coming to mainnet"
+                  className="opacity-50 cursor-not-allowed"
                 >
                   <Sparkles className="w-4 h-4 mr-2" />{" "}
-                  {isMinting ? "Minting..." : "Mint NFT"}
+                  Mint NFT
+                  <span className="ml-1 text-[10px] uppercase tracking-wide text-muted-foreground">Soon</span>
                 </Button>
                 {isAuthor && (
                   <Button
@@ -894,51 +900,36 @@ export default function StoryPage({
         </div>
       </div>
 
-      {/* Paywall Dialog */}
+      {/* Paywall Dialog — disabled until mainnet */}
       <Dialog open={showPaywallDialog} onOpenChange={setShowPaywallDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Unlock Premium Story</DialogTitle>
             <DialogDescription>
-              Confirm payment to access the full content.
+              Paywall unlocking is coming soon.
             </DialogDescription>
           </DialogHeader>
           <div className="py-6 text-center space-y-2">
-            <Lock className="w-12 h-12 mx-auto text-emerald-500 mb-4" />
-            <p>Price to Unlock</p>
-            <p className="text-3xl font-bold text-emerald-600">
-              {story?.paywallAmount} $ESTORY
+            <Lock className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+            <p className="text-muted-foreground">
+              Paywall payments with USDC will be available when we launch on mainnet. Stay tuned!
             </p>
           </div>
-          <DialogFooter>
-            <Button
-              onClick={handleUnlock}
-              disabled={btnState.disabled}
-              className="w-full bg-emerald-600 hover:bg-emerald-700"
-            >
-              {btnState.icon} {btnState.text}
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Tip Dialog */}
+      {/* Tip Dialog — disabled until mainnet */}
       <Dialog open={showTipDialog} onOpenChange={setShowTipDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Send a Tip</DialogTitle>
           </DialogHeader>
-          <div className="py-4">
-            <p>How much do you want to tip?</p>
-            <Input
-              type="number"
-              value={tipAmount}
-              onChange={(e) => setTipAmount(Number(e.target.value))}
-            />
+          <div className="py-6 text-center space-y-2">
+            <Sparkles className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+            <p className="text-muted-foreground">
+              Tipping with USDC is coming soon. You&apos;ll be able to support your favorite storytellers directly.
+            </p>
           </div>
-          <DialogFooter>
-            <Button onClick={handleTip}>Send {tipAmount} $ESTORY</Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

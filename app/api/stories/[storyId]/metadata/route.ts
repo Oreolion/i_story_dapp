@@ -49,10 +49,9 @@ export async function GET(
     });
 
   } catch (error: unknown) {
-    console.error("Metadata fetch error:", error);
-    const errorMessage = error instanceof Error ? error.message : "Internal server error";
+    console.error("[METADATA] Fetch error:", error);
     return NextResponse.json(
-      { error: errorMessage },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
@@ -214,10 +213,9 @@ export async function PATCH(
     });
 
   } catch (error: unknown) {
-    console.error("Metadata update error:", error);
-    const errorMessage = error instanceof Error ? error.message : "Internal server error";
+    console.error("[METADATA] Update error:", error);
     return NextResponse.json(
-      { error: errorMessage },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

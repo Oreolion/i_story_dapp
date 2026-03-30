@@ -287,6 +287,35 @@ components/AuthButton.tsx               (modified — redirect to /onboarding in
 app/profile/ProfilePageClient.tsx       (modified — heatmap data + dynamic month labels)
 ```
 
+## Monetization Architecture (Current)
+
+**Two independent payment systems:**
+
+| System | Currency | Status | Purpose |
+|--------|----------|--------|---------|
+| **Subscriptions** | USDC via Blockradar | **Live** (mainnet) | Monthly plans ($2.99/$7.99) for premium features |
+| **Token economy** | $STORY (ERC-20) | **Testnet** (disabled in UI) | Tips, paywalls, NFT minting |
+
+**Current state:**
+- Subscriptions process real USDC on Base via Blockradar wallet infrastructure
+- Tips, paywalls, and NFT minting buttons are visible but disabled ("Coming soon")
+- $STORY token contracts remain deployed on Base Sepolia testnet only
+- All smart contract code is preserved — no code removed, only UI disabled
+
+**Mainnet migration criteria for token economy:**
+- 100+ registered users (minimum viable community)
+- Subscription system stable for 4+ weeks
+- Then: deploy $STORY, StoryProtocol, StoryNFT contracts to Base mainnet
+- Tips/paywalls will use USDC on-chain (direct wallet-to-wallet via contract)
+- $STORY token becomes optional governance/loyalty layer
+- No liquidity pool until sufficient adoption warrants it
+
+**To re-enable token features:** Remove `disabled`, `opacity-50`, `cursor-not-allowed` classes and "Coming soon" labels from:
+- `app/story/[storyId]/StoryPageClient.tsx` — tip button, mint button, paywall unlock
+- `components/StoryCard.tsx` — tip button, paywall unlock
+- `app/profile/ProfilePageClient.tsx` — daily journal mint button
+- Reconnect `handleTip`, `handleMintStory`, `handleUnlock` handlers
+
 ## Future Phases (Post-MVP)
 
 - Vault → Cloud sync (process syncQueue, upload encrypted stories to Supabase storage)
@@ -298,7 +327,6 @@ app/profile/ProfilePageClient.tsx       (modified — heatmap data + dynamic mon
 - Default to private with public opt-in
 - Only canonical stories can be shared publicly
 - ERC-8004 agent identity integration (speculative)
-- Mainnet migration when conditions met (3,000+ users, stable 4+ weeks)
 
 ## Privacy & Sharing Model (Target State)
 

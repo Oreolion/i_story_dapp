@@ -12,20 +12,32 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Check,
   Mic,
   Brain,
   Shield,
-  BookOpen,
   Zap,
   ChevronDown,
   ChevronUp,
   Crown,
   Sparkles,
   Lock,
+  Copy,
+  CheckCircle2,
+  Loader2,
 } from "lucide-react";
 import Link from "next/link";
+import { toast } from "react-hot-toast";
 import { useBackgroundMode } from "@/contexts/BackgroundContext";
+import { useSubscription } from "@/app/hooks/useSubscription";
+import { useAuth } from "@/components/AuthProvider";
 
 // ============================================================================
 // Pricing Data
@@ -92,10 +104,10 @@ const plans = [
     features: [
       "Everything in Storyteller, plus:",
       "Unlimited public story publishing",
-      "Custom paywall pricing per story",
-      "NFT book minting (no extra fee)",
+      "Custom paywall pricing per story (coming soon)",
+      "NFT book minting — no extra fee (coming soon)",
       "Creator analytics dashboard",
-      "Tip collection from readers",
+      "Tip collection from readers (coming soon)",
       "Priority support",
       "Custom author profile page",
       "Early access to new features",
@@ -114,7 +126,7 @@ const faqs = [
   {
     question: "What can I write about on eStories?",
     answer:
-      "Anything you're passionate about! eStories is a storytelling platform, not just a journal. Write personal reflections, historical narratives, geopolitical analysis, cultural stories, creative non-fiction, memoirs, travel writing, or anything else. Private stories stay encrypted in your vault; public stories can earn tips and paywall revenue.",
+      "Anything you're passionate about! eStories is a storytelling platform, not just a journal. Write personal reflections, historical narratives, geopolitical analysis, cultural stories, creative non-fiction, memoirs, travel writing, or anything else. Private stories stay encrypted in your vault; public stories can be shared with the community.",
   },
   {
     question: "How does the AI analysis help me become a better writer?",
@@ -129,12 +141,12 @@ const faqs = [
   {
     question: "Do I need a crypto wallet to use eStories?",
     answer:
-      "No! You can sign up with Google OAuth or create an account with email. A crypto wallet is optional — it unlocks Web3 features like tipping, paywalls, NFT book minting, and on-chain story provenance. You can add a wallet anytime from your profile settings.",
+      "No! You can sign up with Google OAuth or create an account with email. A crypto wallet is optional — it will unlock future Web3 features like tipping, paywalls, NFT book minting, and on-chain provenance when we launch on mainnet. You can add a wallet anytime from your profile settings.",
   },
   {
     question: "What are $STORY tokens used for?",
     answer:
-      "$STORY is an ERC-20 token on Base (Ethereum L2) used for the creator economy: readers tip writers, unlock paywalled stories, and mint story collections as NFTs. Token transactions are fast and low-cost thanks to Base's L2 efficiency. You don't need tokens to read free public stories or write your own.",
+      "$STORY is an ERC-20 token on Base (Ethereum L2) being developed for the creator economy — tipping, paywalled stories, and NFT minting. It is currently on testnet and will launch on mainnet once the platform reaches critical adoption. You don't need tokens to use eStories today.",
   },
   {
     question: "What is CRE-verified quality?",
@@ -149,7 +161,7 @@ const faqs = [
   {
     question: "How do story collections work?",
     answer:
-      "You can group related stories into collections — like a series on \"The History of West African Trade Routes\" or \"My Year Living Abroad.\" You can also continue an existing story, creating a linked narrative thread. Collections can be minted as NFT books on the blockchain.",
+      "You can group related stories into collections — like a series on \"The History of West African Trade Routes\" or \"My Year Living Abroad.\" You can also continue an existing story, creating a linked narrative thread. In the future, collections will be mintable as NFT books on the blockchain.",
   },
   {
     question: "Can I switch plans or cancel anytime?",
@@ -214,6 +226,36 @@ function FAQItem({
 
 export default function PricingPageClient() {
   useBackgroundMode("home");
+  const { profile } = useAuth();
+  const { status: subStatus, paymentInfo, isCreatingPayment, subscribe, clearPaymentInfo } = useSubscription();
+  const [copied, setCopied] = useState(false);
+
+  const handleSubscribe = async (planKey: string) => {
+    if (!profile?.id) {
+      toast.error("Please sign in to subscribe");
+      return;
+    }
+    try {
+      await subscribe(planKey);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to create payment");
+    }
+  };
+
+  const copyAddress = () => {
+    if (paymentInfo?.address) {
+      navigator.clipboard.writeText(paymentInfo.address);
+      setCopied(true);
+      toast.success("Address copied!");
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  // Map plan name to subscribe key
+  const planKeyMap: Record<string, string> = {
+    Storyteller: "storyteller",
+    Creator: "creator",
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
@@ -234,77 +276,147 @@ export default function PricingPageClient() {
             Start writing for free. Upgrade when you want AI-powered craft
             feedback, story collections, or creator monetization tools.
           </p>
+          {subStatus.active && (
+            <Badge className="mt-4 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+              <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+              Active: {subStatus.plan} plan (expires {new Date(subStatus.expires_at!).toLocaleDateString()})
+            </Badge>
+          )}
         </motion.div>
+
+        {/* Payment Modal */}
+        <Dialog open={!!paymentInfo} onOpenChange={(open) => !open && clearPaymentInfo()}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Complete Payment</DialogTitle>
+              <DialogDescription>
+                Send exactly <strong>${paymentInfo?.amount} {paymentInfo?.currency}</strong> on <strong>{paymentInfo?.network}</strong> to the address below. Your <strong>{paymentInfo?.plan}</strong> subscription will activate automatically.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                <p className="text-xs text-muted-foreground mb-1">Payment Address ({paymentInfo?.network})</p>
+                <div className="flex items-center gap-2">
+                  <code className="text-sm font-mono break-all flex-1">
+                    {paymentInfo?.address}
+                  </code>
+                  <Button variant="ghost" size="sm" onClick={copyAddress}>
+                    {copied ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                  </Button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Amount</p>
+                  <p className="font-semibold">${paymentInfo?.amount} {paymentInfo?.currency}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Network</p>
+                  <p className="font-semibold">{paymentInfo?.network}</p>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {paymentInfo?.note}
+              </p>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Pricing Cards */}
         <div className="grid md:grid-cols-3 gap-8 mb-24">
-          {plans.map((plan, index) => (
-            <motion.div
-              key={plan.name}
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-            >
-              <Card
-                className={`relative h-full flex flex-col ${
-                  plan.highlight
-                    ? "border-2 border-[#d4a04a] shadow-lg shadow-[#d4a04a]/10"
-                    : "border border-gray-200 dark:border-gray-700"
-                }`}
+          {plans.map((plan, index) => {
+            const planKey = planKeyMap[plan.name];
+            const isCurrentPlan = subStatus.active && subStatus.plan === planKey;
+
+            return (
+              <motion.div
+                key={plan.name}
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
               >
-                {plan.badge && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge className="bg-gradient-to-r from-[#d4a04a] to-[#9b7dd4] text-white border-0 px-4 py-1">
-                      {plan.badge}
-                    </Badge>
-                  </div>
-                )}
-                <CardHeader className="text-center pb-4">
-                  <div className="w-12 h-12 mx-auto mb-4 bg-gradient-to-r from-[#d4a04a]/20 to-[#9b7dd4]/20 rounded-full flex items-center justify-center">
-                    <plan.icon className="w-6 h-6 text-[#d4a04a]" />
-                  </div>
-                  <CardTitle className="text-xl">{plan.name}</CardTitle>
-                  <div className="mt-2">
-                    <span className="text-4xl font-bold text-gray-900 dark:text-white">
-                      {plan.price}
-                    </span>
-                    <span className="text-gray-500 dark:text-gray-400 ml-1">
-                      {plan.period}
-                    </span>
-                  </div>
-                  <CardDescription className="mt-2">
-                    {plan.description}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="flex-1 flex flex-col">
-                  <ul className="space-y-3 flex-1">
-                    {plan.features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-3">
-                        <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                        <span className="text-sm text-gray-700 dark:text-gray-300">
-                          {feature}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="mt-8">
-                    <Link href={plan.href}>
-                      <Button
-                        className={`w-full ${
-                          plan.highlight
-                            ? "bg-gradient-to-r from-[#d4a04a] to-[#9b7dd4] hover:from-[#c49040] hover:to-[#8b6dc4] text-white"
-                            : ""
-                        }`}
-                        variant={plan.highlight ? "default" : "outline"}
-                      >
-                        {plan.cta}
-                      </Button>
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
+                <Card
+                  className={`relative h-full flex flex-col ${
+                    plan.highlight
+                      ? "border-2 border-[#d4a04a] shadow-lg shadow-[#d4a04a]/10"
+                      : "border border-gray-200 dark:border-gray-700"
+                  }`}
+                >
+                  {plan.badge && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                      <Badge className="bg-gradient-to-r from-[#d4a04a] to-[#9b7dd4] text-white border-0 px-4 py-1">
+                        {plan.badge}
+                      </Badge>
+                    </div>
+                  )}
+                  <CardHeader className="text-center pb-4">
+                    <div className="w-12 h-12 mx-auto mb-4 bg-gradient-to-r from-[#d4a04a]/20 to-[#9b7dd4]/20 rounded-full flex items-center justify-center">
+                      <plan.icon className="w-6 h-6 text-[#d4a04a]" />
+                    </div>
+                    <CardTitle className="text-xl">{plan.name}</CardTitle>
+                    <div className="mt-2">
+                      <span className="text-4xl font-bold text-gray-900 dark:text-white">
+                        {plan.price}
+                      </span>
+                      <span className="text-gray-500 dark:text-gray-400 ml-1">
+                        {plan.period}
+                      </span>
+                    </div>
+                    <CardDescription className="mt-2">
+                      {plan.description}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex-1 flex flex-col">
+                    <ul className="space-y-3 flex-1">
+                      {plan.features.map((feature) => (
+                        <li key={feature} className="flex items-start gap-3">
+                          <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                          <span className="text-sm text-gray-700 dark:text-gray-300">
+                            {feature}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="mt-8">
+                      {planKey ? (
+                        <Button
+                          className={`w-full ${
+                            plan.highlight
+                              ? "bg-gradient-to-r from-[#d4a04a] to-[#9b7dd4] hover:from-[#c49040] hover:to-[#8b6dc4] text-white"
+                              : ""
+                          }`}
+                          variant={plan.highlight ? "default" : "outline"}
+                          disabled={isCurrentPlan || isCreatingPayment}
+                          onClick={() => handleSubscribe(planKey)}
+                        >
+                          {isCreatingPayment ? (
+                            <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating...</>
+                          ) : isCurrentPlan ? (
+                            <><CheckCircle2 className="w-4 h-4 mr-2" /> Current Plan</>
+                          ) : (
+                            plan.cta
+                          )}
+                        </Button>
+                      ) : (
+                        <Link href={plan.href}>
+                          <Button
+                            className={`w-full ${
+                              plan.highlight
+                                ? "bg-gradient-to-r from-[#d4a04a] to-[#9b7dd4] hover:from-[#c49040] hover:to-[#8b6dc4] text-white"
+                                : ""
+                            }`}
+                            variant={plan.highlight ? "default" : "outline"}
+                          >
+                            {plan.cta}
+                          </Button>
+                        </Link>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            );
+          })}
         </div>
 
         {/* Feature Comparison Highlights */}
