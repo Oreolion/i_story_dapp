@@ -91,8 +91,8 @@ export function Footer() {
               </Link>
               <p className="text-gray-600 dark:text-gray-400 leading-relaxed max-w-xs">
                 Transform your life stories into lasting digital memories.
-                Record, mint, and earn rewards in a community-driven Web3
-                ecosystem.
+                Transform your stories into lasting digital memories in a
+                community-driven Web3 ecosystem.
               </p>
               <div className="flex items-center space-x-4 pt-2">
                 <motion.a

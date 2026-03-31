@@ -15,7 +15,7 @@
 
 eStories is an innovative AI-powered web3 storytelling platform that empowers users to write and record stories about anything they're passionate about — personal journals, historical narratives, geopolitical analysis, cultural tales, creative non-fiction, and more. Every story gets AI-powered analysis that helps users improve as storytellers over time, with the option to immortalize their narratives on the blockchain and monetize them in a decentralized ecosystem. Built on Base, a secure and scalable Layer 2 solution on Ethereum, this app ensures low-cost, fast transactions while maintaining Ethereum's security.
 
-In a world where history has often been manipulated by conquerors, victors, and dominating empires, eStories reclaims the power of authentic storytelling. Whether you're documenting your personal journey, writing about the geopolitics of our time, preserving cultural traditions, or crafting historical essays, eStories gives your stories tamper-proof provenance and permanent preservation on the blockchain — while earning rewards through community engagement and NFT-based sales.
+In a world where history has often been manipulated by conquerors, victors, and dominating empires, eStories reclaims the power of authentic storytelling. Whether you're documenting your personal journey, writing about the geopolitics of our time, preserving cultural traditions, or crafting historical essays, eStories gives your stories tamper-proof provenance and permanent preservation on the blockchain — while earning through tips, paywall sales, and NFT-based collections.
 
 **An implicit superpower:** The more you write, the better you get. eStories's AI analysis provides feedback on narrative coherence, emotional depth, thematic consistency, and storytelling quality — turning every story into a micro-lesson in the craft of writing.
 
@@ -28,7 +28,7 @@ In a world where history has often been manipulated by conquerors, victors, and 
 - AI Enhancements: Get creative prompts, grammar polishing, and AI-generated suggestions (Google Gemini 2.5 Flash)
 - Storytelling Craft Feedback: AI analyzes narrative coherence, emotional depth, and thematic quality — helping you improve with every story
 - Blockchain Immortality: Mint stories as NFTs on Base (Ethereum L2) with IPFS storage via Pinata
-- Monetization Suite: Earn $STORY tokens from likes, tips, and paywall sales — particularly valuable for public stories on history, culture, and geopolitics
+- Monetization Suite: Earn $STORY tokens from  tips, and paywall sales — particularly valuable for public stories on history, culture, and geopolitics
 
 ### 🧠 Cognitive Layer (Phase 1 - NEW)
 
@@ -53,7 +53,7 @@ In a world where history has often been manipulated by conquerors, victors, and 
 ### 💬 Social Features
 
 - Community Social Feed: Discover and engage with other stories
-- Like System: Earn rewards for community engagement ($STORY tokens)
+- Like System: Show appreciation for stories you enjoy
 - Tip System: Support creators directly with custom $STORY token amounts
 - Comment System: Leave thoughts and build community discussions
 - Follow System: Build your storytelling community
@@ -62,7 +62,7 @@ In a world where history has often been manipulated by conquerors, victors, and 
 ### 💰 Monetization
 
 - Paywall System: Set custom prices for exclusive stories
-- $STORY Token Rewards: Earn from likes and community engagement
+- $STORY Token Rewards: Earn from tips and paywall sales
 - NFT Minting: Compile stories into digital books and mint as NFTs
 - Tip Jar: Accept voluntary tips from supporters
 
@@ -100,7 +100,7 @@ Store your stories as NFTs on the blockchain for secure and permanent ownership.
 
 ### Step 4: Share & Earn 💰
 
-Engage with the community, share your stories, and earn $STORY tokens based on interactions. Build your audience and monetize your creativity!
+Share your stories with the community and earn $STORY tokens through tips and paywall sales. Build your audience and monetize your creativity!
 
 ## Why eStories?
 
@@ -210,7 +210,7 @@ History is written by the victors, but your story deserves to be heard unedited.
 - Full Story Display: Read complete story content with rich formatting
 - Author Profile: View author info, badges, and follower count
 - Engagement Metrics: See likes, shares, and view counts
-- Like System: Blockchain-integrated like button with $STORY rewards
+- Like System: Show appreciation for stories you enjoy
 - Tip System: Send custom $STORY token amounts to support creators
 - Paywall Support: Unlock exclusive stories with token payment
 - Audio Player: Listen to story recordings if available
@@ -425,7 +425,7 @@ Quick Start Guide
 - Record Story: Go to /record, hit record button, and speak your story
 - Enhance: Use AI enhancement to polish your text
 - Save: Click save to store your story with audio on blockchain
-- Share: Go to /social and like/tip other stories to earn $STORY tokens
+- Share: Go to /social to discover stories, tip creators, and build community
 - Compile: Visit /library to compile stories into a book
 
 ## Development Scripts
@@ -515,7 +515,7 @@ All API routes require Bearer token authentication unless noted. Rate limits app
 - POST /api/ipfs/upload - Upload to IPFS (auth required, max 50MB, MIME whitelist)
 - POST /api/email/send - Send email via Resend (auth required)
 - POST /api/sync/verify_tx - Verify blockchain tx (auth + wallet ownership)
-- POST /api/cron/distribute-rewards - Distribute tokens (CRON_SECRET, timing-safe)
+- POST /api/cron/distribute-rewards - (Disabled) Reserved for future token distribution programs
 - GET /api/admin/analysis-stats - Analysis stats (ADMIN_SECRET, timing-safe)
 
 ## How to Contribute
@@ -695,7 +695,7 @@ The target customer for Speak Your Story is a diverse group of individuals who v
 
 Primary Demographics: Ages 18-45, with a focus on millennials and Gen Z who are tech-savvy and active on social media. Balanced gender split, appealing to both men and women interested in self-reflection, creativity, or activism. Global users, particularly in regions with high blockchain adoption (e.g., North America, Europe, Asia) and those facing narrative suppression or censorship.
 
-Key Personas: **Aspiring Storytellers & Writers**: People passionate about writing — whether personal journals, historical essays, cultural narratives, or creative non-fiction. They use AI craft feedback to improve with every story. **History & Culture Enthusiasts**: Writers who want to document and preserve historical events, cultural traditions, geopolitical analysis, and oral histories with tamper-proof provenance. Their public stories are ideal for paywalling. **Blockchain & Crypto Enthusiasts**: Web3 users who appreciate NFTs, tokens, and decentralization for owning and monetizing content. They value Base (Ethereum L2) for low fees and tamper-proof storage. **Content Creators & Influencers**: Writers, podcasters, or social media users looking to broadcast authentic stories, build communities, and earn through likes, tips, paywalls, or NFT sales. **Truth Advocates**: Individuals concerned about manipulated narratives (e.g., activists, historians, or those from marginalized communities) who want to preserve unfiltered truths on an immutable blockchain. **Craft Builders**: People who want to get better at storytelling — eStories's AI analysis on coherence, emotional depth, and narrative quality turns every story into a writing lesson.
+Key Personas: **Aspiring Storytellers & Writers**: People passionate about writing — whether personal journals, historical essays, cultural narratives, or creative non-fiction. They use AI craft feedback to improve with every story. **History & Culture Enthusiasts**: Writers who want to document and preserve historical events, cultural traditions, geopolitical analysis, and oral histories with tamper-proof provenance. Their public stories are ideal for paywalling. **Blockchain & Crypto Enthusiasts**: Web3 users who appreciate NFTs, tokens, and decentralization for owning and monetizing content. They value Base (Ethereum L2) for low fees and tamper-proof storage. **Content Creators & Influencers**: Writers, podcasters, or social media users looking to broadcast authentic stories, build communities, and earn through tips, paywalls, or NFT sales. **Truth Advocates**: Individuals concerned about manipulated narratives (e.g., activists, historians, or those from marginalized communities) who want to preserve unfiltered truths on an immutable blockchain. **Craft Builders**: People who want to get better at storytelling — eStories's AI analysis on coherence, emotional depth, and narrative quality turns every story into a writing lesson.
 
 Pain Points Addressed: Traditional journaling apps lack permanence and monetization; Speak Your Story counters this with blockchain immortality and rewards. Users frustrated by centralized platforms' censorship or data ownership issues find solace in decentralized, user-owned content.
 
