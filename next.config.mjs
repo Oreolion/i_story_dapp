@@ -1,3 +1,5 @@
+import { withSentryConfig } from "@sentry/nextjs";
+
 const isDev = process.env.NODE_ENV === "development";
 
 /** @type {import('next').NextConfig} */
@@ -101,7 +103,7 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "img-src 'self' data: https: blob:",
               "font-src 'self' data: https://fonts.gstatic.com",
-              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.elevenlabs.io https://api.pinata.cloud https://*.walletconnect.com wss://*.walletconnect.com https://*.walletconnect.org wss://*.walletconnect.org https://sepolia.base.org https://*.alchemy.com https://*.infura.io https://*.rpc.thirdweb.com https://api.web3modal.org https://*.reown.com https://cca-lite.coinbase.com https://*.coinbase.com https://rpc.walletconnect.org https://rpc.walletconnect.com",
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.elevenlabs.io https://api.pinata.cloud https://*.walletconnect.com wss://*.walletconnect.com https://*.walletconnect.org wss://*.walletconnect.org https://sepolia.base.org https://*.alchemy.com https://*.infura.io https://*.rpc.thirdweb.com https://api.web3modal.org https://*.reown.com https://cca-lite.coinbase.com https://*.coinbase.com https://rpc.walletconnect.org https://rpc.walletconnect.com https://*.sentry.io https://*.ingest.sentry.io",
               "media-src 'self' https://*.supabase.co blob:",
               "frame-src 'self' https://*.walletconnect.com https://*.walletconnect.org https://*.reown.com",
             ].join("; "),
@@ -112,4 +114,23 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  // Suppress source map upload warnings when SENTRY_AUTH_TOKEN is not set
+  silent: !process.env.SENTRY_AUTH_TOKEN,
+
+  // Upload source maps for better stack traces in production
+  widenClientFileUpload: true,
+
+  // Automatically tree-shake Sentry debug logs in production
+  webpack: {
+    treeshake: {
+      removeDebugLogging: true,
+    },
+  },
+
+  // Hide source maps from users
+  hideSourceMaps: true,
+
+  // Tunnel Sentry events through the app to avoid ad blockers
+  tunnelRoute: "/monitoring",
+});

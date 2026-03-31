@@ -7,17 +7,17 @@ Sorted by priority. Work in `i_story_dapp/` (or the web worktree).
 ## BLOCKERS (Must fix before public launch)
 
 ### 1. Domain & DNS Setup
-- [ ] Follow `docs/CLOUDFLARE_DNS_GUIDE.md` to configure `estories.app`
-- [ ] Update Vercel project with custom domain
-- [ ] Update `.env.local` and Vercel env vars:
+- [x] Follow `docs/CLOUDFLARE_DNS_GUIDE.md` to configure `estories.app`
+- [x] Update Vercel project with custom domain
+- [x] Update `.env.local` and Vercel env vars:
   ```
   NEXT_PUBLIC_APP_URL=https://estories.app
   NEXT_PUBLIC_SITE_URL=https://estories.app
   ```
-- [ ] Update Supabase Auth redirect URLs in dashboard
-- [ ] Update Google OAuth authorized origins + redirect URIs
+- [x] Update Supabase Auth redirect URLs in dashboard
+- [x] Update Google OAuth authorized origins + redirect URIs
 - [ ] Update Resend sending domain to `estories.app`
-- [ ] Verify SSL + redirects working
+- [x] Verify SSL + redirects working
 
 ### 2. Privacy Policy & Terms Pages
 - [ ] Create `app/privacy/page.tsx` — render privacy policy from `docs/PRIVACY_POLICY.md`
