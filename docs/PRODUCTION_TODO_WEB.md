@@ -158,17 +158,17 @@ components/emails/*.tsx         # Email template URLs
 
 Before going live on `estories.app`:
 
-- [ ] All env vars set in Vercel dashboard
-- [ ] DNS propagated (verify with `dig estories.app`)
-- [ ] SSL working (`curl -I https://estories.app`)
-- [ ] Supabase redirect URLs updated
-- [ ] Google OAuth redirect URLs updated
-- [ ] Resend domain verified
-- [ ] `npm run build` passes
-- [ ] No merge conflict markers in source
-- [ ] `package.json` scripts correct (dev=next dev, build=next build)
-- [ ] Privacy policy accessible at `/privacy`
-- [ ] Terms accessible at `/terms`
-- [ ] Testnet disclaimer visible on blockchain pages
-- [ ] Account deletion working
-- [ ] Email sending works from new domain
+- [x] All env vars set in Vercel dashboard
+- [x] DNS propagated (verify with `dig estories.app`)
+- [x] SSL working (`curl -I https://estories.app`)
+- [x] Supabase redirect URLs updated
+- [x] Google OAuth redirect URLs updated
+- [x] Resend domain verified
+- [x] `npm run build` passes
+- [x] No merge conflict markers in source
+- [x] `package.json` scripts correct (dev=next dev, build=next build)
+- [x] Privacy policy accessible at `/privacy`
+- [x] Terms accessible at `/terms`
+- [x] Testnet disclaimer visible on blockchain pages
+- [x] Account deletion working
+- [x] Email sending works from new domain

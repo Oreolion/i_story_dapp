@@ -68,7 +68,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { TestnetBanner } from "@/components/TestnetBanner";
 
 // --- Types ---
 interface UserProfileData {
@@ -571,7 +570,6 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-20">
-      <TestnetBanner />
       {/* Header */}
       <div className="text-center space-y-4">
         <motion.div

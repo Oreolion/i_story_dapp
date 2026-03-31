@@ -4,22 +4,33 @@ import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "./AuthProvider";
 import { useAccount, useDisconnect } from "wagmi";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { AuthModal } from "./AuthModal";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { LogOut, User, Link as LinkIcon } from "lucide-react";
+import {
+  LogOut,
+  User,
+  Link as LinkIcon,
+  CreditCard,
+  Loader2,
+} from "lucide-react";
+
+function truncateAddress(addr: string | null): string {
+  if (!addr) return "User";
+  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+}
 
 export function AuthButton() {
   const router = useRouter();
   const pathname = usePathname();
-  const { profile, needsOnboarding, signOut } = useAuth();
+  const { profile, isLoading, needsOnboarding, signOut } = useAuth();
   const { isConnected } = useAccount();
   const { disconnect } = useDisconnect();
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -35,6 +46,16 @@ export function AuthButton() {
       router.push("/onboarding");
     }
   }, [needsOnboarding, profile, pathname, router]);
+
+  // Loading — skeleton prevents "Connect" flash after OAuth redirect
+  if (isLoading) {
+    return (
+      <Button variant="ghost" size="sm" disabled className="gap-2">
+        <div className="w-7 h-7 rounded-full bg-muted animate-pulse" />
+        <div className="hidden sm:block w-16 h-4 bg-muted animate-pulse rounded" />
+      </Button>
+    );
+  }
 
   // Not authenticated at all
   if (!profile && !isConnected) {
@@ -55,9 +76,14 @@ export function AuthButton() {
     );
   }
 
-  // Wallet connected but no profile yet (loading or first-time)
+  // Wallet connected but no profile yet (signing in progress)
   if (isConnected && !profile) {
-    return <ConnectButton showBalance={false} chainStatus="none" />;
+    return (
+      <Button variant="ghost" size="sm" disabled className="gap-2">
+        <Loader2 className="w-4 h-4 animate-spin" />
+        <span className="text-sm">Signing in...</span>
+      </Button>
+    );
   }
 
   // Needs onboarding — show a minimal button while redirect happens
@@ -71,49 +97,73 @@ export function AuthButton() {
     );
   }
 
-  // Authenticated via wallet — use RainbowKit's custom button
-  if (profile?.auth_provider !== "google") {
-    return <ConnectButton showBalance={false} chainStatus="none" />;
+  // Authenticated — unified avatar dropdown for all auth types
+  if (profile) {
+    const displayName =
+      profile.name ??
+      profile.username ??
+      truncateAddress(profile.wallet_address);
+    const initials =
+      profile.name?.[0]?.toUpperCase() ??
+      profile.username?.[0]?.toUpperCase() ??
+      profile.wallet_address?.slice(2, 4)?.toUpperCase() ??
+      "U";
+
+    return (
+      <>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="gap-2 px-2">
+              <Avatar className="w-7 h-7">
+                <AvatarImage src={profile.avatar ?? undefined} />
+                <AvatarFallback className="text-xs bg-gradient-to-br from-[hsl(var(--memory-500))] to-[hsl(var(--insight-500))] text-white">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <span className="hidden sm:inline text-sm truncate max-w-[100px]">
+                {displayName}
+              </span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem asChild>
+              <a href="/profile" className="flex items-center gap-2">
+                <User className="w-4 h-4" />
+                Profile
+              </a>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <a href="/pricing" className="flex items-center gap-2">
+                <CreditCard className="w-4 h-4" />
+                Pricing
+              </a>
+            </DropdownMenuItem>
+            {!profile.wallet_address && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setShowAuthModal(true)}>
+                  <LinkIcon className="w-4 h-4 mr-2" />
+                  Link Wallet
+                </DropdownMenuItem>
+              </>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={handleSignOut}
+              className="text-red-600 dark:text-red-400"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Sign Out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <AuthModal
+          isOpen={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+        />
+      </>
+    );
   }
 
-  // Authenticated via Google only — custom dropdown
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-2">
-          <Avatar className="w-6 h-6">
-            <AvatarImage src={profile.avatar ?? undefined} />
-            <AvatarFallback>
-              {profile.name?.[0]?.toUpperCase() ?? "G"}
-            </AvatarFallback>
-          </Avatar>
-          <span className="hidden sm:inline text-sm">
-            {profile.name ?? "User"}
-          </span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem asChild>
-          <a href="/profile" className="flex items-center gap-2">
-            <User className="w-4 h-4" />
-            Profile
-          </a>
-        </DropdownMenuItem>
-        {!profile.wallet_address && (
-          <DropdownMenuItem onClick={() => setShowAuthModal(true)}>
-            <LinkIcon className="w-4 h-4 mr-2" />
-            Link Wallet
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuItem onClick={handleSignOut}>
-          <LogOut className="w-4 h-4 mr-2" />
-          Sign Out
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-      />
-    </DropdownMenu>
-  );
+  return null;
 }

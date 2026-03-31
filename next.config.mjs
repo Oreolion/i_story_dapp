@@ -1,3 +1,5 @@
+const isDev = process.env.NODE_ENV === "development";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
@@ -7,11 +9,38 @@ const nextConfig = {
     optimizePackageImports: [
       "lucide-react",
       "framer-motion",
+      "@radix-ui/react-accordion",
+      "@radix-ui/react-alert-dialog",
+      "@radix-ui/react-avatar",
+      "@radix-ui/react-checkbox",
+      "@radix-ui/react-dialog",
+      "@radix-ui/react-dropdown-menu",
       "@radix-ui/react-icons",
+      "@radix-ui/react-label",
+      "@radix-ui/react-popover",
+      "@radix-ui/react-progress",
+      "@radix-ui/react-scroll-area",
+      "@radix-ui/react-select",
+      "@radix-ui/react-separator",
+      "@radix-ui/react-slot",
+      "@radix-ui/react-switch",
+      "@radix-ui/react-tabs",
+      "@radix-ui/react-toast",
+      "@radix-ui/react-tooltip",
       "date-fns",
       "@supabase/supabase-js",
+      "@tanstack/react-query",
+      "react-hook-form",
+      "zod",
     ],
   },
+  // Turbopack config (used by next dev --turbopack)
+  turbopack: {
+    resolveAlias: {
+      "@react-native-async-storage/async-storage": "./lib/empty.js",
+    },
+  },
+  // Webpack config (used by next build)
   webpack: (config) => {
     config.resolve.fallback = {
       ...config.resolve.fallback,
@@ -68,7 +97,7 @@ const nextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+              `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "img-src 'self' data: https: blob:",
               "font-src 'self' data: https://fonts.gstatic.com",
