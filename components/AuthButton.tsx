@@ -17,9 +17,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   LogOut,
   User,
-  Link as LinkIcon,
   CreditCard,
+  Wallet,
   Loader2,
+  Check,
 } from "lucide-react";
 
 function truncateAddress(addr: string | null): string {
@@ -138,14 +139,19 @@ export function AuthButton() {
                 Pricing
               </a>
             </DropdownMenuItem>
-            {!profile.wallet_address && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setShowAuthModal(true)}>
-                  <LinkIcon className="w-4 h-4 mr-2" />
-                  Link Wallet
-                </DropdownMenuItem>
-              </>
+            <DropdownMenuSeparator />
+            {profile.wallet_address ? (
+              <DropdownMenuItem disabled className="opacity-70">
+                <Check className="w-4 h-4 mr-2 text-green-500" />
+                <span className="truncate text-xs">
+                  Wallet: {truncateAddress(profile.wallet_address)}
+                </span>
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem onClick={() => setShowAuthModal(true)}>
+                <Wallet className="w-4 h-4 mr-2" />
+                Connect Wallet
+              </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
             <DropdownMenuItem

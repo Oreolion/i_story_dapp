@@ -24,7 +24,9 @@ export async function GET(req: NextRequest) {
   const next = searchParams.get("next");
 
   if (!code) {
-    return NextResponse.redirect(`${origin}/?auth_error=missing_code`);
+    // Implicit flow: tokens arrive as hash fragments (client-side only).
+    // Redirect home and let the Supabase client handle the session from the hash.
+    return NextResponse.redirect(origin);
   }
 
   try {
