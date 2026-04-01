@@ -40,7 +40,7 @@ export function Navigation() {
             <motion.div whileHover={{ scale: 1.05 }}>
               <LogoMark size={28} />
             </motion.div>
-            <span className="text-xl font-bold bg-gradient-to-r from-[#d4a04a] via-[#9b7dd4] to-[#6c3dbd] bg-clip-text text-transparent">
+            <span className="text-3xl font-bold bg-gradient-to-r from-[#d4a04a] via-[#9b7dd4] to-[#6c3dbd] bg-clip-text text-transparent" style={{ fontFamily: "var(--font-brand)", WebkitTextStroke: "0.5px currentColor" }}>
               eStories
             </span>
           </Link>

@@ -1,7 +1,7 @@
 import "../app/globals.css";
 import "@rainbow-me/rainbowkit/styles.css";
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Love_Light } from "next/font/google";
 import { ProvidersDynamic } from "../components/ProvidersDynamic";
 import { Navigation } from "../components/Navigation";
 import { Footer } from "../components/Footer";
@@ -9,6 +9,11 @@ import { Toaster } from "react-hot-toast";
 import { GlobalBackgroundDynamic } from "../components/three/GlobalBackgroundDynamic";
 
 const inter = Inter({ subsets: ["latin"] });
+const loveLight = Love_Light({
+  weight: "400",
+  subsets: ["latin"],
+  variable: "--font-brand",
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://estories.app"),
@@ -114,7 +119,7 @@ export default async function RootLayout({
           }}
         />
       </head>
-      <body className={inter.className}>
+      <body className={`${inter.className} ${loveLight.variable}`}>
         <ProvidersDynamic>
           {/* 3D Background - renders behind all content */}
           <GlobalBackgroundDynamic />

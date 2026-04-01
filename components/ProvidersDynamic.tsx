@@ -22,7 +22,7 @@ const Providers = dynamic(
           </div>
 
           {/* Brand text */}
-          <h2 className="text-xl font-semibold bg-gradient-to-r from-[#d4a04a] via-[#9b7dd4] to-[#6c3dbd] bg-clip-text text-transparent">
+          <h2 className="text-3xl font-bold bg-gradient-to-r from-[#d4a04a] via-[#9b7dd4] to-[#6c3dbd] bg-clip-text text-transparent" style={{ fontFamily: "var(--font-brand)", WebkitTextStroke: "0.5px currentColor" }}>
             eStories
           </h2>
 

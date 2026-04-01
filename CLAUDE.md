@@ -57,6 +57,8 @@ Before marking any task as complete, always:
 4. Run `npm run build` to verify production build passes
 Do NOT report a task as done if any of these fail.
 
+**IMPORTANT: Batch verification.** Do NOT run `tsc --noEmit` or `npm run build` after every individual file edit. Complete ALL related file changes first, then run a single verification pass at the end. For small/cosmetic changes (font, color, copy), skip build unless explicitly asked.
+
 ### Session Continuity
 - Proactively save progress to memory files at natural breakpoints (after completing a milestone, before starting a new phase, or when hitting a blocker)
 - When resuming from a previous session, read `MEMORY.md` and memory directory files first to restore context

@@ -316,6 +316,26 @@ app/profile/ProfilePageClient.tsx       (modified — heatmap data + dynamic mon
 - `app/profile/ProfilePageClient.tsx` — daily journal mint button
 - Reconnect `handleTip`, `handleMintStory`, `handleUnlock` handlers
 
+## Phase 2.9: Nav Dropdown Wallet Status & OAuth Fixes -- COMPLETE
+
+**Goal:** Improve wallet connection UX and fix OAuth redirect for local development.
+
+**Tasks:**
+- [x] Add wallet status to nav dropdown — shows "Wallet: 0x12...ab" (green check) when linked, or "Connect Wallet" button when not
+- [x] Fix OAuth redirect: `localhost:3000/api/auth/callback` added to Supabase allowed redirect URLs
+- [x] Fix `auth_error=missing_code` URL noise — callback now silently redirects home for implicit flow (no `?code`)
+- [x] Document implicit OAuth flow decision and PKCE migration plan
+
+**Key files modified:**
+```
+components/AuthButton.tsx               (wallet status in dropdown)
+app/api/auth/callback/route.ts          (graceful handling of missing code)
+docs/DECISIONS.md                       (implicit flow + wallet dropdown decisions)
+```
+
+**Pending (next priority):**
+- [ ] Migrate OAuth from implicit flow to PKCE (security — see memory `oauth-pkce-migration.md`)
+
 ## Future Phases (Post-MVP)
 
 - Vault → Cloud sync (process syncQueue, upload encrypted stories to Supabase storage)

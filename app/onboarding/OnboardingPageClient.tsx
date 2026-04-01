@@ -155,7 +155,7 @@ export default function OnboardingPageClient() {
       {/* Logo */}
       <div className="flex items-center gap-2 mb-8">
         <BookOpen className="w-8 h-8 text-[hsl(var(--memory-600))]" />
-        <span className="text-2xl font-bold bg-gradient-to-r from-[hsl(var(--memory-600))] to-[hsl(var(--insight-600))] bg-clip-text text-transparent">
+        <span className="text-3xl font-bold bg-gradient-to-r from-[hsl(var(--memory-600))] to-[hsl(var(--insight-600))] bg-clip-text text-transparent" style={{ fontFamily: "var(--font-brand)", WebkitTextStroke: "0.5px currentColor" }}>
           eStories
         </span>
       </div>
