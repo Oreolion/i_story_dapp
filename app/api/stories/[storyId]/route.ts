@@ -38,12 +38,20 @@ export async function GET(
       return NextResponse.json({ error: "Story not found" }, { status: 404 });
     }
 
+    // Authenticate viewer (optional — public stories are readable by anyone)
+    const viewerId = await validateAuth(req);
+
     // Private stories: only the author can view them
     if (!story.is_public) {
-      const userId = await validateAuth(req);
-      if (!userId || userId !== story.author_id) {
+      if (!viewerId || viewerId !== story.author_id) {
         return NextResponse.json({ error: "Story not found" }, { status: 404 });
       }
+    }
+
+    // Voice privacy: only the author can access audio
+    const isAuthor = viewerId === story.author_id;
+    if (!isAuthor) {
+      story.audio_url = null;
     }
 
     // Fetch author by author_id (works for both wallet and OAuth users)

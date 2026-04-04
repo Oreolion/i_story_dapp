@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/app/utils/supabase/supabaseAdmin";
 import { isPaymentSufficient } from "@/lib/blockradar";
-import { safeCompare } from "@/lib/crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 
 /**
  * POST /api/payment/webhook
@@ -9,25 +9,41 @@ import { safeCompare } from "@/lib/crypto";
  * Receives webhook events from Blockradar when deposits are confirmed.
  * Activates user subscriptions when payment is sufficient.
  *
+ * Blockradar signs webhooks with HMAC-SHA512 using your API key.
+ * The signature is sent in the `x-blockradar-signature` header.
+ *
  * Webhook events handled:
  * - deposit.success: Payment received, activate subscription
  */
 export async function POST(req: NextRequest) {
   try {
-    // Verify webhook authenticity via shared secret
-    const webhookSecret = process.env.BLOCKRADAR_WEBHOOK_SECRET;
-    if (!webhookSecret) {
-      console.error("[PAYMENT_WEBHOOK] BLOCKRADAR_WEBHOOK_SECRET not configured");
+    // Verify webhook authenticity via HMAC-SHA512 signature
+    // Blockradar signs the request body with your API key
+    const apiKey = process.env.BLOCKRADAR_API_KEY;
+    if (!apiKey) {
+      console.error("[PAYMENT_WEBHOOK] BLOCKRADAR_API_KEY not configured");
       return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
     }
 
     const signature = req.headers.get("x-blockradar-signature") || "";
-    if (!safeCompare(signature, webhookSecret)) {
-      console.warn("[PAYMENT_WEBHOOK] Invalid signature");
+    const rawBody = await req.text();
+
+    const expectedSignature = createHmac("sha512", apiKey)
+      .update(rawBody)
+      .digest("hex");
+
+    // Timing-safe comparison to prevent timing attacks
+    const sigBuffer = Buffer.from(signature, "hex");
+    const expectedBuffer = Buffer.from(expectedSignature, "hex");
+    if (
+      sigBuffer.length !== expectedBuffer.length ||
+      !timingSafeEqual(sigBuffer, expectedBuffer)
+    ) {
+      console.warn("[PAYMENT_WEBHOOK] Invalid HMAC signature");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await req.json();
+    const body = JSON.parse(rawBody);
     const { event, data } = body;
 
     console.log(`[PAYMENT_WEBHOOK] Event: ${event}`);

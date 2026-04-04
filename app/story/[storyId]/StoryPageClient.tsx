@@ -129,7 +129,11 @@ export default function StoryPage({
         setIsLoading(true);
 
         // Fetch story + author + comments via API (bypasses RLS)
-        const res = await fetch(`/api/stories/${storyId}`);
+        // Pass auth header so the API can identify the viewer (needed for voice privacy)
+        const token = await getAccessToken();
+        const res = await fetch(`/api/stories/${storyId}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
         if (!res.ok) {
           setStory(null);
           return;
@@ -483,8 +487,10 @@ export default function StoryPage({
 
   // --- Helpers ---
   const isAuthor =
-    authInfo?.wallet_address?.toLowerCase() ===
-    story?.author.wallet_address?.toLowerCase();
+    (authInfo?.id && story?.author?.id && authInfo.id === story.author.id) ||
+    (authInfo?.wallet_address && story?.author?.wallet_address &&
+     authInfo.wallet_address.toLowerCase() === story.author.wallet_address.toLowerCase()) ||
+    false;
   const isPaywalled =
     (story?.paywallAmount || 0) > 0 && !isUnlocked && !isAuthor;
   const gradientClass = story
@@ -745,7 +751,7 @@ export default function StoryPage({
               </div>
             ) : (
               <div className="space-y-6">
-                {story.hasAudio && story.audio_url && (
+                {story.hasAudio && story.audio_url && isAuthor && (
                   <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-xl flex items-center gap-4">
                     <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white">
                       <Volume2 className="w-5 h-5" />
@@ -755,6 +761,12 @@ export default function StoryPage({
                       src={story.audio_url}
                       className="w-full h-10"
                     />
+                  </div>
+                )}
+                {story.hasAudio && !isAuthor && (
+                  <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded-xl flex items-center gap-3 text-sm text-muted-foreground">
+                    <Volume2 className="w-4 h-4" />
+                    <span>This story was voice-recorded. Audio is private to the author.</span>
                   </div>
                 )}
                 <article className="prose dark:prose-invert max-w-none text-lg leading-8 text-gray-700 dark:text-gray-300 whitespace-pre-wrap">

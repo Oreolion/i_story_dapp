@@ -52,9 +52,11 @@ export async function GET(req: NextRequest) {
       (authors || []).map((a) => [a.id, a])
     );
 
-    // Attach author to each story
+    // Attach author to each story; strip audio_url for voice privacy
+    // (public feed never exposes voice recordings — creators access audio from their own archive)
     const storiesWithAuthors = stories.map((s) => ({
       ...s,
+      audio_url: null,
       author: authorMap.get(s.author_id) || null,
     }));
 
