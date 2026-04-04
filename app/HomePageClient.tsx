@@ -235,17 +235,17 @@ export default function HomePage() {
             </span>
           </div>
 
-          {/* Main heading — voice-first, ownership second */}
+          {/* Main heading — speak, see patterns, own legacy */}
           <h1 className="heading-display-lg text-4xl md:text-6xl lg:text-7xl leading-[1.1]">
-            <span className="text-foreground">Your voice. Your story.</span>
+            <span className="text-foreground">Speak your story, see your patterns,</span>
             <br />
-            <span className="text-gradient-cosmic">Actually yours. Forever.</span>
+            <span className="text-gradient-cosmic">own and preserve your legacy.</span>
           </h1>
 
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-            The storytelling platform that listens, learns your patterns, and belongs to
-            you — not us, not any platform. Write about anything: personal stories, history,
-            culture, geopolitics. AI helps you become a better storyteller.
+            Your voice, your meaning, permanently yours. Write about anything:
+            personal stories, history, culture, geopolitics. AI helps you become
+            a better storyteller.
           </p>
         </div>
 

@@ -176,61 +176,6 @@ Publish stories to the community feed. Earn from tips and paywall sales. Build y
 
 ## Architecture
 
-### Security Layers
-
-```
-Layer 4: Ownership Verification -- user can only modify their own resources
-Layer 3: Input Validation -- file size, MIME type, text length limits
-Layer 2: Bearer Token Auth -- validateAuthOrReject() via lib/auth.ts
-Layer 1: Rate Limiting -- middleware.ts (AI=10/min, Auth=20/min)
-Layer 0: Security Headers -- CSP, X-Frame-Options, CORS via next.config
-Client:  Local Vault -- AES-256-GCM at rest in IndexedDB
-         PIN -> PBKDF2 (100K iterations) -> KEK -> AES-KW wraps DEK
-```
-
-### Authentication Flow
-
-**Wallet Users:**
-1. Connect wallet via RainbowKit
-2. Fetch nonce: `GET /api/auth/nonce?address=0x...`
-3. Sign nonce message (UUID + timestamp)
-4. `POST /api/auth/login` -> server verifies nonce (one-time, 5-min expiry) + signature
-5. Returns custom JWT (jose, HS256, 7-day expiry) stored as `estory_wallet_token`
-
-**Google Users:**
-1. Click "Sign in with Google" -> Google OAuth redirect
-2. Supabase handles session via implicit flow
-3. AuthProvider picks up token, hydrates profile
-4. New users go through multi-step onboarding
-
-**Token Priority:** Wallet JWT checked first (more reliable), then Supabase session.
-
-### Chainlink CRE Pipeline (Privacy-Preserving)
-
-```
-POST /api/cre/trigger -> CRE Workflow (Chainlink DON, ConfidentialHTTPClient)
-                              |
-                    Gemini AI Analysis (encrypted enclave) + DON Consensus
-                              |
-              +---------------+---------------+
-              |                               |
-  [On-Chain] KeystoneForwarder         [Off-Chain] /api/cre/callback
-  -> PrivateVerifiedMetrics.sol         -> Supabase (full metrics, author-only)
-  (tier, threshold, hashes only)       (scores, themes, word count)
-              |                               |
-              +---------------+---------------+
-                              |
-POST /api/cre/check (author-based filtering) <- useVerifiedMetrics hook
-  Author: full metrics + proof | Public: proof only (tier, threshold)
-```
-
-### Provider Stack
-
-```
-WagmiProvider -> QueryClientProvider -> RainbowKitProvider -> ThemeProvider -> AuthProvider -> AppContext
-```
-
-AuthProvider sign-out calls `clearAllKeys()` (lib/vault) to wipe DEKs from memory.
 
 ### Smart Contracts (Base Sepolia)
 
