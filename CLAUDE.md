@@ -466,3 +466,45 @@ The record page uses **three separate loading states** (not a single `isProcessi
 **Vault:** `useVault` (setup/unlock/lock/changePin, isSetup, isUnlocked), `useLocalStories` (encrypted CRUD via IndexedDB, reactive via useLiveQuery)
 **Supabase:** `useBrowserSupabase` (client singleton), `useNotifications` (CRUD + real-time polling)
 **Planned:** `useStoryMetadata`, `usePatterns` — see `docs/ROADMAP.md`
+
+
+- do you have access to reading errors in sentry or do i need to share with you
+- has OG image been setup, for shared link replace jounral entry with story entry as well as in generated title on record page
+- while testing app flow on another device, i notice i didnt get anything about the vault setup to save files on personal device if user wants during onboarding
+- minor bugs i have notice is after publishing on record page it is suppose to redirect to recorded story page right, correct me if i am wrong
+- also update our designed loader everywhere needed accross app
+- to theme toggle on mobile view, and make sure mobile is very responsive accross all screens, pages and UI such as input elements(date of entry input is overflowing on mobile), heatmaps etc make sure community data is correct with app data, include the hardcoded data too. also does the featured writers have to be real registered user or can i live the hardcoded user for now in production environments till there are real users.
+- a minor bug i notice is when i click on other tabs or navs, sometimes they keep loading without fetching the needed data until app is refresehd, i dont think that is good, think and look into what specifically is causing that issue
+- why am i not getting notifications yet also no welcome or onboarding email as new user, also there have to be these series of emails they need to keep recieving for example if they havent been on the app or record new storiesin a while as well as new updates on the platform. make sure the preference settings are also wired up and working as expected
+- also think deeply about everything that needs to be in a production environment and released app that is not in this app yet
+- i also noticed when other user create story its not shown on community as expected, which is what is expected as latest post to be on top of the list. i see new user registered in database as expected. also when i click on the story from archive or librabry it shoes story not found, back to social feed which i also think you should improve that UI. trying to like and follow also shows please connect your wallet, note that that is not related to wallet anymore
+- is block radar activated for testnet or mainnet. tip system and paywall needs to work with blockradar too
+- lets setup vercel analytics or can i use cloudflare instead for this?
+- i am thinking about if voice should be allowed on public posts or just the transcribed text and only text displayed to communities but creators can access their voice from their personal stories, for security and to prevent people training other llms with agents, what is best in this case, should i use an AI to just read aloud maybe in the person's voice or just AI voice
+
+### 0.1 Technical Readiness Checklist
+
+Before any marketing, ensure the product is bulletproof:
+
+```
+CRITICAL PATH:
+├── [ ] Production environment stable
+├── [ ] Error monitoring active (Sentry or similar)
+├── [ ] Analytics tracking (Mixpanel, PostHog, or Vercel Analytics)
+├── [ ] Onboarding flow tested with 5+ non-technical users
+├── [ ] Mobile web experience optimized (PWA)
+├── [ ] Load testing passed (100+ concurrent users)
+├── [ ] Backup/recovery tested
+└── [ ] Support email configured (support@estories.app)
+
+NICE TO HAVE:
+├── [ ] In-app feedback widget
+├── [ ] Feature flags for gradual rollout
+└── [ ] Status page (status.estory.app)
+```
+
+### P1.4 — Seed Platform Content
+- [ ] Create 15-20 public stories on the platform (varied moods, lengths, topics)
+- [ ] Create 2-3 "featured storyteller" profiles
+- [ ] Ensure new users see activity immediately on arrival
+- [ ] Verify social feed is populated and engaging

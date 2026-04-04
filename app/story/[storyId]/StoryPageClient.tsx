@@ -57,7 +57,10 @@ import {
   KeyRound,
   Globe,
   PenLine,
+  BookOpen,
+  Users,
 } from "lucide-react";
+import { BrandedLoader } from "@/components/ui/branded-loader";
 
 export default function StoryPage({
   params,
@@ -114,9 +117,8 @@ export default function StoryPage({
 
   // --- 1. Fetch Data ---
   useEffect(() => {
-    // Stop if requirements aren't met
-    if (!supabase || !storyId) {
-      // Only stop loading if storyId is definitely missing/undefined
+    // Stop if storyId is missing
+    if (!storyId) {
       if (storyId === undefined) return;
       setIsLoading(false);
       return;
@@ -126,27 +128,17 @@ export default function StoryPage({
       try {
         setIsLoading(true);
 
-        // A. Fetch Story
-        const { data: storyData, error: storyError } = await supabase
-          .from("stories")
-          .select(
-            `
-            id, numeric_id, title, content, teaser, created_at, story_date, is_public, likes, shares, has_audio, audio_url, mood, tags, paywall_amount, story_type,
-            author:users!stories_author_wallet_fkey (
-              id, name, username, avatar, wallet_address, followers_count, badges
-            )
-          `
-          )
-          .eq("id", storyId)
-          .maybeSingle();
+        // Fetch story + author + comments via API (bypasses RLS)
+        const res = await fetch(`/api/stories/${storyId}`);
+        if (!res.ok) {
+          setStory(null);
+          return;
+        }
 
-        if (storyError) throw storyError;
+        const { story: storyData, comments: commentsData } = await res.json();
 
         if (storyData && storyData.author) {
-          // Handle author data - could be array or single object from Supabase
-          const authorData = Array.isArray(storyData.author)
-            ? storyData.author[0]
-            : storyData.author;
+          const authorData = storyData.author;
 
           setStory({
             id: storyData.id,
@@ -159,7 +151,7 @@ export default function StoryPage({
             is_public: storyData.is_public || false,
             timestamp: storyData.created_at,
             likes: storyData.likes || 0,
-            comments: 0,
+            comments: storyData.comments_count || 0,
             shares: storyData.shares || 0,
             hasAudio: storyData.has_audio || false,
             audio_url: storyData.audio_url,
@@ -169,29 +161,29 @@ export default function StoryPage({
             paywallAmount: storyData.paywall_amount || 0,
             story_type: storyData.story_type || undefined,
             author: {
-              id: authorData?.id,
-              name: authorData?.name || null,
-              username: authorData?.username || null,
-              avatar: authorData?.avatar || null,
-              wallet_address: authorData?.wallet_address || null,
-              followers: authorData?.followers_count || 0,
-              badges: authorData?.badges || [],
+              id: authorData.id,
+              name: authorData.name || null,
+              username: authorData.username || null,
+              avatar: authorData.avatar || null,
+              wallet_address: authorData.wallet_address || null,
+              followers: authorData.followers_count || 0,
+              badges: authorData.badges || [],
               isFollowing: false,
             },
             author_wallet: {
-              id: authorData?.id,
-              name: authorData?.name || null,
-              username: authorData?.username || null,
-              avatar: authorData?.avatar || null,
-              wallet_address: authorData?.wallet_address || null,
-              followers: authorData?.followers_count || 0,
-              badges: authorData?.badges || [],
+              id: authorData.id,
+              name: authorData.name || null,
+              username: authorData.username || null,
+              avatar: authorData.avatar || null,
+              wallet_address: authorData.wallet_address || null,
+              followers: authorData.followers_count || 0,
+              badges: authorData.badges || [],
               isFollowing: false,
             },
           });
 
           // Check if unlocked in DB
-          if (authInfo?.id && storyData.paywall_amount > 0) {
+          if (authInfo?.id && storyData.paywall_amount > 0 && supabase) {
             const { data: unlockData } = await supabase
               .from("unlocked_content")
               .select("id")
@@ -205,28 +197,20 @@ export default function StoryPage({
           setStory(null);
         }
 
-        // B. Fetch Comments
-        const { data: commentsData } = await supabase
-          .from("comments")
-          .select(
-            `
-            id, content, created_at,
-            author:users!comments_author_id_fkey (name, avatar, wallet_address)
-          `
-          )
-          .eq("story_id", storyId)
-          .order("created_at", { ascending: false });
-
-        const formattedComments = (commentsData || []).map((c: any) => ({
-          id: c.id,
-          content: c.content,
-          created_at: c.created_at,
-          author: {
-            name: c.author?.name || "Anonymous",
-            avatar: c.author?.avatar,
-            wallet_address: c.author?.wallet_address,
-          },
-        }));
+        // Format comments
+        const formattedComments = (commentsData || []).map((c: any) => {
+          const commentAuthor = Array.isArray(c.author) ? c.author[0] : c.author;
+          return {
+            id: c.id,
+            content: c.content,
+            created_at: c.created_at,
+            author: {
+              name: commentAuthor?.name || "Anonymous",
+              avatar: commentAuthor?.avatar,
+              wallet_address: commentAuthor?.wallet_address,
+            },
+          };
+        });
 
         setComments(formattedComments);
       } catch (error) {
@@ -237,22 +221,26 @@ export default function StoryPage({
     };
 
     fetchStoryAndComments();
-  }, [supabase, storyId, authInfo?.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storyId, authInfo?.id]);
 
   // --- 1b. Fetch follow status once story and user are available ---
   useEffect(() => {
-    if (!story?.author?.wallet_address || !address) return;
-    const authorWallet = story.author.wallet_address.toLowerCase();
-    if (address.toLowerCase() === authorWallet) return; // Can't follow yourself
+    const authorId = story?.author?.id;
+    if (!authorId || !authInfo?.id) return;
+    if (authorId === authInfo.id) return; // Can't follow yourself
 
     const checkFollow = async () => {
       try {
+        const token = await getAccessToken();
+        if (!token) return;
         const res = await fetch(
-          `/api/social/follow?follower_wallet=${address.toLowerCase()}&followed_wallets=${authorWallet}`
+          `/api/social/follow?followed_ids=${authorId}`,
+          { headers: { Authorization: `Bearer ${token}` } }
         );
         if (res.ok) {
           const { following } = await res.json();
-          setIsFollowingAuthor(following[authorWallet] || false);
+          setIsFollowingAuthor(following[authorId] || false);
         }
       } catch (err) {
         console.error("[STORY PAGE] Follow status check error:", err);
@@ -260,7 +248,7 @@ export default function StoryPage({
     };
     checkFollow();
     setAuthorFollowers(story.author.followers || 0);
-  }, [story?.author?.wallet_address, address]);
+  }, [story?.author?.id, authInfo?.id]);
 
   // --- 2. Payment Verification Listener ---
   useEffect(() => {
@@ -329,22 +317,39 @@ export default function StoryPage({
     if (!authInfo) return toast.error("Please sign in to like stories");
     if (!story) return;
 
+    const prevLiked = isLiked;
+    const prevLikes = story.likes;
+
+    // Optimistic UI
+    setIsLiked(!prevLiked);
+    setStory((prev) =>
+      prev
+        ? { ...prev, likes: prevLiked ? prev.likes - 1 : prev.likes + 1 }
+        : null
+    );
+
     try {
       setIsLiking(true);
-      //   const numericIdBigInt = BigInt(story.numeric_id);
-      //   const likerAddress = address as `0x${string}`;
+      const token = await getAccessToken();
+      const res = await fetch("/api/social/like", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ storyId: story.id }),
+      });
 
-      //   await likeSystem.write.likeStory(numericIdBigInt, likerAddress);
+      if (!res.ok) throw new Error("Like failed");
 
-      setIsLiked(!isLiked);
-      setStory((prev) =>
-        prev
-          ? { ...prev, likes: isLiked ? prev.likes - 1 : prev.likes + 1 }
-          : null
-      );
-      toast.success(isLiked ? "Story unliked" : "Story liked!");
+      const { data } = await res.json();
+      setIsLiked(data.isLiked);
+      setStory((prev) => prev ? { ...prev, likes: data.totalLikes } : null);
     } catch (error: any) {
       console.error("Like error:", error);
+      // Revert on failure
+      setIsLiked(prevLiked);
+      setStory((prev) => prev ? { ...prev, likes: prevLikes } : null);
       toast.error("Failed to like story");
     } finally {
       setIsLiking(false);
@@ -422,9 +427,8 @@ export default function StoryPage({
   };
 
   const handleFollow = async () => {
-    if (!requireWallet("follow authors")) return;
-    if (!address) return;
-    if (!story?.author?.wallet_address) return;
+    if (!authInfo) return toast.error("Please sign in to follow writers.");
+    if (!story?.author?.id) return;
 
     const prevState = isFollowingAuthor;
     const prevCount = authorFollowers;
@@ -441,8 +445,7 @@ export default function StoryPage({
           ...(followToken ? { Authorization: `Bearer ${followToken}` } : {}),
         },
         body: JSON.stringify({
-          follower_wallet: address,
-          followed_wallet: story.author.wallet_address,
+          followed_id: story.author.id,
         }),
       });
 
@@ -530,29 +533,37 @@ export default function StoryPage({
   // --- Render ---
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <Loader2 className="w-12 h-12 animate-spin mx-auto text-purple-600" />
-          <p className="text-gray-600 dark:text-gray-400">Loading story...</p>
-        </div>
-      </div>
-    );
+    return <BrandedLoader fullScreen message="Loading story..." />;
   }
 
   if (!story) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Story Not Found</CardTitle>
-          </CardHeader>
-          <CardContent>
+      <div className="min-h-[60vh] flex items-center justify-center px-4">
+        <div className="text-center space-y-6 max-w-sm">
+          <div className="w-16 h-16 mx-auto rounded-full bg-[hsl(var(--memory-500)/0.1)] flex items-center justify-center">
+            <BookOpen className="w-8 h-8 text-[hsl(var(--memory-400))]" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-semibold text-foreground">Story not found</h2>
+            <p className="text-sm text-muted-foreground">
+              This story may have been removed, set to private, or the link may be incorrect.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link href="/social">
-              <Button className="w-full">Back to Social Feed</Button>
+              <Button variant="outline" className="w-full sm:w-auto">
+                <Users className="w-4 h-4 mr-2" />
+                Community
+              </Button>
             </Link>
-          </CardContent>
-        </Card>
+            <Link href="/library">
+              <Button className="w-full sm:w-auto">
+                <BookOpen className="w-4 h-4 mr-2" />
+                My Stories
+              </Button>
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }

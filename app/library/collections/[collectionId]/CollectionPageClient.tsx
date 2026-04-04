@@ -33,6 +33,7 @@ import {
   Globe,
   Lock,
 } from "lucide-react";
+import { BrandedLoader } from "@/components/ui/branded-loader";
 import { StoryCollection } from "@/app/types/index";
 
 export default function CollectionPageClient() {
@@ -159,7 +160,7 @@ export default function CollectionPageClient() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[40vh]">
-        <Loader2 className="w-12 h-12 animate-spin text-[hsl(var(--memory-500))]" />
+        <BrandedLoader size="md" message="Loading collection..." />
       </div>
     );
   }

@@ -7,6 +7,8 @@ import { Navigation } from "../components/Navigation";
 import { Footer } from "../components/Footer";
 import { Toaster } from "react-hot-toast";
 import { GlobalBackgroundDynamic } from "../components/three/GlobalBackgroundDynamic";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const inter = Inter({ subsets: ["latin"] });
 const loveLight = Love_Light({
@@ -140,6 +142,8 @@ export default async function RootLayout({
             />
           </div>
         </ProvidersDynamic>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

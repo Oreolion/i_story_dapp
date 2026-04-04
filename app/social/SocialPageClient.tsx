@@ -20,6 +20,7 @@ import {
   Loader2,
   Search,
 } from "lucide-react";
+import { BrandedLoader } from "@/components/ui/branded-loader";
 import { toast } from "react-hot-toast";
 
 // FIX: Relative paths based on app/social/ location
@@ -130,55 +131,48 @@ export default function SocialPage() {
           // API route failed — try direct Supabase as fallback
         }
 
-        // Fallback: direct Supabase query (may fail for wallet users due to RLS)
-        if (data.length === 0 && supabase) {
-          const { data: directData, error } = await supabase
-            .from("stories")
-            .select(
-              `
-              id, numeric_id, title, content, created_at, likes, comments_count, shares, has_audio, audio_url, mood, tags, paywall_amount, teaser,
-              author:users!stories_author_wallet_fkey (
-                id, name, username, avatar, wallet_address, followers_count, badges
-              )
-            `
-            )
-            .order("created_at", { ascending: false });
-
-          if (error) throw error;
-          data = directData || [];
+        // Fallback: retry the API route once (skip direct Supabase — RLS issues)
+        if (data.length === 0) {
+          try {
+            const retryRes = await fetch("/api/stories/feed");
+            if (retryRes.ok) {
+              const retryJson = await retryRes.json();
+              data = retryJson.stories || [];
+            }
+          } catch {
+            // Fallback failed — proceed with empty data
+          }
         }
 
         // 2. Filter out stories with missing authors (data integrity) and non-public
         const validStories = (data?.filter((s: any) => s.author) as any[]) || [];
 
-        // 3. Collect unique author wallet addresses for follow status check
-        const authorWallets = [
+        // 3. Collect unique author IDs for follow status check
+        const authorIds = [
           ...new Set(
             validStories
-              .map((s) => s.author?.wallet_address?.toLowerCase())
+              .map((s) => s.author?.id)
               .filter(Boolean)
           ),
         ] as string[];
 
         // 4. Fetch follow status for all authors (if user is authenticated)
         let followingMap: Record<string, boolean> = {};
-        if (address && authorWallets.length > 0) {
+        const token = await getAccessToken();
+        if (token && authorIds.length > 0) {
           try {
-            const token = await getAccessToken();
-            if (token) {
-              const followRes = await fetch(
-                `/api/social/follow?follower_wallet=${address.toLowerCase()}&followed_wallets=${authorWallets.join(",")}`,
-                {
-                  headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                  },
-                }
-              );
-              if (followRes.ok) {
-                const { following } = await followRes.json();
-                followingMap = following || {};
+            const followRes = await fetch(
+              `/api/social/follow?followed_ids=${authorIds.join(",")}`,
+              {
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${token}`,
+                },
               }
+            );
+            if (followRes.ok) {
+              const { following } = await followRes.json();
+              followingMap = following || {};
             }
           } catch (err) {
             console.error("[SOCIAL PAGE] Follow status fetch error:", err);
@@ -198,7 +192,7 @@ export default function SocialPage() {
             s.author.followers_count ?? 0,
           badges: s.author.badges ?? ["Storyteller"],
           isFollowing:
-            followingMap[s.author.wallet_address?.toLowerCase()] || false,
+            followingMap[s.author.id] || false,
         });
 
         const storiesWithDefaults: StoryDataType[] = validStories.map((s) => {
@@ -226,7 +220,7 @@ export default function SocialPage() {
             hasAudio: s.has_audio ?? false,
             audio_url: s.audio_url,
             mood: s.mood || "neutral",
-            tags: s.tags && s.tags.length > 0 ? s.tags : ["life", "journal"],
+            tags: s.tags && s.tags.length > 0 ? s.tags : ["life", "story"],
             paywallAmount: s.paywall_amount ?? 0,
 
             // Required fields
@@ -250,7 +244,8 @@ export default function SocialPage() {
     };
 
     fetchSupabaseData();
-  }, [address]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // --- Event Handlers ---
 
@@ -290,8 +285,9 @@ export default function SocialPage() {
   };
 
   const handleLike = async (storyNumericId: string) => {
-    if (!isConnected || !address) {
-      return toast.error("Please connect your wallet.");
+    const token = await getAccessToken();
+    if (!token) {
+      return toast.error("Please sign in to like stories.");
     }
 
     const storyIndex = stories.findIndex(
@@ -317,10 +313,26 @@ export default function SocialPage() {
     );
 
     try {
-      // Like functionality - currently using optimistic UI only
-      // TODO: Implement blockchain-based like system when contract is ready
+      const res = await fetch("/api/social/like", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ storyId: story.id }),
+      });
 
-      // Optional: Fetch actual count from contract here to ensure sync
+      if (!res.ok) throw new Error("Like failed");
+
+      const { data } = await res.json();
+      // Sync with server state
+      setStories((prev) =>
+        prev.map((s, i) =>
+          i === storyIndex
+            ? { ...s, isLiked: data.isLiked, likes: data.totalLikes }
+            : s
+        )
+      );
     } catch (error) {
       console.error("Like error:", error);
       // Revert UI on failure
@@ -335,17 +347,17 @@ export default function SocialPage() {
     }
   };
 
-  const handleFollow = async (authorWallet: string) => {
-    if (!isConnected || !address) return toast.error("Connect wallet to follow.");
-    if (address.toLowerCase() === authorWallet.toLowerCase()) return;
+  const handleFollow = async (authorId: string) => {
+    const token = await getAccessToken();
+    if (!token) return toast.error("Please sign in to follow writers.");
 
     // Optimistic UI: toggle isFollowing on all stories by this author
     setStories((prev) =>
       prev.map((s) =>
-        s.author_wallet?.wallet_address?.toLowerCase() === authorWallet.toLowerCase()
+        s.author?.id === authorId
           ? {
               ...s,
-              author_wallet: { ...s.author_wallet, isFollowing: !s.author_wallet.isFollowing },
+              author_wallet: { ...s.author_wallet, isFollowing: !s.author_wallet?.isFollowing },
               author: { ...s.author, isFollowing: !s.author.isFollowing },
             }
           : s
@@ -353,13 +365,14 @@ export default function SocialPage() {
     );
 
     try {
-      const headers = await getAuthHeaders();
       const res = await fetch("/api/social/follow", {
         method: "POST",
-        headers,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
-          follower_wallet: address,
-          followed_wallet: authorWallet,
+          followed_id: authorId,
         }),
       });
 
@@ -372,7 +385,7 @@ export default function SocialPage() {
       // Update with server-confirmed state and follower count
       setStories((prev) =>
         prev.map((s) =>
-          s.author_wallet?.wallet_address?.toLowerCase() === authorWallet.toLowerCase()
+          s.author?.id === authorId
             ? {
                 ...s,
                 author_wallet: { ...s.author_wallet, isFollowing, followers: followers_count },
@@ -388,10 +401,10 @@ export default function SocialPage() {
       // Revert optimistic update
       setStories((prev) =>
         prev.map((s) =>
-          s.author_wallet?.wallet_address?.toLowerCase() === authorWallet.toLowerCase()
+          s.author?.id === authorId
             ? {
                 ...s,
-                author_wallet: { ...s.author_wallet, isFollowing: !s.author_wallet.isFollowing },
+                author_wallet: { ...s.author_wallet, isFollowing: !s.author_wallet?.isFollowing },
                 author: { ...s.author, isFollowing: !s.author.isFollowing },
               }
             : s
@@ -428,9 +441,8 @@ export default function SocialPage() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
-        <Loader2 className="w-12 h-12 animate-spin text-[hsl(var(--memory-500))]" />
-        <h2 className="text-2xl font-semibold">Curating stories...</h2>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <BrandedLoader size="md" message="Curating stories..." />
       </div>
     );
   }
@@ -544,7 +556,7 @@ export default function SocialPage() {
                           }}
                           onFollow={() =>
                             handleFollow(
-                              story.author_wallet?.wallet_address || ""
+                              story.author?.id || ""
                             )
                           }
                           onShare={() => handleShare(String(story.id))}

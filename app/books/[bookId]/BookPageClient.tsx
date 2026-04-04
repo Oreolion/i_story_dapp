@@ -27,9 +27,9 @@ import {
   User,
   Share2,
   ExternalLink,
-  Loader2,
   Layers
 } from "lucide-react";
+import { BrandedLoader } from "@/components/ui/branded-loader";
 
 interface BookData {
   id: string;
@@ -103,7 +103,7 @@ export default function BookPage({
     fetchBook();
   }, [bookId, supabase]);
 
-  if (isLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-purple-600"/></div>;
+  if (isLoading) return <BrandedLoader fullScreen message="Loading book..." />;
   if (!book) return <div className="min-h-screen flex items-center justify-center">Book Not Found</div>;
 
   return (

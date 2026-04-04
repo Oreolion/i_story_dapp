@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/app/utils/supabase/supabaseAdmin";
 import { validateAuthOrReject, isAuthError } from "@/lib/auth";
+import { Resend } from "resend";
+import WelcomeEmail from "@/components/emails/WelcomeEmail";
+
+let _resend: Resend | null = null;
+function getResend() {
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY);
+  return _resend;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -88,6 +96,34 @@ export async function POST(req: NextRequest) {
       console.error("[ONBOARDING] Update error:", error);
       return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
+
+    // Fire-and-forget: Send welcome email + create welcome notification
+    // These must not block the onboarding response
+    const sendWelcomeAsync = async () => {
+      try {
+        // Welcome email
+        if (email) {
+          await getResend().emails.send({
+            from: "EStories <noreply@estories.app>",
+            to: [email],
+            subject: "Welcome to EStories!",
+            react: WelcomeEmail({ username: name || username || "Storyteller" }),
+          });
+        }
+
+        // Welcome notification (in-app)
+        await admin.from("notifications").insert({
+          user_id: userId,
+          type: "follow",
+          title: "Welcome to eStories!",
+          message: `Welcome, ${name || username}! Start capturing the stories that matter to you. Head to Record to write your first story.`,
+          read: false,
+        });
+      } catch (emailErr) {
+        console.error("[ONBOARDING] Welcome email/notification failed (non-blocking):", emailErr);
+      }
+    };
+    sendWelcomeAsync();
 
     return NextResponse.json({ success: true, user: profile });
   } catch (err: unknown) {

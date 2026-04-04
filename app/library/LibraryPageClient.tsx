@@ -53,6 +53,7 @@ import {
   FolderOpen,
   Trash2,
 } from "lucide-react";
+import { BrandedLoader } from "@/components/ui/branded-loader";
 import { moodColors, StoryWithMetadata, StoryCollection } from "../types/index";
 
 // Import pattern components
@@ -149,7 +150,7 @@ function isCurrentMonth(key: string): boolean {
 
 export default function LibraryPage() {
   const { isConnected } = useApp();
-  const { profile: authInfo, getAccessToken } = useAuth();
+  const { profile: authInfo, getAccessToken, isLoading: isAuthLoading } = useAuth();
   const supabase = supabaseClient;
   const router = useRouter();
 
@@ -277,9 +278,10 @@ export default function LibraryPage() {
   };
 
   useEffect(() => {
+    if (isAuthLoading) return; // Wait for auth to resolve
     if (authInfo?.id) fetchData();
     else setIsLoading(false);
-  }, [authInfo?.id, supabase]);
+  }, [authInfo?.id, isAuthLoading]);
 
   // --- 1b. Fetch Collections ---
   const fetchCollections = async () => {
@@ -507,7 +509,7 @@ export default function LibraryPage() {
           Your <span className="text-gradient-memory">Archive</span>
         </h1>
         <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-          All your journal entries, patterns, and compiled books
+          All your story entries, patterns, and compiled books
         </p>
       </div>
 
@@ -622,7 +624,7 @@ export default function LibraryPage() {
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white">No Stories Yet</h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                    Start journaling to see your stories here.
+                    Start writing to see your stories here.
                   </p>
                 </div>
                 <Button
@@ -1309,7 +1311,7 @@ function CanonicalStoryCard({
 function LoadingSpinner() {
   return (
     <div className="flex items-center justify-center min-h-[40vh]">
-      <Loader2 className="w-12 h-12 animate-spin text-[hsl(var(--memory-500))]" />
+      <BrandedLoader size="md" message="Loading your stories..." />
     </div>
   );
 }

@@ -11,15 +11,24 @@ async function getStoryData(storyId: string) {
     const supabase = createSupabaseAdminClient();
     const { data, error } = await supabase
       .from("stories")
-      .select(
-        `title, content, teaser, tags, mood, is_public, story_date, created_at,
-        author:users!stories_author_wallet_fkey (name)`
-      )
+      .select(`title, content, teaser, tags, mood, is_public, story_date, created_at, author_id`)
       .eq("id", storyId)
       .maybeSingle();
 
     if (error || !data) return null;
-    return data;
+
+    // Fetch author name separately (works for both wallet and OAuth users)
+    let authorName: string | null = null;
+    if (data.author_id) {
+      const { data: authorRow } = await supabase
+        .from("users")
+        .select("name")
+        .eq("id", data.author_id)
+        .single();
+      authorName = authorRow?.name || null;
+    }
+
+    return { ...data, author: authorName ? { name: authorName } : null };
   } catch {
     return null;
   }

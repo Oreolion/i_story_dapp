@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-hot-toast";
 
@@ -77,6 +77,7 @@ const STORY_TYPE_COLORS: Record<string, { bg: string; border: string; text: stri
 export default function RecordPage() {
   const { isConnected } = useApp();
   const { profile: authInfo } = useAuth();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const parentStoryId = searchParams.get("parentId");
 
@@ -263,7 +264,7 @@ export default function RecordPage() {
           setTranscribedText((prev) => (prev ? prev + " " + text : text));
           if (!entryTitle) {
             const dateObj = new Date(storyDate);
-            setEntryTitle(`Journal Entry - ${dateObj.toLocaleDateString()}`);
+            setEntryTitle(`Story Entry - ${dateObj.toLocaleDateString()}`);
           }
           setIsTranscribing(false);
           return "Transcription complete!";
@@ -491,7 +492,7 @@ export default function RecordPage() {
           });
         }
 
-        return "Story saved & pinned to IPFS!";
+        return { message: "Story saved & pinned to IPFS!", storyId: insertedStory?.id };
       } catch (err: any) {
         throw new Error(err.message || "Save failed");
       }
@@ -499,7 +500,7 @@ export default function RecordPage() {
 
     toast.promise(promiseToSave(), {
       loading: "Saving to Database & IPFS...",
-      success: (msg) => {
+      success: (result) => {
         setIsSaving(false);
         setTranscribedText("");
         setEntryTitle("");
@@ -509,7 +510,11 @@ export default function RecordPage() {
         setPreEnhanceText(null);
         // Clear draft after successful save
         sessionStorage.removeItem(DRAFT_KEY);
-        return msg;
+        // Redirect to the published story page
+        if (result.storyId) {
+          setTimeout(() => router.push(`/story/${result.storyId}`), 800);
+        }
+        return result.message;
       },
       error: (err) => {
         setIsSaving(false);
@@ -714,7 +719,7 @@ export default function RecordPage() {
               />
             </div>
 
-            <div className="w-full md:w-48 space-y-2">
+            <div className="w-full md:w-48 min-w-0 space-y-2">
               <Label
                 htmlFor="date"
                 className="text-sm font-medium text-gray-500"
@@ -730,14 +735,14 @@ export default function RecordPage() {
                   type="date"
                   value={storyDate}
                   onChange={(e) => setStoryDate(e.target.value)}
-                  className="pl-10 font-medium"
+                  className="pl-10 font-medium w-full max-w-full"
                   disabled={isBusy}
                 />
               </div>
             </div>
 
             {/* NEW: Visibility Toggle */}
-            <div className="w-full md:w-32 space-y-2">
+            <div className="w-full md:w-32 min-w-0 space-y-2">
               <Label className="text-sm font-medium text-gray-500">
                 Visibility
               </Label>

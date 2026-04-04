@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Loader2,
   User,
   Shield,
   Wallet,
@@ -21,7 +20,9 @@ import {
   Check,
   BookOpen,
   SkipForward,
+  Loader2,
 } from "lucide-react";
+import { BrandedLoader } from "@/components/ui/branded-loader";
 
 type Step = "profile" | "vault" | "wallet" | "done";
 
@@ -91,11 +92,7 @@ export default function OnboardingPageClient() {
 
   // Loading state
   if (authLoading || !profile) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <BrandedLoader fullScreen message="Preparing your experience" />;
   }
 
   const nextStep = () => setStepIndex((i) => Math.min(i + 1, steps.length - 1));

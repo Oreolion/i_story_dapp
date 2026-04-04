@@ -56,6 +56,7 @@ import {
   AlertTriangle,
   Trash2,
 } from "lucide-react";
+import { BrandedLoader } from "@/components/ui/branded-loader";
 
 import { WeeklyReflectionSection } from "@/components/WeeklyReflection";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -80,6 +81,12 @@ interface UserProfileData {
   website: string | null;
   avatar: string | null;
   created_at?: string;
+  notification_preferences?: {
+    email_notifications?: boolean;
+    public_profile?: boolean;
+    ai_enhancement?: boolean;
+    re_engagement_emails?: boolean;
+  } | null;
 }
 
 type ProfileFormData = {
@@ -109,7 +116,7 @@ const getHeatmapColor = (count: number) => {
 export default function ProfilePage() {
   const { user: wagmiUser, isConnected } = useApp();
   const { address } = useAccount();
-  const { profile: authInfo, signInWithGoogle, refreshProfile, getAccessToken } = useAuth();
+  const { profile: authInfo, signInWithGoogle, refreshProfile, getAccessToken, isLoading: isAuthLoading } = useAuth();
   const supabase = supabaseClient;
   const { signMessageAsync } = useSignMessage();
   const { openConnectModal } = useConnectModal();
@@ -143,7 +150,8 @@ export default function ProfilePage() {
   const [preferences, setPreferences] = useState({
     emailNotifications: true,
     publicProfile: true,
-    aiEnhancement: true
+    aiEnhancement: true,
+    reEngagementEmails: true,
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -263,6 +271,7 @@ export default function ProfilePage() {
 
   // --- 1. Fetch All Data ---
   useEffect(() => {
+    if (isAuthLoading) return; // Wait for auth to resolve
     if (!supabase || !authInfo?.id) {
         setIsLoading(false);
         return;
@@ -394,9 +403,9 @@ export default function ProfilePage() {
     };
 
     loadProfileData();
-  }, [supabase, authInfo?.id]);
+  }, [supabase, authInfo?.id, isAuthLoading]);
 
-  // --- Sync Form ---
+  // --- Sync Form + Preferences ---
   useEffect(() => {
     if (profileData) {
       setFormData({
@@ -408,6 +417,16 @@ export default function ProfilePage() {
         avatar: profileData.avatar || "",
         email: profileData.email || "",
       });
+      // Load notification preferences from DB (with fallbacks)
+      const dbPrefs = profileData.notification_preferences;
+      if (dbPrefs && typeof dbPrefs === "object") {
+        setPreferences({
+          emailNotifications: dbPrefs.email_notifications ?? true,
+          publicProfile: dbPrefs.public_profile ?? true,
+          aiEnhancement: dbPrefs.ai_enhancement ?? true,
+          reEngagementEmails: dbPrefs.re_engagement_emails ?? true,
+        });
+      }
     }
   }, [profileData]);
 
@@ -451,9 +470,32 @@ export default function ProfilePage() {
   }
 };
 
-  const togglePreference = (key: keyof typeof preferences) => {
-      setPreferences(prev => ({ ...prev, [key]: !prev[key] }));
-      toast.success("Preference updated");
+  const togglePreference = async (key: keyof typeof preferences) => {
+    const newPrefs = { ...preferences, [key]: !preferences[key] };
+    setPreferences(newPrefs);
+
+    // Persist to database
+    if (supabase && authInfo?.id) {
+      const dbPrefs = {
+        email_notifications: newPrefs.emailNotifications,
+        public_profile: newPrefs.publicProfile,
+        ai_enhancement: newPrefs.aiEnhancement,
+        re_engagement_emails: newPrefs.reEngagementEmails,
+      };
+      const { error } = await supabase
+        .from("users")
+        .update({ notification_preferences: dbPrefs })
+        .eq("id", authInfo.id);
+
+      if (error) {
+        console.error("[PROFILE] Preference save error:", error);
+        // Revert on failure
+        setPreferences(preferences);
+        toast.error("Failed to save preference");
+        return;
+      }
+    }
+    toast.success("Preference updated");
   };
 
   const handleDeleteAccount = async () => {
@@ -561,9 +603,8 @@ export default function ProfilePage() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
-        <Loader2 className="w-12 h-12 animate-spin text-[hsl(var(--memory-500))]" />
-        <h2 className="text-2xl font-semibold">Loading Profile Data...</h2>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <BrandedLoader size="md" message="Loading your profile..." />
       </div>
     );
   }
@@ -843,20 +884,20 @@ export default function ProfilePage() {
                       })()}
                     </div>
 
-                    <div className="flex gap-2 items-start overflow-x-auto pb-2">
+                    <div className="flex gap-1 sm:gap-2 items-start overflow-x-auto pb-2">
                       {/* Weekday Labels */}
-                      <div className="grid grid-rows-7 gap-1 text-[10px] text-gray-400 leading-2.5 pt-0.5 select-none">
-                        <span className="h-2.5"></span> 
-                        <span className="h-2.5">Mon</span>
-                        <span className="h-2.5"></span> 
-                        <span className="h-2.5">Wed</span>
-                        <span className="h-2.5"></span> 
-                        <span className="h-2.5">Fri</span>
-                        <span className="h-2.5"></span> 
+                      <div className="grid grid-rows-7 gap-[3px] sm:gap-1 text-[10px] text-gray-400 leading-2.5 pt-0.5 select-none shrink-0">
+                        <span className="h-2 sm:h-2.5"></span>
+                        <span className="h-2 sm:h-2.5">Mon</span>
+                        <span className="h-2 sm:h-2.5"></span>
+                        <span className="h-2 sm:h-2.5">Wed</span>
+                        <span className="h-2 sm:h-2.5"></span>
+                        <span className="h-2 sm:h-2.5">Fri</span>
+                        <span className="h-2 sm:h-2.5"></span>
                       </div>
 
                       {/* Grid Container */}
-                      <div className="grid grid-rows-7 grid-flow-col gap-1">
+                      <div className="grid grid-rows-7 grid-flow-col gap-[3px] sm:gap-1">
                         {(() => {
                           // 1. Generate a calendar for the last ~365 days aligned to Sunday
                           const today = new Date();
@@ -893,7 +934,7 @@ export default function ProfilePage() {
                               <div
                                 key={i}
                                 title={`${date.toDateString()}: ${count} stories`}
-                                className={`w-3 h-3 rounded-[6px] ${getHeatmapColor(count)}`}
+                                className={`w-2 h-2 sm:w-3 sm:h-3 rounded-[4px] sm:rounded-[6px] ${getHeatmapColor(count)}`}
                               />
                             );
                           });

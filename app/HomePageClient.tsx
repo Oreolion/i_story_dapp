@@ -92,7 +92,7 @@ const whyNowCards = [
   {
     icon: ServerOff,
     stat: "100%",
-    statLabel: "of journaling apps store your data on their servers",
+    statLabel: "of storytelling apps store your data on their servers",
     description:
       "Your most private thoughts live on infrastructure you don't control. If they get acquired, shut down, or breached — your stories go with them.",
   },
@@ -244,7 +244,7 @@ export default function HomePage() {
 
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
             The storytelling platform that listens, learns your patterns, and belongs to
-            you — not us, not any platform. Write about anything: journals, history,
+            you — not us, not any platform. Write about anything: personal stories, history,
             culture, geopolitics. AI helps you become a better storyteller.
           </p>
         </div>
@@ -454,7 +454,7 @@ export default function HomePage() {
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
             A storytelling experience designed for reflection and craft, not engagement
-            metrics. Write journals, history, culture, geopolitics — anything that matters to you.
+            metrics. Write personal stories, history, culture, geopolitics — anything that matters to you.
           </p>
         </div>
 
@@ -543,7 +543,7 @@ export default function HomePage() {
             <p className="text-muted-foreground italic leading-relaxed text-lg">
               &ldquo;I built eStories because I needed it — a tool with less
               friction that could also help me improve over time. Other platforms
-              force you to type, which makes journaling and writing harder. My most
+              force you to type, which makes storytelling and writing harder. My most
               important thoughts ended up trapped on services I didn&apos;t control.
               Your stories and your voice shouldn&apos;t belong to a company — they
               should belong to you. We are living through one of the most important
@@ -570,7 +570,7 @@ export default function HomePage() {
           {[
             {
               icon: EyeOff,
-              title: "We don't read your journal",
+              title: "We don't read your stories",
               description:
                 "Your entries are encrypted. We couldn't read them even if we wanted to.",
             },
