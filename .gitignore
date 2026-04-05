@@ -57,3 +57,6 @@ node_modules/
 /playwright/.cache/
 /playwright/.auth/
 /.claude/
+
+# MCP config (contains auth tokens)
+.mcp.json
