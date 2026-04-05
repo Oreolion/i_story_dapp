@@ -236,7 +236,7 @@ export default function HomePage() {
           </div>
 
           {/* Main heading — speak, see patterns, own legacy */}
-          <h1 className="heading-display-lg text-4xl md:text-6xl lg:text-7xl leading-[1.1]">
+          <h1 className="heading-display-lg text-4xl md:text-5xl lg:text-5xl leading-[1.1]">
             <span className="text-foreground">Speak your story, see your patterns,</span>
             <br />
             <span className="text-gradient-cosmic">own and preserve your legacy.</span>
@@ -263,7 +263,7 @@ export default function HomePage() {
           ) : (
             <Button
               size="lg"
-              onClick={() => router.push("/api/auth/callback")}
+              onClick={() => router.push("/record")}
               className="bg-linear-to-r from-[hsl(var(--memory-600))] to-[hsl(var(--insight-600))] hover:from-[hsl(var(--memory-500))] hover:to-[hsl(var(--insight-500))] text-white text-lg px-8 h-12"
             >
               Start Writing — Free
@@ -840,7 +840,7 @@ export default function HomePage() {
             ) : (
               <Button
                 size="lg"
-                onClick={() => router.push("/api/auth/callback")}
+                onClick={() => router.push("/record")}
                 className="bg-linear-to-r from-[hsl(var(--memory-600))] to-[hsl(var(--insight-600))] hover:from-[hsl(var(--memory-500))] hover:to-[hsl(var(--insight-500))] text-white px-8 h-12"
               >
                 <ArrowRight className="w-5 h-5 mr-2" />

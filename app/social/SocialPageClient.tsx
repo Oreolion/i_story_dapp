@@ -156,26 +156,34 @@ export default function SocialPage() {
           ),
         ] as string[];
 
-        // 4. Fetch follow status for all authors (if user is authenticated)
+        // 4. Fetch follow status + like status in parallel (if user is authenticated)
         let followingMap: Record<string, boolean> = {};
+        let likedMap: Record<string, boolean> = {};
         const token = await getAccessToken();
-        if (token && authorIds.length > 0) {
-          try {
-            const followRes = await fetch(
-              `/api/social/follow?followed_ids=${authorIds.join(",")}`,
-              {
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${token}`,
-                },
-              }
-            );
-            if (followRes.ok) {
-              const { following } = await followRes.json();
-              followingMap = following || {};
-            }
-          } catch (err) {
-            console.error("[SOCIAL PAGE] Follow status fetch error:", err);
+        if (token) {
+          const authHeaders = {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          };
+
+          const [followResult, likeResult] = await Promise.allSettled([
+            // Follow status
+            authorIds.length > 0
+              ? fetch(`/api/social/follow?followed_ids=${authorIds.join(",")}`, { headers: authHeaders })
+                  .then((r) => r.ok ? r.json() : null)
+              : Promise.resolve(null),
+            // Like status
+            validStories.length > 0
+              ? fetch(`/api/social/like/status?story_ids=${validStories.map((s: any) => s.id).join(",")}`, { headers: authHeaders })
+                  .then((r) => r.ok ? r.json() : null)
+              : Promise.resolve(null),
+          ]);
+
+          if (followResult.status === "fulfilled" && followResult.value) {
+            followingMap = followResult.value.following || {};
+          }
+          if (likeResult.status === "fulfilled" && likeResult.value) {
+            likedMap = likeResult.value.liked || {};
           }
         }
 
@@ -229,7 +237,7 @@ export default function SocialPage() {
             created_at: s.created_at,
 
             // Interactive State
-            isLiked: false,
+            isLiked: likedMap[s.id] || false,
             isPaid: false,
           };
         });
@@ -459,10 +467,10 @@ export default function SocialPage() {
           <Users className="w-8 h-8 text-white" />
         </motion.div>
         <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
-          Community <span className="text-gradient-memory">Stories</span>
+          Discover <span className="text-gradient-memory">Stories</span>
         </h1>
         <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-          Discover inspiring stories from writers around the world
+          Explore narratives from storytellers preserving what matters
         </p>
       </div>
 
@@ -473,16 +481,16 @@ export default function SocialPage() {
             <div className="text-center space-y-2">
               <BookOpen className="w-6 h-6 mx-auto text-[hsl(var(--memory-500))]" />
               <div className="text-xl font-bold text-gray-900 dark:text-white">
-                {stories.length + 124}
+                {stories.length}
               </div>
               <div className="text-sm text-gray-600 dark:text-gray-400">
-                Stories Today
+                Published Stories
               </div>
             </div>
             <div className="text-center space-y-2">
               <Users className="w-6 h-6 mx-auto text-[hsl(var(--insight-500))]" />
               <div className="text-xl font-bold text-gray-900 dark:text-white">
-                2.8K
+                {new Set(stories.map(s => s.author?.id).filter(Boolean)).size}
               </div>
               <div className="text-sm text-gray-600 dark:text-gray-400">
                 Active Writers

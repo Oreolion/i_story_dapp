@@ -73,7 +73,7 @@ export default function StoryPage({
   const router = useRouter();
   const { isConnected } = useApp();
   const { address } = useAccount();
-  const { profile: authInfo, getAccessToken } = useAuth();
+  const { profile: authInfo, getAccessToken, isLoading: isAuthLoading } = useAuth();
 
   const supabase = supabaseClient;
 
@@ -117,12 +117,18 @@ export default function StoryPage({
 
   // --- 1. Fetch Data ---
   useEffect(() => {
+    // Wait for auth to hydrate before fetching
+    if (isAuthLoading) return;
+
     // Stop if storyId is missing
     if (!storyId) {
       if (storyId === undefined) return;
       setIsLoading(false);
       return;
     }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15_000);
 
     const fetchStoryAndComments = async () => {
       try {
@@ -133,6 +139,7 @@ export default function StoryPage({
         const token = await getAccessToken();
         const res = await fetch(`/api/stories/${storyId}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
+          signal: controller.signal,
         });
         if (!res.ok) {
           setStory(null);
@@ -197,6 +204,22 @@ export default function StoryPage({
 
             if (unlockData) setIsUnlocked(true);
           }
+
+          // Fetch like status for this story
+          if (token) {
+            try {
+              const likeRes = await fetch(`/api/social/like/status?story_ids=${storyId}`, {
+                headers: { Authorization: `Bearer ${token}` },
+                signal: controller.signal,
+              });
+              if (likeRes.ok) {
+                const { liked } = await likeRes.json();
+                if (liked[storyId]) setIsLiked(true);
+              }
+            } catch {
+              // Non-critical — like status defaults to false
+            }
+          }
         } else {
           setStory(null);
         }
@@ -225,8 +248,13 @@ export default function StoryPage({
     };
 
     fetchStoryAndComments();
+
+    return () => {
+      clearTimeout(timeout);
+      controller.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storyId, authInfo?.id]);
+  }, [storyId, authInfo?.id, isAuthLoading]);
 
   // --- 1b. Fetch follow status once story and user are available ---
   useEffect(() => {
@@ -321,6 +349,9 @@ export default function StoryPage({
     if (!authInfo) return toast.error("Please sign in to like stories");
     if (!story) return;
 
+    const token = await getAccessToken();
+    if (!token) return toast.error("Please sign in to like stories");
+
     const prevLiked = isLiked;
     const prevLikes = story.likes;
 
@@ -334,12 +365,11 @@ export default function StoryPage({
 
     try {
       setIsLiking(true);
-      const token = await getAccessToken();
       const res = await fetch("/api/social/like", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ storyId: story.id }),
       });
@@ -434,6 +464,9 @@ export default function StoryPage({
     if (!authInfo) return toast.error("Please sign in to follow writers.");
     if (!story?.author?.id) return;
 
+    const followToken = await getAccessToken();
+    if (!followToken) return toast.error("Please sign in to follow writers.");
+
     const prevState = isFollowingAuthor;
     const prevCount = authorFollowers;
     // Optimistic
@@ -441,12 +474,11 @@ export default function StoryPage({
     setAuthorFollowers(prevState ? Math.max(0, prevCount - 1) : prevCount + 1);
 
     try {
-      const followToken = await getAccessToken();
       const res = await fetch("/api/social/follow", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(followToken ? { Authorization: `Bearer ${followToken}` } : {}),
+          Authorization: `Bearer ${followToken}`,
         },
         body: JSON.stringify({
           followed_id: story.author.id,
