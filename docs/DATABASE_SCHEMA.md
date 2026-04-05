@@ -15,10 +15,66 @@
 | `verification_logs` | CRE verification request audit log |
 | `story_collections` | User-created story collections/series |
 | `collection_stories` | Junction table: stories in collections (many-to-many) |
+| `follows` | Follower relationships between users |
+| `unlocked_content` | Paywall unlock records |
 
 **Storage Bucket:** `story-audio` - Audio file uploads
 
 **Client-Side Database:** `estory-vault` (IndexedDB via Dexie.js) - Encrypted local story storage
+
+## Social Tables (Migration 014)
+
+```sql
+-- Likes: tracks which users liked which stories
+CREATE TABLE likes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  story_id UUID NOT NULL REFERENCES stories(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id, story_id)
+);
+
+-- Follows: tracks follower relationships
+CREATE TABLE follows (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  follower_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  following_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  follower_wallet TEXT,
+  followed_wallet TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(follower_id, following_id),
+  CONSTRAINT no_self_follow CHECK (follower_id != following_id)
+);
+
+-- Comments: story comments
+CREATE TABLE comments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  story_id UUID NOT NULL REFERENCES stories(id) ON DELETE CASCADE,
+  author_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  author_wallet TEXT,
+  content TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Saved Stories (bookmarks)
+CREATE TABLE saved_stories (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  story_id UUID NOT NULL REFERENCES stories(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id, story_id)
+);
+
+-- Unlocked Content (paywall)
+CREATE TABLE unlocked_content (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  story_id UUID NOT NULL REFERENCES stories(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id, story_id)
+);
+```
 
 ## Local Vault — IndexedDB Schema (Dexie.js)
 

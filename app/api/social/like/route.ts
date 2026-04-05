@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from "@/app/utils/supabase/supabaseAdmin";
 import { validateAuthOrReject, isAuthError } from "@/lib/auth";
+import * as Sentry from "@sentry/nextjs";
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,12 +23,17 @@ export async function POST(request: NextRequest) {
     const admin = createSupabaseAdminClient();
 
     // Check if already liked (atomic toggle)
-    const { data: existingLike } = await admin
+    const { data: existingLike, error: checkErr } = await admin
       .from("likes")
       .select("id")
       .eq("user_id", authenticatedUserId)
       .eq("story_id", storyId)
       .maybeSingle();
+
+    if (checkErr) {
+      console.error("[LIKE] Check error:", checkErr);
+      return NextResponse.json({ error: "Failed to process like" }, { status: 500 });
+    }
 
     let isLiked: boolean;
     let totalLikes: number;
@@ -126,6 +132,7 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error processing like:', error);
+    Sentry.captureException(error, { tags: { route: "social/like" } });
     return NextResponse.json(
       { error: 'Failed to process like' },
       { status: 500 }

@@ -719,7 +719,7 @@ export default function RecordPage() {
               />
             </div>
 
-            <div className="w-full md:w-48 min-w-0 space-y-2">
+            <div className="w-full md:w-52 shrink-0 space-y-2">
               <Label
                 htmlFor="date"
                 className="text-sm font-medium text-gray-500"
@@ -727,7 +727,7 @@ export default function RecordPage() {
                 Date of Memory
               </Label>
               <div className="relative">
-                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none z-10">
                   <CalendarIcon className="w-4 h-4" />
                 </div>
                 <Input
@@ -735,7 +735,7 @@ export default function RecordPage() {
                   type="date"
                   value={storyDate}
                   onChange={(e) => setStoryDate(e.target.value)}
-                  className="pl-10 font-medium w-full max-w-full"
+                  className="pl-10 font-medium w-full [&::-webkit-date-and-time-value]:text-left"
                   disabled={isBusy}
                 />
               </div>
