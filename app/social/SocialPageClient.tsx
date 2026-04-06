@@ -103,7 +103,7 @@ export default function SocialPage() {
   const supabase = supabaseClient;
 
   // Use centralized auth token from AuthProvider
-  const { getAccessToken } = useAuth();
+  const { getAccessToken, isLoading: isAuthLoading, profile: authInfo } = useAuth();
 
   // Helper to get auth headers for API calls
   const getAuthHeaders = async (): Promise<Record<string, string>> => {
@@ -116,31 +116,38 @@ export default function SocialPage() {
 
   // --- Fetch Data ---
   useEffect(() => {
+    // Wait for auth to hydrate before fetching — prevents race conditions
+    // where getAccessToken() returns null before session is restored
+    if (isAuthLoading) return;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15_000);
+
     const fetchSupabaseData = async () => {
       setIsLoading(true);
       try {
         // 1. Fetch ALL stories via API route (bypasses RLS, uses admin client)
         let data: any[] = [];
         try {
-          const res = await fetch("/api/stories/feed");
+          const res = await fetch("/api/stories/feed", { signal: controller.signal });
           if (res.ok) {
             const json = await res.json();
             data = json.stories || [];
           }
-        } catch {
-          // API route failed — try direct Supabase as fallback
+        } catch (e: any) {
+          if (e.name === "AbortError") return;
         }
 
         // Fallback: retry the API route once (skip direct Supabase — RLS issues)
-        if (data.length === 0) {
+        if (data.length === 0 && !controller.signal.aborted) {
           try {
-            const retryRes = await fetch("/api/stories/feed");
+            const retryRes = await fetch("/api/stories/feed", { signal: controller.signal });
             if (retryRes.ok) {
               const retryJson = await retryRes.json();
               data = retryJson.stories || [];
             }
-          } catch {
-            // Fallback failed — proceed with empty data
+          } catch (e: any) {
+            if (e.name === "AbortError") return;
           }
         }
 
@@ -169,12 +176,12 @@ export default function SocialPage() {
           const [followResult, likeResult] = await Promise.allSettled([
             // Follow status
             authorIds.length > 0
-              ? fetch(`/api/social/follow?followed_ids=${authorIds.join(",")}`, { headers: authHeaders })
+              ? fetch(`/api/social/follow?followed_ids=${authorIds.join(",")}`, { headers: authHeaders, signal: controller.signal })
                   .then((r) => r.ok ? r.json() : null)
               : Promise.resolve(null),
             // Like status
             validStories.length > 0
-              ? fetch(`/api/social/like/status?story_ids=${validStories.map((s: any) => s.id).join(",")}`, { headers: authHeaders })
+              ? fetch(`/api/social/like/status?story_ids=${validStories.map((s: any) => s.id).join(",")}`, { headers: authHeaders, signal: controller.signal })
                   .then((r) => r.ok ? r.json() : null)
               : Promise.resolve(null),
           ]);
@@ -222,7 +229,8 @@ export default function SocialPage() {
             // Stats Mapping
             likes: s.likes ?? 0,
             comments: s.comments_count ?? 0,
-            shares: s.shares ?? Math.floor(Math.random() * 50),
+            shares: s.shares ?? 0,
+            views: s.view_count ?? 0,
 
             // Media & Meta
             hasAudio: s.has_audio ?? false,
@@ -244,16 +252,22 @@ export default function SocialPage() {
 
         setStories(storiesWithDefaults);
       } catch (err: any) {
+        if (err.name === "AbortError") return;
         console.error("[SOCIAL PAGE] Fetch error:", err);
         toast.error("Failed to load the feed");
       } finally {
-        setIsLoading(false);
+        if (!controller.signal.aborted) setIsLoading(false);
       }
     };
 
     fetchSupabaseData();
+
+    return () => {
+      clearTimeout(timeout);
+      controller.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isAuthLoading, authInfo?.id]);
 
   // --- Event Handlers ---
 

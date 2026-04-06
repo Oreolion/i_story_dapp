@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
         `
         id, numeric_id, title, content, created_at, likes, comments_count, shares,
         has_audio, audio_url, mood, tags, paywall_amount, teaser, is_public,
-        author_id, author_wallet, story_date
+        author_id, author_wallet, story_date, view_count
       `
       )
       .eq("is_public", true)

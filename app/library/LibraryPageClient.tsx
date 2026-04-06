@@ -244,7 +244,7 @@ export default function LibraryPage() {
         story_date: s.story_date || s.created_at,
         is_public: s.is_public || false,
         likes: s.likes || 0,
-        views: s.views || 0,
+        views: s.view_count ?? s.views ?? 0,
         has_audio: s.has_audio,
         audio_url: s.audio_url,
         mood: s.mood || "neutral",
@@ -279,8 +279,24 @@ export default function LibraryPage() {
 
   useEffect(() => {
     if (isAuthLoading) return; // Wait for auth to resolve
-    if (authInfo?.id) fetchData();
-    else setIsLoading(false);
+    if (!authInfo?.id) {
+      setIsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    const timeout = setTimeout(() => {
+      if (cancelled) return;
+      // Force loading off after 15s to prevent infinite spinner
+      setIsLoading(false);
+    }, 15_000);
+
+    fetchData().finally(() => clearTimeout(timeout));
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
   }, [authInfo?.id, isAuthLoading]);
 
   // --- 1b. Fetch Collections ---

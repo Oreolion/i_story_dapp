@@ -293,7 +293,7 @@ export default function ProfilePage() {
         // B. Fetch Stories
         const { data: stories, error: storyError } = await supabase
           .from("stories")
-          .select("id, created_at, title, content, likes, audio_url")
+          .select("id, created_at, title, content, likes, audio_url, view_count")
           .eq("author_id", authInfo.id)
           .order("created_at", { ascending: false });
 
@@ -345,7 +345,7 @@ export default function ProfilePage() {
             stories: stories?.length || 0,
             books: booksCount || 0,
             likes: totalLikes,
-            views: totalLikes * 3 + (stories?.length || 0) * 5,
+            views: stories?.reduce((sum, s) => sum + ((s as any).view_count || 0), 0) || 0,
             monthlyStories,
             streak: currentStreak
         });
@@ -362,7 +362,8 @@ export default function ProfilePage() {
              const dayStories = stories?.filter(s => s.created_at.startsWith(date));
              const likes = dayStories?.reduce((acc, s) => acc + (s.likes || 0), 0) || 0;
              const entries = dayStories?.length || 0;
-             return { date, entries, likes, views: likes * 4 };
+             const views = dayStories?.reduce((acc, s) => acc + ((s as any).view_count || 0), 0) || 0;
+             return { date, entries, likes, views };
         }).filter(d => d.entries > 0); // Only show days with activity
         
         setActivityData(listData);
@@ -402,7 +403,11 @@ export default function ProfilePage() {
       }
     };
 
-    loadProfileData();
+    // Safety timeout: force loading off after 15s to prevent infinite spinner
+    const timeout = setTimeout(() => setIsLoading(false), 15_000);
+    loadProfileData().finally(() => clearTimeout(timeout));
+
+    return () => clearTimeout(timeout);
   }, [supabase, authInfo?.id, isAuthLoading]);
 
   // --- Sync Form + Preferences ---

@@ -90,6 +90,7 @@ export interface StoryDataType {
   likes: number;
   comments: number;
   shares: number;
+  views?: number;
   hasAudio: boolean;
    audio_url?: string;
   isLiked: boolean;

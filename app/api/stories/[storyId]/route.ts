@@ -24,7 +24,7 @@ export async function GET(
       .select(
         `id, numeric_id, title, content, teaser, created_at, story_date, is_public,
          likes, shares, comments_count, has_audio, audio_url, mood, tags,
-         paywall_amount, story_type, author_id, author_wallet`
+         paywall_amount, story_type, author_id, author_wallet, view_count`
       )
       .eq("id", storyId)
       .maybeSingle();
@@ -52,6 +52,14 @@ export async function GET(
     const isAuthor = viewerId === story.author_id;
     if (!isAuthor) {
       story.audio_url = null;
+    }
+
+    // Increment view count (fire-and-forget, non-blocking)
+    if (story.is_public && !isAuthor) {
+      void admin
+        .from("stories")
+        .update({ view_count: (story.view_count || 0) + 1 })
+        .eq("id", storyId);
     }
 
     // Fetch author by author_id (works for both wallet and OAuth users)

@@ -10,7 +10,7 @@ import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import eStoryTokenABI from "@/lib/abis/iStoryToken.json";
 import { parseEther } from "viem";
 import Image from "next/image";
-import { Heart, MessageCircle, Share2, Calendar, Globe, Lock, Star, Headphones } from "lucide-react";
+import { Heart, MessageCircle, Share2, Calendar, Globe, Lock, Star, Headphones, Eye } from "lucide-react";
 import { StoryDataType, EmotionalTone, getStoryTypeConfig } from "@/app/types";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { VerifiedMetricsCard } from "@/components/VerifiedMetricsCard";
@@ -347,6 +347,10 @@ export function StoryCard({
               <Share2 className="w-4 h-4 mr-1" />
               {story.shares}
             </Button>
+            <span className="flex items-center text-xs text-muted-foreground ml-1">
+              <Eye className="w-3.5 h-3.5 mr-1" />
+              {story.views ?? 0}
+            </span>
           </div>
 
           {/* Tipping — disabled until mainnet */}

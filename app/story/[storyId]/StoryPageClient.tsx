@@ -59,6 +59,7 @@ import {
   PenLine,
   BookOpen,
   Users,
+  Eye,
 } from "lucide-react";
 import { BrandedLoader } from "@/components/ui/branded-loader";
 
@@ -164,6 +165,7 @@ export default function StoryPage({
             likes: storyData.likes || 0,
             comments: storyData.comments_count || 0,
             shares: storyData.shares || 0,
+            views: storyData.view_count || 0,
             hasAudio: storyData.has_audio || false,
             audio_url: storyData.audio_url,
             isLiked: false,
@@ -734,6 +736,9 @@ export default function StoryPage({
                   </span>
                   <span className="flex items-center">
                     <Share2 className="w-4 h-4 mr-1" /> {story.shares}
+                  </span>
+                  <span className="flex items-center">
+                    <Eye className="w-4 h-4 mr-1" /> {story.views}
                   </span>
                 </div>
                 {!isAuthor && (
