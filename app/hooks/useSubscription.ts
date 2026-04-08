@@ -1,12 +1,19 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/components/AuthProvider";
 
 interface SubscriptionStatus {
   plan: string;
   active: boolean;
   expires_at: string | null;
+  pending_payment?: {
+    address: string;
+    plan: string;
+    amount: number;
+    currency: string;
+    expires_at: string;
+  } | null;
 }
 
 interface PaymentInfo {
@@ -19,7 +26,7 @@ interface PaymentInfo {
 }
 
 export function useSubscription() {
-  const { profile, getAccessToken } = useAuth();
+  const { profile, getAccessToken, refreshProfile } = useAuth();
   const [status, setStatus] = useState<SubscriptionStatus>({
     plan: "free",
     active: false,
@@ -27,7 +34,8 @@ export function useSubscription() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
-  const [isCreatingPayment, setIsCreatingPayment] = useState(false);
+  const [creatingPlan, setCreatingPlan] = useState<string | null>(null);
+  const prevActiveRef = useRef(false);
 
   const fetchStatus = useCallback(async () => {
     const token = await getAccessToken();
@@ -40,11 +48,18 @@ export function useSubscription() {
       if (res.ok) {
         const data = await res.json();
         setStatus(data);
+
+        // If status just became active (payment confirmed), refresh the auth
+        // profile so subscription_plan propagates to the entire app
+        if (data.active && !prevActiveRef.current) {
+          await refreshProfile();
+        }
+        prevActiveRef.current = data.active;
       }
     } catch {
       // Silent fail — default to free
     }
-  }, [getAccessToken]);
+  }, [getAccessToken, refreshProfile]);
 
   useEffect(() => {
     if (profile?.id) {
@@ -52,11 +67,22 @@ export function useSubscription() {
     }
   }, [profile?.id, fetchStatus]);
 
+  // Poll for payment confirmation while payment modal is open
+  useEffect(() => {
+    if (!paymentInfo) return;
+
+    const interval = setInterval(() => {
+      fetchStatus();
+    }, 15_000); // Check every 15 seconds
+
+    return () => clearInterval(interval);
+  }, [paymentInfo, fetchStatus]);
+
   const subscribe = async (plan: string) => {
     const token = await getAccessToken();
     if (!token) throw new Error("Not authenticated");
 
-    setIsCreatingPayment(true);
+    setCreatingPlan(plan);
     try {
       const res = await fetch("/api/payment/create", {
         method: "POST",
@@ -73,7 +99,7 @@ export function useSubscription() {
       setPaymentInfo(data);
       return data;
     } finally {
-      setIsCreatingPayment(false);
+      setCreatingPlan(null);
     }
   };
 
@@ -83,7 +109,7 @@ export function useSubscription() {
     status,
     isLoading,
     paymentInfo,
-    isCreatingPayment,
+    creatingPlan,
     subscribe,
     clearPaymentInfo,
     refreshStatus: fetchStatus,

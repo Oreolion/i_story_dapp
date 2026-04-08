@@ -15,6 +15,8 @@ import type { OnboardingData } from "@/app/types";
 
 const WALLET_TOKEN_KEY = "estory_wallet_token";
 
+export type PlanType = "free" | "storyteller" | "creator";
+
 export interface UnifiedUserProfile {
   id: string;
   name: string | null;
@@ -28,6 +30,8 @@ export interface UnifiedUserProfile {
   auth_provider: "wallet" | "google" | "both";
   is_onboarded: boolean;
   google_id: string | null;
+  subscription_plan: PlanType;
+  subscription_expires_at: string | null;
 }
 
 export interface AuthContextType {
@@ -64,24 +68,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const signInAttemptRef = useRef(false);
 
+  const VALID_PLANS: PlanType[] = ["free", "storyteller", "creator"];
+
   const buildProfile = (
     userRow: any,
     sessionUser: User | null
-  ): UnifiedUserProfile => ({
-    id: userRow.id,
-    name: userRow.name ?? null,
-    username: userRow.username ?? null,
-    email: userRow.email ?? null,
-    avatar: userRow.avatar ?? null,
-    wallet_address:
-      (userRow.wallet_address ?? address ?? null)?.toLowerCase?.() ?? null,
-    balance: ethBalance?.formatted ?? "0",
-    isConnected: Boolean(isConnected),
-    supabaseUser: sessionUser,
-    auth_provider: userRow.auth_provider ?? "wallet",
-    is_onboarded: userRow.is_onboarded ?? false,
-    google_id: userRow.google_id ?? null,
-  });
+  ): UnifiedUserProfile => {
+    // Determine if subscription is still active
+    const rawPlan = userRow.subscription_plan ?? "free";
+    const planFromDb: PlanType = VALID_PLANS.includes(rawPlan) ? rawPlan : "free";
+    const expiresAt = userRow.subscription_expires_at ?? null;
+    const isExpired = !expiresAt || new Date(expiresAt) <= new Date();
+    const activePlan: PlanType = (planFromDb !== "free" && !isExpired) ? planFromDb : "free";
+
+    return {
+      id: userRow.id,
+      name: userRow.name ?? null,
+      username: userRow.username ?? null,
+      email: userRow.email ?? null,
+      avatar: userRow.avatar ?? null,
+      wallet_address:
+        (userRow.wallet_address ?? address ?? null)?.toLowerCase?.() ?? null,
+      balance: ethBalance?.formatted ?? "0",
+      isConnected: Boolean(isConnected),
+      supabaseUser: sessionUser,
+      auth_provider: userRow.auth_provider ?? "wallet",
+      is_onboarded: userRow.is_onboarded ?? false,
+      google_id: userRow.google_id ?? null,
+      subscription_plan: activePlan,
+      subscription_expires_at: expiresAt,
+    };
+  };
 
   const setUnifiedProfile = (userRow: any, sessionUser: User | null) => {
     if (!userRow) {

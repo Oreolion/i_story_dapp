@@ -50,14 +50,17 @@ export async function POST(req: NextRequest) {
     // Create Blockradar payment address
     const paymentAddress = await createPaymentAddress(userId, plan);
 
-    // Expire any stale pending payments for this user+plan before creating a new one
+    // Expire any stale pending payments for this user before creating a new one
+    // (covers both null expires_at and past expires_at)
     await admin
       .from("payments")
       .update({ status: "expired", updated_at: new Date().toISOString() })
       .eq("user_id", userId)
-      .eq("plan", plan)
-      .eq("status", "pending")
-      .lt("expires_at", new Date().toISOString());
+      .eq("status", "pending");
+
+    // Payment address expires in 1 hour
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 1);
 
     // Store pending payment in database
     const { error: insertErr } = await admin.from("payments").insert({
@@ -68,6 +71,7 @@ export async function POST(req: NextRequest) {
       amount_expected: PLAN_PRICES[plan],
       currency: "USDC",
       status: "pending",
+      expires_at: expiresAt.toISOString(),
     });
 
     if (insertErr) {

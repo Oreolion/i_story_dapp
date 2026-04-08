@@ -14,6 +14,7 @@ const MIN_CONTENT_LENGTH = 50;
 const MAX_RETRIES = 3;
 const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
 const RATE_LIMIT_MAX_REQUESTS = 30; // 30 requests per minute
+const FREE_MONTHLY_ANALYSIS_LIMIT = 5;
 
 // Valid values for validation
 const VALID_EMOTIONAL_TONES = [
@@ -324,6 +325,48 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    // ── Subscription-based analysis limit ──────────────────────────────
+    const { data: userRow } = await ownershipSupabase
+      .from("users")
+      .select("subscription_plan, subscription_expires_at")
+      .eq("id", authenticatedUserId)
+      .single();
+
+    const subPlan = userRow?.subscription_plan ?? "free";
+    const subExpires = userRow?.subscription_expires_at;
+    const isPaid = subPlan !== "free" && subExpires && new Date(subExpires) > new Date();
+
+    if (!isPaid) {
+      // Count total analyses this calendar month across ALL user's stories
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+
+      const { data: userStories } = await ownershipSupabase
+        .from("stories")
+        .select("id")
+        .eq("author_id", authenticatedUserId);
+
+      if (userStories && userStories.length > 0) {
+        const storyIds = userStories.map((s: { id: string }) => s.id);
+        const { count: monthlyCount } = await ownershipSupabase
+          .from("story_metadata")
+          .select("story_id", { count: "exact", head: true })
+          .in("story_id", storyIds)
+          .gte("updated_at", monthStart);
+
+        if ((monthlyCount ?? 0) >= FREE_MONTHLY_ANALYSIS_LIMIT) {
+          return NextResponse.json(
+            {
+              error: "Free plan limit reached (5 analyses/month). Upgrade to Storyteller for unlimited analyses.",
+              code: "PLAN_LIMIT_REACHED",
+              usage: { used: monthlyCount, limit: FREE_MONTHLY_ANALYSIS_LIMIT },
+            },
+            { status: 403 }
+          );
+        }
+      }
+    }
+
     // Minimum content length check
     if (storyText.length < MIN_CONTENT_LENGTH) {
       analysisLogger.warn(storyId, "content_too_short", {
@@ -461,10 +504,14 @@ export async function POST(req: NextRequest) {
         wasTruncated,
       });
 
+      // Strip actionable_advice for free users — paid feature only
+      const responseMetadata = isPaid ? data : { ...data, actionable_advice: null };
+
       return NextResponse.json({
         success: true,
-        metadata: data,
+        metadata: responseMetadata,
         insight: sanitizedMetadata.brief_insight,
+        plan: isPaid ? subPlan : "free",
       });
 
     } finally {

@@ -57,42 +57,38 @@ export async function POST(req: NextRequest) {
     const {
       amountPaid,
       recipientAddress,
-      metadata,
     } = data;
 
-    let userId = metadata?.user_id;
-    let plan = metadata?.plan;
+    const admin = createSupabaseAdminClient();
 
-    // Fallback: if Blockradar stripped metadata, look up payment by address
-    if (!userId || !plan) {
-      console.warn("[PAYMENT_WEBHOOK] Missing metadata, falling back to DB lookup");
-      const admin = createSupabaseAdminClient();
-      const { data: pendingPayment } = await admin
-        .from("payments")
-        .select("user_id, plan")
-        .eq("payment_address", recipientAddress)
-        .eq("status", "pending")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+    // ── STEP 1: Find and atomically claim the pending payment ────────
+    // Always look up by address in our DB (defense in depth — don't trust
+    // webhook metadata for userId/plan). The .eq("status", "pending")
+    // filter is the idempotency guard: if the webhook is replayed, the
+    // payment is already "completed" and this returns null → no action.
+    const { data: pendingPayment } = await admin
+      .from("payments")
+      .select("user_id, plan, amount_expected")
+      .eq("payment_address", recipientAddress)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-      if (!pendingPayment) {
-        console.error("[PAYMENT_WEBHOOK] No pending payment found for address:", recipientAddress);
-        return NextResponse.json({ error: "Payment not found" }, { status: 404 });
-      }
-
-      userId = pendingPayment.user_id;
-      plan = pendingPayment.plan;
+    if (!pendingPayment) {
+      // Either a replay (already completed) or unknown address
+      console.warn("[PAYMENT_WEBHOOK] No pending payment for address:", recipientAddress);
+      return NextResponse.json({ received: true, status: "already_processed" });
     }
 
-    // Verify payment amount matches plan price
+    const { user_id: userId, plan } = pendingPayment;
+
+    // ── STEP 2: Verify payment amount matches plan price ─────────────
     if (!isPaymentSufficient(amountPaid, plan)) {
       console.warn(
         `[PAYMENT_WEBHOOK] Insufficient payment: ${amountPaid} for plan ${plan}`
       );
 
-      // Update payment record as underpaid
-      const admin = createSupabaseAdminClient();
       await admin
         .from("payments")
         .update({
@@ -106,13 +102,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ received: true, status: "underpaid" });
     }
 
-    const admin = createSupabaseAdminClient();
+    // ── STEP 3: Mark payment as completed FIRST (replay guard) ───────
+    // If this update matches 0 rows, another concurrent webhook already
+    // processed it — safe to skip.
+    const { data: completedPayment } = await admin
+      .from("payments")
+      .update({
+        status: "completed",
+        amount_received: parseFloat(amountPaid),
+        completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("payment_address", recipientAddress)
+      .eq("status", "pending")
+      .select("id")
+      .maybeSingle();
 
-    // Calculate subscription expiry (30 days from now)
+    if (!completedPayment) {
+      // Another webhook instance already processed this payment
+      console.warn("[PAYMENT_WEBHOOK] Payment already processed (concurrent webhook):", recipientAddress);
+      return NextResponse.json({ received: true, status: "already_processed" });
+    }
+
+    // ── STEP 4: Activate subscription (only after payment is claimed) ─
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
 
-    // Activate subscription on user record
     const { error: userErr } = await admin
       .from("users")
       .update({
@@ -124,23 +139,13 @@ export async function POST(req: NextRequest) {
 
     if (userErr) {
       console.error("[PAYMENT_WEBHOOK] Failed to update user:", userErr);
+      // Payment is already marked completed — log the failure for manual intervention
+      // Do NOT revert payment status (that would allow double-activation on retry)
       return NextResponse.json(
         { error: "Failed to activate subscription" },
         { status: 500 }
       );
     }
-
-    // Update payment record
-    await admin
-      .from("payments")
-      .update({
-        status: "completed",
-        amount_received: parseFloat(amountPaid),
-        completed_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("payment_address", recipientAddress)
-      .eq("status", "pending");
 
     console.log(
       `[PAYMENT_WEBHOOK] Subscription activated: user=${userId} plan=${plan} expires=${expiresAt.toISOString()}`

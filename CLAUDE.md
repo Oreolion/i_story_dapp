@@ -467,3 +467,4 @@ The record page uses **three separate loading states** (not a single `isProcessi
 **Supabase:** `useBrowserSupabase` (client singleton), `useNotifications` (CRUD + real-time polling)
 **Planned:** `useStoryMetadata`, `usePatterns` — see `docs/ROADMAP.md`
 
+

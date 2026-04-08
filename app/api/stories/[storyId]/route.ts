@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/app/utils/supabase/supabaseAdmin";
 import { validateAuth } from "@/lib/auth";
 
+/** Extract the storage path from a Supabase public URL (e.g. ".../story-audio/userId/123.webm" → "userId/123.webm") */
+function extractStoragePath(publicUrl: string): string | null {
+  const marker = "/story-audio/";
+  const idx = publicUrl.indexOf(marker);
+  if (idx === -1) return null;
+  return publicUrl.slice(idx + marker.length);
+}
+
 /**
  * GET /api/stories/[storyId] — Fetch a single story with author info
  * Public stories are readable by anyone. Private stories require the author's auth.
@@ -52,6 +60,17 @@ export async function GET(
     const isAuthor = viewerId === story.author_id;
     if (!isAuthor) {
       story.audio_url = null;
+    } else if (story.audio_url) {
+      // Generate a signed URL for the author — public URLs fail on private buckets
+      const storagePath = extractStoragePath(story.audio_url);
+      if (storagePath) {
+        const { data: signedData, error: signedError } = await admin.storage
+          .from("story-audio")
+          .createSignedUrl(storagePath, 3600); // 1 hour expiry
+        if (!signedError && signedData?.signedUrl) {
+          story.audio_url = signedData.signedUrl;
+        }
+      }
     }
 
     // Increment view count (fire-and-forget, non-blocking)

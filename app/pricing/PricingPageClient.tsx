@@ -227,7 +227,7 @@ function FAQItem({
 export default function PricingPageClient() {
   useBackgroundMode("home");
   const { profile } = useAuth();
-  const { status: subStatus, paymentInfo, isCreatingPayment, subscribe, clearPaymentInfo } = useSubscription();
+  const { status: subStatus, paymentInfo, creatingPlan, subscribe, clearPaymentInfo } = useSubscription();
   const [copied, setCopied] = useState(false);
 
   const handleSubscribe = async (planKey: string) => {
@@ -386,10 +386,10 @@ export default function PricingPageClient() {
                               : ""
                           }`}
                           variant={plan.highlight ? "default" : "outline"}
-                          disabled={isCurrentPlan || isCreatingPayment}
+                          disabled={isCurrentPlan || !!creatingPlan}
                           onClick={() => handleSubscribe(planKey)}
                         >
-                          {isCreatingPayment ? (
+                          {creatingPlan === planKey ? (
                             <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating...</>
                           ) : isCurrentPlan ? (
                             <><CheckCircle2 className="w-4 h-4 mr-2" /> Current Plan</>

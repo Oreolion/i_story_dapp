@@ -163,6 +163,28 @@ export async function GET(req: NextRequest) {
 
     const supabase = createSupabaseAdminClient();
 
+    // Subscription check — weekly reflections require storyteller+ plan
+    const { data: userRow } = await supabase
+      .from("users")
+      .select("subscription_plan, subscription_expires_at")
+      .eq("id", authenticatedUserId)
+      .single();
+
+    const subPlan = userRow?.subscription_plan ?? "free";
+    const subExpires = userRow?.subscription_expires_at;
+    const isPaid = subPlan !== "free" && subExpires && new Date(subExpires) > new Date();
+
+    if (!isPaid) {
+      return NextResponse.json(
+        {
+          error: "Weekly reflections require a Storyteller or Creator plan.",
+          code: "PLAN_REQUIRED",
+          required_plan: "storyteller",
+        },
+        { status: 403 }
+      );
+    }
+
     const { data, error } = await supabase
       .from("weekly_reflections")
       .select("*")
@@ -213,6 +235,29 @@ export async function POST(req: NextRequest) {
     if (isAuthError(authResult)) return authResult;
     const authenticatedUserId = authResult;
 
+    // Subscription check — weekly reflections require storyteller+ plan
+    const adminClient = createSupabaseAdminClient();
+    const { data: postUserRow } = await adminClient
+      .from("users")
+      .select("subscription_plan, subscription_expires_at")
+      .eq("id", authenticatedUserId)
+      .single();
+
+    const postSubPlan = postUserRow?.subscription_plan ?? "free";
+    const postSubExpires = postUserRow?.subscription_expires_at;
+    const postIsPaid = postSubPlan !== "free" && postSubExpires && new Date(postSubExpires) > new Date();
+
+    if (!postIsPaid) {
+      return NextResponse.json(
+        {
+          error: "Weekly reflections require a Storyteller or Creator plan.",
+          code: "PLAN_REQUIRED",
+          required_plan: "storyteller",
+        },
+        { status: 403 }
+      );
+    }
+
     // Check API key configuration
     const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
     if (!apiKey) {
@@ -234,7 +279,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const supabase = createSupabaseAdminClient();
+    const supabase = adminClient; // reuse client from subscription check
     const { weekStart, weekEnd } = getWeekBounds();
 
     // Rate limit check: 1 reflection per week

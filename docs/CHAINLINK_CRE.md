@@ -425,16 +425,7 @@ cast call $CONTRACT_ADDRESS \
 
 #### here are the things i notice needs touching in app now
 
-- make sure the onbaording process is production ready and that the vault to be able to add/save files to device is also requested during onboarding
-- app should be Oauth or manual sign-up or registration first and adding web3 wallet should be requested during onboarding for users who want to add that
-- there is a error in the web url attached to email sent to users joining the waitlist, make sure it is correct as e-story-dapp.vercel.app although it is a free domain i will be adding the paid domain soon when it is ready so note that, or note to add it when it is . paid domain is estories.app purchased from cloudflare so we will be wiring that up neatly, so use this in waitlist instead
-- we will also be adding a feature so that users can add a new story to a particular story as a continuation and collection of that story
-- add very affordable pricing base on all you know on this project and faqs
-- also ai that finds themes can also suggest actionable advises depending on analyzed data from stories
-- Run Supabase migrations if not already done: `005_create_waitlist_table.sql`, `006_create_verified_metrics_tables.sql`
-- `/api/ai/reflection` missing auth guard
-- Short text analysis needs client-side guard (<50 chars)
-- Mainnet migration when conditions met (3000+ users, stable 4+ weeks)
+
 
 
 - using the development guide and design used in the project, create a structure that i can just copy to use in another project, it doesnt have to use the same dependencies or tools as they are obviously different apps for different things, what i need is architectural framework, design patterns that works here and is standard and conventional, including tests, securities, seo, mobile-app etc also make sure it is conventional and production ready before you see it as that. i just need something global my dev environment can always use as guard, something 100% production ready, well tested and guanrateed across everthing that makes a production app standard and production ready. 
