@@ -55,6 +55,9 @@ function getRateLimit(pathname: string): number {
   // AI endpoints: stricter limits (expensive API calls)
   if (pathname.startsWith("/api/ai/")) return 10;
 
+  // Login endpoint: tightest limit (5/min per IP) — wallet sig brute-force prevention
+  if (pathname === "/api/auth/login") return 5;
+
   // Auth endpoints: prevent brute force
   if (pathname.startsWith("/api/auth/")) return 20;
 

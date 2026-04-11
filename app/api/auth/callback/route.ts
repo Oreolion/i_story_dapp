@@ -24,8 +24,8 @@ export async function GET(req: NextRequest) {
   const next = searchParams.get("next");
 
   if (!code) {
-    // Implicit flow: tokens arrive as hash fragments (client-side only).
-    // Redirect home and let the Supabase client handle the session from the hash.
+    // PKCE flow always provides a code param. Missing code means the user
+    // navigated here directly or an upstream error occurred — redirect home.
     return NextResponse.redirect(origin);
   }
 

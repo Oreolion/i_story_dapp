@@ -90,6 +90,7 @@ vi.mock("../components/Provider", () => ({
 // Mock next/navigation
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn(), prefetch: vi.fn() }),
 }));
 
 // Mock BackgroundContext (3D background provider)
@@ -145,7 +146,7 @@ describe("RecordPage", () => {
       "Give your story a title..."
     );
     const transcriptionArea = screen.getByPlaceholderText(
-      /Your transcribed text/i
+      /What happened today/i
     );
 
     fireEvent.change(titleInput, { target: { value: "My Day" } });

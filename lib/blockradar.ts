@@ -84,8 +84,6 @@ export const PLAN_PRICES: Record<string, number> = {
   creator: 7.99,
 };
 
-export type PlanType = "free" | "storyteller" | "creator";
-
 /**
  * Validate that a deposit amount meets the plan's price.
  */
