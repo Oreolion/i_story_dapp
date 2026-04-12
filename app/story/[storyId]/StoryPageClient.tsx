@@ -96,6 +96,7 @@ export default function StoryPage({
   // State
   const [story, setStory] = useState<StoryDataType | null>(null);
   const [comments, setComments] = useState<CommentDataTypes[]>([]);
+  const [parentStory, setParentStory] = useState<{ id: string; title: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUnlocked, setIsUnlocked] = useState(false);
 
@@ -242,6 +243,11 @@ export default function StoryPage({
         });
 
         setComments(formattedComments);
+
+        // Set parent story if this is a continuation
+        if (storyData.parentStory) {
+          setParentStory(storyData.parentStory);
+        }
       } catch (error) {
         console.error("Error fetching details:", error);
       } finally {
@@ -680,8 +686,17 @@ export default function StoryPage({
                       </Badge>
                     )}
                   </div>
+                  {parentStory && (
+                    <Link
+                      href={`/story/${parentStory.id}`}
+                      className="flex items-center gap-1.5 text-sm text-white/80 hover:text-white transition-colors mt-1"
+                    >
+                      <ArrowLeft className="w-3.5 h-3.5" />
+                      <span>Continues from: <span className="underline underline-offset-2">{parentStory.title}</span></span>
+                    </Link>
+                  )}
                 </div>
-                
+
                 {/* UPDATED: Date Display using story_date */}
                 <div className="text-right text-white/90 text-sm font-medium hidden md:block">
                   <div className="flex items-center justify-end gap-2" title="Memory Date">
@@ -790,19 +805,35 @@ export default function StoryPage({
               <div className="space-y-6">
                 {story.hasAudio && story.audio_url && isAuthor && (
                   <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-xl flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white">
+                    <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white shrink-0">
                       <Volume2 className="w-5 h-5" />
                     </div>
                     <audio
                       controls
                       src={story.audio_url}
                       className="w-full h-10"
+                      onError={(e) => {
+                        // Hide the broken audio element and show fallback text
+                        const target = e.currentTarget;
+                        target.style.display = "none";
+                        const fallback = target.nextElementSibling;
+                        if (fallback) (fallback as HTMLElement).style.display = "block";
+                      }}
                     />
+                    <span className="text-sm text-muted-foreground hidden">
+                      Voice recording unavailable. The audio file may have expired — try refreshing the page.
+                    </span>
+                  </div>
+                )}
+                {story.hasAudio && !story.audio_url && isAuthor && (
+                  <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded-xl flex items-center gap-3 text-sm text-muted-foreground">
+                    <Volume2 className="w-4 h-4 shrink-0" />
+                    <span>This story has a voice recording but the audio file could not be loaded.</span>
                   </div>
                 )}
                 {story.hasAudio && !isAuthor && (
                   <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded-xl flex items-center gap-3 text-sm text-muted-foreground">
-                    <Volume2 className="w-4 h-4" />
+                    <Volume2 className="w-4 h-4 shrink-0" />
                     <span>This story was voice-recorded. Audio is private to the author.</span>
                   </div>
                 )}

@@ -719,7 +719,7 @@ export default function RecordPage() {
               />
             </div>
 
-            <div className="w-full md:w-52 shrink-0 space-y-2">
+            <div className="w-full md:w-52 shrink-0 min-w-0 space-y-2">
               <Label
                 htmlFor="date"
                 className="text-sm font-medium text-gray-500"
@@ -735,7 +735,7 @@ export default function RecordPage() {
                   type="date"
                   value={storyDate}
                   onChange={(e) => setStoryDate(e.target.value)}
-                  className="pl-10 font-medium w-full [&::-webkit-date-and-time-value]:text-left"
+                  className="pl-10 font-medium w-full max-w-full [&::-webkit-date-and-time-value]:text-left"
                   disabled={isBusy}
                 />
               </div>

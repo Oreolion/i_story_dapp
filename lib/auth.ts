@@ -12,44 +12,54 @@ function getAdminClient() {
 }
 
 /**
- * Validate Bearer token from request and return user ID if valid.
+ * Validate auth from request and return user ID if valid.
  *
- * Accepts two token types:
- *   1. Supabase session JWT (Google/OAuth users)
- *   2. Custom wallet JWT (wallet-authenticated users, signed by our server)
+ * Checks three sources in order:
+ *   1. Bearer token → Supabase session JWT (Google/OAuth users)
+ *   2. Bearer token → Custom wallet JWT (wallet-authenticated users)
+ *   3. httpOnly cookie `estory_wallet_token` → Custom wallet JWT (fallback)
  *
- * Returns null if token is missing or invalid.
+ * Returns null if no valid auth found.
  */
 export async function validateAuth(
   request: NextRequest
 ): Promise<string | null> {
   try {
     const authHeader = request.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return null;
-    }
+    const token = authHeader?.startsWith("Bearer ")
+      ? authHeader.substring(7)
+      : null;
 
-    const token = authHeader.substring(7);
+    if (token) {
+      // 1. Try Supabase session token (Google/OAuth users)
+      try {
+        const supabase = getAdminClient();
+        const {
+          data: { user },
+          error,
+        } = await supabase.auth.getUser(token);
 
-    // 1. Try Supabase session token (Google/OAuth users)
-    try {
-      const supabase = getAdminClient();
-      const {
-        data: { user },
-        error,
-      } = await supabase.auth.getUser(token);
-
-      if (!error && user) {
-        return user.id;
+        if (!error && user) {
+          return user.id;
+        }
+      } catch {
+        // Not a valid Supabase token — try custom wallet JWT next
       }
-    } catch {
-      // Not a valid Supabase token — try custom wallet JWT next
+
+      // 2. Try custom wallet JWT from Bearer header
+      const walletPayload = await verifyWalletToken(token);
+      if (walletPayload) {
+        return walletPayload.userId;
+      }
     }
 
-    // 2. Try custom wallet JWT (wallet-authenticated users)
-    const walletPayload = await verifyWalletToken(token);
-    if (walletPayload) {
-      return walletPayload.userId;
+    // 3. Try httpOnly cookie (wallet users with cookie-based auth)
+    const cookieToken = request.cookies.get("estory_wallet_token")?.value;
+    if (cookieToken) {
+      const cookiePayload = await verifyWalletToken(cookieToken);
+      if (cookiePayload) {
+        return cookiePayload.userId;
+      }
     }
 
     return null;

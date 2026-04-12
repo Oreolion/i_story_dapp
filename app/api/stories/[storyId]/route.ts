@@ -32,7 +32,8 @@ export async function GET(
       .select(
         `id, numeric_id, title, content, teaser, created_at, story_date, is_public,
          likes, shares, comments_count, has_audio, audio_url, mood, tags,
-         paywall_amount, story_type, author_id, author_wallet, view_count`
+         paywall_amount, story_type, author_id, author_wallet, view_count,
+         parent_story_id`
       )
       .eq("id", storyId)
       .maybeSingle();
@@ -69,7 +70,14 @@ export async function GET(
           .createSignedUrl(storagePath, 3600); // 1 hour expiry
         if (!signedError && signedData?.signedUrl) {
           story.audio_url = signedData.signedUrl;
+        } else {
+          // Signed URL failed — don't send a broken URL to the client
+          console.error("[API /stories/[storyId]] signed URL failed:", signedError?.message);
+          story.audio_url = null;
         }
+      } else {
+        // Can't extract storage path — URL format is unexpected
+        story.audio_url = null;
       }
     }
 
@@ -92,6 +100,17 @@ export async function GET(
       author = authorRow;
     }
 
+    // Fetch parent story title if this is a continuation
+    let parentStory = null;
+    if (story.parent_story_id) {
+      const { data: parent } = await admin
+        .from("stories")
+        .select("id, title")
+        .eq("id", story.parent_story_id)
+        .maybeSingle();
+      if (parent) parentStory = parent;
+    }
+
     // Fetch comments
     const { data: comments } = await admin
       .from("comments")
@@ -103,7 +122,7 @@ export async function GET(
       .order("created_at", { ascending: false });
 
     return NextResponse.json({
-      story: { ...story, author },
+      story: { ...story, author, parentStory },
       comments: comments || [],
     });
   } catch (err: unknown) {

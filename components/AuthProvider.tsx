@@ -13,6 +13,8 @@ import type { User, Session } from "@supabase/supabase-js";
 import { supabaseClient } from "@/app/utils/supabase/supabaseClient";
 import type { OnboardingData } from "@/app/types";
 
+// Wallet JWT is now stored as an httpOnly cookie set by /api/auth/login.
+// Legacy localStorage key kept only for migration cleanup.
 const WALLET_TOKEN_KEY = "estory_wallet_token";
 
 export type PlanType = "free" | "storyteller" | "creator";
@@ -112,35 +114,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   // ─── Centralized token accessor ──────────────────────────────────────
-  // All pages/components use this instead of their own getAuthHeaders().
-  // Priority: 1) stored wallet JWT → 2) Supabase session (Google/OAuth)
-  //
-  // Wallet JWT takes priority because supabase.auth.getSession() can return
-  // a stale/expired cached session, which shadows a valid wallet JWT and
-  // causes 401s. Wallet JWTs are explicitly issued for API auth and are
-  // more reliable.
+  // Returns an explicit token for Google/OAuth users (Supabase session).
+  // For wallet users, returns "cookie" sentinel — the httpOnly cookie is
+  // sent automatically by the browser with every same-origin request.
+  // API routes (lib/auth.ts) check both Bearer header and cookie.
   const getAccessToken = useCallback(async (): Promise<string | null> => {
-    // 1. Try stored wallet JWT (wallet-authenticated users)
-    if (typeof window !== "undefined") {
-      const walletToken = localStorage.getItem(WALLET_TOKEN_KEY);
-      if (walletToken) {
-        // Quick expiry check — decode JWT payload without verification
-        try {
-          const base64 = walletToken.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
-          const payload = JSON.parse(atob(base64));
-          if (payload.exp && payload.exp * 1000 > Date.now() + 30_000) {
-            return walletToken;
-          }
-          // Expired — clear stale token so user can re-authenticate
-          localStorage.removeItem(WALLET_TOKEN_KEY);
-        } catch {
-          // Malformed JWT — clear it
-          localStorage.removeItem(WALLET_TOKEN_KEY);
-        }
-      }
-    }
-
-    // 2. Try Supabase session (Google OAuth users)
+    // 1. Try Supabase session (Google OAuth users)
     try {
       if (supabase) {
         const { data } = await supabase.auth.getSession();
@@ -161,8 +140,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Supabase session unavailable
     }
 
+    // 2. Wallet user — httpOnly cookie is sent automatically.
+    //    Return "cookie" sentinel so callers know the user IS authenticated
+    //    (they just don't need to set an Authorization header manually).
+    if (profile?.auth_provider === "wallet" || profile?.auth_provider === "both") {
+      return "cookie";
+    }
+
     return null;
-  }, [supabase]);
+  }, [supabase, profile]);
 
   // ─── Google OAuth handler ────────────────────────────────────────────
   const handleGoogleSignIn = useCallback(
@@ -576,39 +562,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        // ── Step 1: Check for stored wallet JWT (returning wallet user)
-        const storedToken =
-          typeof window !== "undefined"
-            ? localStorage.getItem(WALLET_TOKEN_KEY)
-            : null;
-
-        if (storedToken) {
-          // Validate JWT is not expired before trusting it
-          let tokenValid = false;
+        // ── Step 1: Check for httpOnly cookie (returning wallet user)
+        // We can't read the cookie from JS (it's httpOnly), so we probe
+        // the server with a lightweight call to check if we're authenticated.
+        if (supabase) {
           try {
-            const base64 = storedToken.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
-            const payload = JSON.parse(atob(base64));
-            tokenValid = payload.exp && payload.exp * 1000 > Date.now() + 30_000;
-          } catch {
-            // Malformed token
-          }
-
-          if (tokenValid && supabase) {
-            // Token is still valid — check user exists in DB
-            const { data: existing } = await supabase
-              .from("users")
-              .select("*")
-              .eq("wallet_address", addrLower)
-              .maybeSingle();
-
-            if (existing) {
-              setUnifiedProfile(existing, null);
-              return; // Happy path: valid JWT + user exists
+            const probeRes = await fetch("/api/user/profile", {
+              headers: { "x-probe": "1" },
+            });
+            if (probeRes.ok) {
+              const probeData = await probeRes.json();
+              if (probeData?.user) {
+                setUnifiedProfile(probeData.user, null);
+                return; // Happy path: valid cookie + user exists
+              }
             }
+          } catch {
+            // Probe failed — fall through to re-authenticate
           }
 
-          // Token expired or invalid — clear it, fall through to re-authenticate
-          localStorage.removeItem(WALLET_TOKEN_KEY);
+          // Clean up legacy localStorage token if present
+          if (typeof window !== "undefined") {
+            localStorage.removeItem(WALLET_TOKEN_KEY);
+          }
         }
 
         // ── Step 2: User exists but no valid JWT → must re-authenticate
@@ -644,9 +620,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const json = await res.json();
           const userRow = json.user;
 
-          // Store the wallet JWT for API calls
-          if (json.wallet_token) {
-            localStorage.setItem(WALLET_TOKEN_KEY, json.wallet_token);
+          // Wallet JWT is now set as httpOnly cookie by the server.
+          // Clean up legacy localStorage token if present.
+          if (typeof window !== "undefined") {
+            localStorage.removeItem(WALLET_TOKEN_KEY);
           }
 
           if (userRow) {
@@ -683,7 +660,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(async () => {
     if (!supabase) return;
     await supabase.auth.signOut();
-    // Clear wallet JWT too
+    // Clear httpOnly wallet JWT cookie via server endpoint
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {
+      // Logout endpoint unavailable — cookie will expire naturally
+    }
+    // Clean up legacy localStorage token if present
     if (typeof window !== "undefined") {
       localStorage.removeItem(WALLET_TOKEN_KEY);
     }

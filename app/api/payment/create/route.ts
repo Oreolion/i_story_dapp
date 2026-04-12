@@ -30,11 +30,19 @@ export async function POST(req: NextRequest) {
 
     // Check if user already has an active subscription
     const admin = createSupabaseAdminClient();
-    const { data: user } = await admin
+    const { data: user, error: userErr } = await admin
       .from("users")
       .select("subscription_plan, subscription_expires_at")
       .eq("id", userId)
       .single();
+
+    if (userErr) {
+      console.error("[PAYMENT_CREATE] User lookup error:", userErr.message);
+      return NextResponse.json(
+        { error: "Failed to verify subscription status" },
+        { status: 500 }
+      );
+    }
 
     if (
       user?.subscription_plan === plan &&
@@ -48,7 +56,16 @@ export async function POST(req: NextRequest) {
     }
 
     // Create Blockradar payment address
-    const paymentAddress = await createPaymentAddress(userId, plan);
+    let paymentAddress;
+    try {
+      paymentAddress = await createPaymentAddress(userId, plan);
+    } catch (addrErr) {
+      console.error("[PAYMENT_CREATE] Blockradar address creation failed:", addrErr);
+      return NextResponse.json(
+        { error: "Payment service temporarily unavailable. Please try again later." },
+        { status: 503 }
+      );
+    }
 
     // Expire any stale pending payments for this user before creating a new one
     // (covers both null expires_at and past expires_at)
