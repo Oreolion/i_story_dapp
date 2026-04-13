@@ -420,7 +420,7 @@ export default function PricingPageClient() {
                           ) : isCurrentPlan ? (
                             <><CheckCircle2 className="w-4 h-4 mr-2" /> Current Plan</>
                           ) : hasPendingPayment ? (
-                            <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Payment Pending</>
+                            <>View Payment Address</>
                           ) : isDowngrade ? (
                             "Current plan is higher"
                           ) : (

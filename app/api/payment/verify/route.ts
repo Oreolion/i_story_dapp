@@ -38,14 +38,29 @@ export async function POST(req: NextRequest) {
     // Find the user's most recent pending payment
     const { data: pending, error: pendErr } = await admin
       .from("payments")
-      .select("id, payment_address, plan, amount_expected, blockradar_address_id")
+      .select("id, payment_address, plan, amount_expected, blockradar_address_id, status")
       .eq("user_id", userId)
       .eq("status", "pending")
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    if (pendErr || !pending) {
+    // Fallback: also check "expired" payments in case the record was
+    // wrongly expired while the user had already sent funds to the address.
+    let paymentToVerify = pending;
+    if (!paymentToVerify) {
+      const { data: expiredPayment } = await admin
+        .from("payments")
+        .select("id, payment_address, plan, amount_expected, blockradar_address_id, status")
+        .eq("user_id", userId)
+        .eq("status", "expired")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      paymentToVerify = expiredPayment;
+    }
+
+    if (pendErr || !paymentToVerify) {
       return NextResponse.json(
         { error: "No pending payment found" },
         { status: 404 }
@@ -54,7 +69,7 @@ export async function POST(req: NextRequest) {
 
     // Query Blockradar for deposits on this address
     const res = await fetch(
-      `https://api.blockradar.co/v1/wallets/${getWalletId()}/addresses/${pending.blockradar_address_id}/transactions`,
+      `https://api.blockradar.co/v1/wallets/${getWalletId()}/addresses/${paymentToVerify.blockradar_address_id}/transactions`,
       {
         headers: { "x-api-key": getApiKey() },
       }
@@ -75,7 +90,7 @@ export async function POST(req: NextRequest) {
     const deposit = transactions.find(
       (tx: { type: string; amount: string }) =>
         tx.type === "receive" &&
-        isPaymentSufficient(tx.amount, pending.plan)
+        isPaymentSufficient(tx.amount, paymentToVerify.plan)
     );
 
     if (!deposit) {
@@ -85,7 +100,8 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Deposit found — activate subscription
+    // Deposit found — activate subscription.
+    // Update status from pending OR expired → completed.
     const { data: completedPayment } = await admin
       .from("payments")
       .update({
@@ -94,8 +110,8 @@ export async function POST(req: NextRequest) {
         completed_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
-      .eq("id", pending.id)
-      .eq("status", "pending")
+      .eq("id", paymentToVerify.id)
+      .in("status", ["pending", "expired"])
       .select("id")
       .maybeSingle();
 
@@ -104,12 +120,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Activate subscription + send notification + email
-    const { expiresAt } = await activateSubscription(admin, userId, pending.plan);
+    const { expiresAt } = await activateSubscription(admin, userId, paymentToVerify.plan);
 
     return NextResponse.json({
       verified: true,
       message: "Payment confirmed! Your subscription is now active.",
-      plan: pending.plan,
+      plan: paymentToVerify.plan,
       expires_at: expiresAt,
     });
   } catch (err) {

@@ -55,14 +55,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check for existing pending (non-expired) payment for this plan
+    // Check for existing pending payment for this plan (regardless of expiry).
+    // The user may have already sent USDC to this address — never discard it.
     const { data: existingPending } = await admin
       .from("payments")
       .select("payment_address, amount_expected, currency, expires_at")
       .eq("user_id", userId)
       .eq("plan", plan)
       .eq("status", "pending")
-      .gt("expires_at", new Date().toISOString())
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -91,15 +91,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Expire any stale pending payments for this user before creating a new one
-    // (covers both null expires_at and past expires_at)
+    // Expire pending payments for OTHER plans only (user switched plans).
+    // Never expire a pending payment for the same plan — they may have sent funds.
     await admin
       .from("payments")
       .update({ status: "expired", updated_at: new Date().toISOString() })
       .eq("user_id", userId)
-      .eq("status", "pending");
+      .eq("status", "pending")
+      .neq("plan", plan);
 
-    // Payment address expires in 1 hour
+    // Payment address expires in 1 hour (soft hint — address remains valid)
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 1);
 

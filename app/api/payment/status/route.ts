@@ -34,13 +34,12 @@ export async function GET(req: NextRequest) {
       user.subscription_expires_at &&
       new Date(user.subscription_expires_at) > new Date();
 
-    // Check for any pending (non-expired) payment
+    // Check for any pending payment (regardless of expiry — user may have sent funds)
     const { data: pendingPayment } = await admin
       .from("payments")
       .select("payment_address, plan, amount_expected, currency, created_at, expires_at")
       .eq("user_id", userId)
       .eq("status", "pending")
-      .gt("expires_at", new Date().toISOString())
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
