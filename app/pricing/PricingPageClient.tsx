@@ -55,14 +55,14 @@ const plans = [
       "Unlimited story recording & writing",
       "AI transcription (voice-to-text)",
       "AI text enhancement",
-      "5 AI story analyses per month",
+      "10 AI story analyses per month",
       "Encrypted local vault (PIN-protected)",
       "Public story feed access",
       "Like & follow other storytellers",
       "Basic story insights (themes, emotions)",
     ],
     limitations: [
-      "5 AI analyses/month",
+      "10 AI analyses/month",
       "No actionable AI advice",
       "No story collections",
     ],
@@ -327,6 +327,12 @@ export default function PricingPageClient() {
           {plans.map((plan, index) => {
             const planKey = planKeyMap[plan.name];
             const isCurrentPlan = subStatus.active && subStatus.plan === planKey;
+            const hasPendingPayment = subStatus.pending_payment?.plan === planKey;
+            // Disable downgrade: if active on "creator", disable "storyteller" button
+            const planTier: Record<string, number> = { free: 0, storyteller: 1, creator: 2 };
+            const isDowngrade = subStatus.active && planKey
+              ? (planTier[planKey] ?? 0) < (planTier[subStatus.plan] ?? 0)
+              : false;
 
             return (
               <motion.div
@@ -381,18 +387,22 @@ export default function PricingPageClient() {
                       {planKey ? (
                         <Button
                           className={`w-full ${
-                            plan.highlight
+                            plan.highlight && !isCurrentPlan && !hasPendingPayment && !isDowngrade
                               ? "bg-gradient-to-r from-[#d4a04a] to-[#9b7dd4] hover:from-[#c49040] hover:to-[#8b6dc4] text-white"
                               : ""
                           }`}
-                          variant={plan.highlight ? "default" : "outline"}
-                          disabled={isCurrentPlan || !!creatingPlan}
+                          variant={plan.highlight && !isCurrentPlan && !hasPendingPayment && !isDowngrade ? "default" : "outline"}
+                          disabled={isCurrentPlan || isDowngrade || !!creatingPlan}
                           onClick={() => handleSubscribe(planKey)}
                         >
                           {creatingPlan === planKey ? (
                             <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating...</>
                           ) : isCurrentPlan ? (
                             <><CheckCircle2 className="w-4 h-4 mr-2" /> Current Plan</>
+                          ) : hasPendingPayment ? (
+                            <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Payment Pending</>
+                          ) : isDowngrade ? (
+                            "Current plan is higher"
                           ) : (
                             plan.cta
                           )}

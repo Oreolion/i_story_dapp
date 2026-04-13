@@ -103,7 +103,7 @@ The Service uses artificial intelligence for:
 ### 6.1 Plans
 | Plan | Price | Features |
 |------|-------|----------|
-| Free | $0 | Core features, 5 AI analyses/month |
+| Free | $0 | Core features, 10 AI analyses/month |
 | Storyteller | $2.99/month | Unlimited analyses, advice, collections |
 | Creator | $7.99/month | Publishing, NFTs, paywalls, analytics |
 

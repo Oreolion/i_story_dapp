@@ -55,6 +55,30 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Check for existing pending (non-expired) payment for this plan
+    const { data: existingPending } = await admin
+      .from("payments")
+      .select("payment_address, amount_expected, currency, expires_at")
+      .eq("user_id", userId)
+      .eq("plan", plan)
+      .eq("status", "pending")
+      .gt("expires_at", new Date().toISOString())
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existingPending) {
+      return NextResponse.json({
+        success: true,
+        address: existingPending.payment_address,
+        amount: existingPending.amount_expected,
+        currency: existingPending.currency,
+        plan,
+        network: "Base",
+        note: "Send exactly the amount shown in USDC to this address. Your subscription will activate automatically.",
+      });
+    }
+
     // Create Blockradar payment address
     let paymentAddress;
     try {

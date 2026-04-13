@@ -642,7 +642,7 @@ export default function HomePage() {
                   "Unlimited story recording & writing",
                   "AI transcription (voice-to-text)",
                   "AI text enhancement",
-                  "5 AI story analyses per month",
+                  "10 AI story analyses per month",
                   "Encrypted local vault",
                   "Public story feed access",
                   "Basic story insights",

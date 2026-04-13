@@ -14,7 +14,7 @@ const MIN_CONTENT_LENGTH = 50;
 const MAX_RETRIES = 3;
 const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
 const RATE_LIMIT_MAX_REQUESTS = 30; // 30 requests per minute
-const FREE_MONTHLY_ANALYSIS_LIMIT = 5;
+const FREE_MONTHLY_ANALYSIS_LIMIT = 10;
 
 // Valid values for validation
 const VALID_EMOTIONAL_TONES = [
@@ -357,7 +357,7 @@ export async function POST(req: NextRequest) {
         if ((monthlyCount ?? 0) >= FREE_MONTHLY_ANALYSIS_LIMIT) {
           return NextResponse.json(
             {
-              error: "Free plan limit reached (5 analyses/month). Upgrade to Storyteller for unlimited analyses.",
+              error: "Free plan limit reached (10 analyses/month). Upgrade to Storyteller for unlimited analyses.",
               code: "PLAN_LIMIT_REACHED",
               usage: { used: monthlyCount, limit: FREE_MONTHLY_ANALYSIS_LIMIT },
             },
