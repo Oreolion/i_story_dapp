@@ -105,12 +105,40 @@ export function useSubscription() {
 
   const clearPaymentInfo = () => setPaymentInfo(null);
 
+  const [verifying, setVerifying] = useState(false);
+
+  const verifyPayment = async () => {
+    const token = await getAccessToken();
+    if (!token) return;
+
+    setVerifying(true);
+    try {
+      const res = await fetch("/api/payment/verify", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+
+      if (data.verified) {
+        setPaymentInfo(null);
+        await refreshProfile();
+        await fetchStatus();
+      }
+
+      return data;
+    } finally {
+      setVerifying(false);
+    }
+  };
+
   return {
     status,
     isLoading,
     paymentInfo,
     creatingPlan,
+    verifying,
     subscribe,
+    verifyPayment,
     clearPaymentInfo,
     refreshStatus: fetchStatus,
   };

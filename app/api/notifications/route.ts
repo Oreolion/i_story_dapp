@@ -30,7 +30,8 @@ interface NotificationPayload {
     | "tip"
     | "follow"
     | "book_published"
-    | "story_mentioned";
+    | "story_mentioned"
+    | "subscription";
   title: string;
   message: string;
   related_user_id?: string;

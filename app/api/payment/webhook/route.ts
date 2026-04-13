@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/app/utils/supabase/supabaseAdmin";
 import { isPaymentSufficient } from "@/lib/blockradar";
+import { activateSubscription } from "@/lib/subscription";
 import { createHmac, timingSafeEqual } from "crypto";
 
 /**
@@ -18,7 +19,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 export async function POST(req: NextRequest) {
   try {
     // Verify webhook authenticity via HMAC-SHA512 signature
-    // Blockradar signs the request body with your API key
+    // Blockradar signs the request body with your API key (per docs)
     const apiKey = process.env.BLOCKRADAR_API_KEY;
     if (!apiKey) {
       console.error("[PAYMENT_WEBHOOK] BLOCKRADAR_API_KEY not configured");
@@ -124,39 +125,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ received: true, status: "already_processed" });
     }
 
-    // ── STEP 4: Activate subscription (only after payment is claimed) ─
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30);
+    // ── STEP 4: Activate subscription + notify + email ─────────────
+    try {
+      const { expiresAt } = await activateSubscription(admin, userId, plan);
 
-    const { error: userErr } = await admin
-      .from("users")
-      .update({
-        subscription_plan: plan,
-        subscription_expires_at: expiresAt.toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", userId);
-
-    if (userErr) {
-      console.error("[PAYMENT_WEBHOOK] Failed to update user:", userErr);
-      // Payment is already marked completed — log the failure for manual intervention
+      return NextResponse.json({
+        received: true,
+        status: "activated",
+        plan,
+        expires_at: expiresAt,
+      });
+    } catch (activateErr) {
+      console.error("[PAYMENT_WEBHOOK] Activation failed:", activateErr);
+      // Payment is already marked completed — log for manual intervention
       // Do NOT revert payment status (that would allow double-activation on retry)
       return NextResponse.json(
         { error: "Failed to activate subscription" },
         { status: 500 }
       );
     }
-
-    console.log(
-      `[PAYMENT_WEBHOOK] Subscription activated: user=${userId} plan=${plan} expires=${expiresAt.toISOString()}`
-    );
-
-    return NextResponse.json({
-      received: true,
-      status: "activated",
-      plan,
-      expires_at: expiresAt.toISOString(),
-    });
   } catch (err) {
     console.error("[PAYMENT_WEBHOOK] Error:", err);
     return NextResponse.json(

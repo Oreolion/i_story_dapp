@@ -227,7 +227,7 @@ function FAQItem({
 export default function PricingPageClient() {
   useBackgroundMode("home");
   const { profile } = useAuth();
-  const { status: subStatus, paymentInfo, creatingPlan, subscribe, clearPaymentInfo } = useSubscription();
+  const { status: subStatus, paymentInfo, creatingPlan, verifying, subscribe, verifyPayment, clearPaymentInfo } = useSubscription();
   const [copied, setCopied] = useState(false);
 
   const handleSubscribe = async (planKey: string) => {
@@ -318,6 +318,26 @@ export default function PricingPageClient() {
               <p className="text-xs text-muted-foreground">
                 {paymentInfo?.note}
               </p>
+              <Button
+                className="w-full bg-gradient-to-r from-[#d4a04a] to-[#9b7dd4] hover:from-[#c49040] hover:to-[#8b6dc4] text-white"
+                disabled={verifying}
+                onClick={async () => {
+                  const result = await verifyPayment();
+                  if (result?.verified) {
+                    toast.success(result.message);
+                  } else if (result?.message) {
+                    toast(result.message);
+                  } else if (result?.error) {
+                    toast.error(result.error);
+                  }
+                }}
+              >
+                {verifying ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Checking...</>
+                ) : (
+                  <><CheckCircle2 className="w-4 h-4 mr-2" /> I&apos;ve Sent Payment — Verify</>
+                )}
+              </Button>
             </div>
           </DialogContent>
         </Dialog>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import WelcomeEmail from "@/components/emails/WelcomeEmail";
 import WaitlistEmail from "@/components/emails/WaitlistEmail";
+import SubscriptionEmail from "@/components/emails/SubscriptionEmail";
 import { validateAuthOrReject, isAuthError } from "@/lib/auth";
 
 let _resend: Resend | null = null;
@@ -17,7 +18,7 @@ export async function POST(req: NextRequest) {
     if (isAuthError(authResult)) return authResult;
 
     const body = await req.json();
-    const { email, username, type } = body;
+    const { email, username, type, plan, expiresAt } = body;
 
     if (!email) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
@@ -35,6 +36,14 @@ export async function POST(req: NextRequest) {
       case "waitlist":
         emailComponent = WaitlistEmail({ email });
         subject = "You're on the EStories waitlist!";
+        break;
+      case "subscription":
+        emailComponent = SubscriptionEmail({
+          username: username || "Storyteller",
+          plan: plan || "storyteller",
+          expiresAt: expiresAt || "30 days",
+        });
+        subject = `Your ${(plan || "storyteller").charAt(0).toUpperCase() + (plan || "storyteller").slice(1)} subscription is active!`;
         break;
       default:
         return NextResponse.json({ error: "Invalid email type" }, { status: 400 });
