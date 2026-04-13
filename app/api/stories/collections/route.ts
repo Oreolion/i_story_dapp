@@ -33,12 +33,37 @@ export async function GET(req: NextRequest) {
 
 /**
  * POST /api/stories/collections — Create a new collection
+ * Requires Storyteller+ plan.
  */
 export async function POST(req: NextRequest) {
   try {
     const authResult = await validateAuthOrReject(req);
     if (isAuthError(authResult)) return authResult;
     const userId = await resolveUserId(authResult);
+
+    const admin = createSupabaseAdminClient();
+
+    // Subscription check — collections require storyteller+ plan
+    const { data: userRow } = await admin
+      .from("users")
+      .select("subscription_plan, subscription_expires_at")
+      .eq("id", userId)
+      .single();
+
+    const subPlan = userRow?.subscription_plan ?? "free";
+    const subExpires = userRow?.subscription_expires_at;
+    const isPaid = subPlan !== "free" && subExpires && new Date(subExpires) > new Date();
+
+    if (!isPaid) {
+      return NextResponse.json(
+        {
+          error: "Story collections require a Storyteller or Creator plan.",
+          code: "PLAN_REQUIRED",
+          required_plan: "storyteller",
+        },
+        { status: 403 }
+      );
+    }
 
     const { title, description, is_public } = await req.json();
 
@@ -49,8 +74,6 @@ export async function POST(req: NextRequest) {
     if (title.length > 200) {
       return NextResponse.json({ error: "Title must be under 200 characters" }, { status: 400 });
     }
-
-    const admin = createSupabaseAdminClient();
 
     const { data, error } = await admin
       .from("story_collections")

@@ -77,10 +77,10 @@ export async function POST(req: NextRequest) {
 
     const admin = createSupabaseAdminClient();
 
-    // Extra safety: verify that this user exists
+    // Extra safety: verify that this user exists + check subscription
     const { data: userRow, error: userErr } = await admin
       .from("users")
-      .select("id, wallet_address")
+      .select("id, wallet_address, subscription_plan, subscription_expires_at")
       .eq("id", author_id)
       .single();
 
@@ -116,8 +116,25 @@ export async function POST(req: NextRequest) {
     // Optional date fields
     if (created_at) insertData.created_at = created_at;
     if (story_date) insertData.story_date = story_date;
-    if (parent_story_id) insertData.parent_story_id = parent_story_id;
     if (story_type) insertData.story_type = story_type;
+
+    // Story continuations require Storyteller+ plan
+    if (parent_story_id) {
+      const subPlan = userRow.subscription_plan ?? "free";
+      const subExpires = userRow.subscription_expires_at;
+      const isPaid = subPlan !== "free" && subExpires && new Date(subExpires) > new Date();
+      if (!isPaid) {
+        return NextResponse.json(
+          {
+            error: "Story continuations require a Storyteller or Creator plan.",
+            code: "PLAN_REQUIRED",
+            required_plan: "storyteller",
+          },
+          { status: 403 }
+        );
+      }
+      insertData.parent_story_id = parent_story_id;
+    }
 
     const { data: inserted, error: insertError } = await admin
       .from("stories")

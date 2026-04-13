@@ -334,14 +334,17 @@ export default function LibraryPage() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ title: newCollectionTitle.trim(), description: newCollectionDesc.trim() || null }),
       });
-      if (!res.ok) throw new Error("Failed to create collection");
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "Failed to create collection");
+      }
       toast.success("Collection created!");
       setIsCreateCollectionOpen(false);
       setNewCollectionTitle("");
       setNewCollectionDesc("");
       fetchCollections();
-    } catch {
-      toast.error("Failed to create collection");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to create collection");
     }
   };
 

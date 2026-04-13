@@ -25,16 +25,33 @@ function getWalletId(): string {
   return id;
 }
 
-interface BlockradarAddress {
+/** What consumers of createPaymentAddress receive */
+export interface PaymentAddress {
   id: string;
   address: string;
   network: string;
-  metadata: Record<string, string>;
 }
 
-interface BlockradarResponse<T> {
-  status: string;
-  data: T;
+/**
+ * Blockradar's actual response shape for POST /wallets/:id/addresses.
+ *
+ * `data.address` is a nested object — the wallet address string lives at
+ * `data.address.address`. Previous code assumed `data.address` was a flat
+ * string, which caused the payments INSERT to fail (object → TEXT column).
+ */
+interface BlockradarApiResponse {
+  data: {
+    id: string;
+    address: {
+      address: string;
+      id: string;
+      name: string;
+      network: string;
+      metadata: Record<string, string> | null;
+    };
+  };
+  message: string;
+  statusCode: number;
 }
 
 /**
@@ -44,7 +61,7 @@ interface BlockradarResponse<T> {
 export async function createPaymentAddress(
   userId: string,
   plan: string
-): Promise<BlockradarAddress> {
+): Promise<PaymentAddress> {
   const res = await fetch(
     `${BLOCKRADAR_API_BASE}/wallets/${getWalletId()}/addresses`,
     {
@@ -72,8 +89,19 @@ export async function createPaymentAddress(
     throw new Error("Failed to create payment address");
   }
 
-  const json: BlockradarResponse<BlockradarAddress> = await res.json();
-  return json.data;
+  const json: BlockradarApiResponse = await res.json();
+  const addr = json.data.address;
+
+  if (!addr?.address) {
+    console.error("[BLOCKRADAR] Unexpected response — no address string:", JSON.stringify(json.data).slice(0, 500));
+    throw new Error("Blockradar returned an invalid address");
+  }
+
+  return {
+    id: addr.id,
+    address: addr.address,
+    network: addr.network,
+  };
 }
 
 /**
