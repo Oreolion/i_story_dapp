@@ -35,20 +35,16 @@ export interface PaymentAddress {
 /**
  * Blockradar's actual response shape for POST /wallets/:id/addresses.
  *
- * `data.address` is a nested object — the wallet address string lives at
- * `data.address.address`. Previous code assumed `data.address` was a flat
- * string, which caused the payments INSERT to fail (object → TEXT column).
+ * `data.address` is a flat string (the wallet address), NOT a nested object.
+ * `data.id` is the address resource ID, `data.network` is e.g. "mainnet".
  */
 interface BlockradarApiResponse {
   data: {
     id: string;
-    address: {
-      address: string;
-      id: string;
-      name: string;
-      network: string;
-      metadata: Record<string, string> | null;
-    };
+    address: string;
+    name: string;
+    network: string;
+    metadata: Record<string, string> | null;
   };
   message: string;
   statusCode: number;
@@ -90,18 +86,14 @@ export async function createPaymentAddress(
   }
 
   const json: BlockradarApiResponse = await res.json();
-  const addr = json.data.address;
+  const { id, address, network } = json.data;
 
-  if (!addr?.address) {
+  if (!address) {
     console.error("[BLOCKRADAR] Unexpected response — no address string:", JSON.stringify(json.data).slice(0, 500));
     throw new Error("Blockradar returned an invalid address");
   }
 
-  return {
-    id: addr.id,
-    address: addr.address,
-    network: addr.network,
-  };
+  return { id, address, network };
 }
 
 /**

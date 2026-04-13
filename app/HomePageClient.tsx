@@ -703,7 +703,7 @@ export default function HomePage() {
               </ul>
               <Button
                 className="w-full mt-6 bg-gradient-to-r from-[hsl(var(--story-500))] to-[hsl(var(--insight-500))] hover:from-[hsl(var(--story-600))] hover:to-[hsl(var(--insight-600))] text-white"
-                onClick={() => router.push("/record")}
+                onClick={() => router.push("/pricing")}
               >
                 Start Writing Better
               </Button>
@@ -746,7 +746,7 @@ export default function HomePage() {
               <Button
                 variant="outline"
                 className="w-full mt-6"
-                onClick={() => router.push("/record")}
+                onClick={() => router.push("/pricing")}
               >
                 Become a Creator
               </Button>
