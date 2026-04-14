@@ -35,41 +35,56 @@ export async function POST(req: NextRequest) {
 
     const admin = createSupabaseAdminClient();
 
-    // Find the user's most recent pending payment
+    // Find the user's most recent verifiable payment (pending → expired → completed-but-not-activated)
     const { data: pending, error: pendErr } = await admin
       .from("payments")
       .select("id, payment_address, plan, amount_expected, blockradar_address_id, status")
       .eq("user_id", userId)
-      .eq("status", "pending")
+      .in("status", ["pending", "expired", "completed"])
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    // Fallback: also check "expired" payments in case the record was
-    // wrongly expired while the user had already sent funds to the address.
-    let paymentToVerify = pending;
-    if (!paymentToVerify) {
-      const { data: expiredPayment } = await admin
-        .from("payments")
-        .select("id, payment_address, plan, amount_expected, blockradar_address_id, status")
-        .eq("user_id", userId)
-        .eq("status", "expired")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      paymentToVerify = expiredPayment;
-    }
-
-    if (pendErr || !paymentToVerify) {
+    if (pendErr || !pending) {
       return NextResponse.json(
-        { error: "No pending payment found" },
+        { error: "No payment found" },
         { status: 404 }
       );
     }
 
-    // Query Blockradar for deposits on this address
+    // If payment is already "completed", check if subscription is actually active.
+    // If not, retry activation (covers the case where payment was marked completed
+    // but activateSubscription failed silently).
+    if (pending.status === "completed") {
+      const { data: user } = await admin
+        .from("users")
+        .select("subscription_plan, subscription_expires_at")
+        .eq("id", userId)
+        .single();
+
+      const isActive =
+        user?.subscription_plan === pending.plan &&
+        user?.subscription_expires_at &&
+        new Date(user.subscription_expires_at) > new Date();
+
+      if (isActive) {
+        return NextResponse.json({ verified: true, message: "Payment already processed and subscription is active." });
+      }
+
+      // Subscription NOT active despite completed payment — retry activation
+      console.warn(`[PAYMENT_VERIFY] Completed payment ${pending.id} but subscription not active — retrying activation`);
+      const { expiresAt } = await activateSubscription(admin, userId, pending.plan);
+      return NextResponse.json({
+        verified: true,
+        message: "Payment confirmed! Your subscription is now active.",
+        plan: pending.plan,
+        expires_at: expiresAt,
+      });
+    }
+
+    // Payment is pending or expired — check Blockradar for deposits
     const res = await fetch(
-      `https://api.blockradar.co/v1/wallets/${getWalletId()}/addresses/${paymentToVerify.blockradar_address_id}/transactions`,
+      `https://api.blockradar.co/v1/wallets/${getWalletId()}/addresses/${pending.blockradar_address_id}/transactions`,
       {
         headers: { "x-api-key": getApiKey() },
       }
@@ -90,7 +105,7 @@ export async function POST(req: NextRequest) {
     const deposit = transactions.find(
       (tx: { type: string; amount: string }) =>
         tx.type === "receive" &&
-        isPaymentSufficient(tx.amount, paymentToVerify.plan)
+        isPaymentSufficient(tx.amount, pending.plan)
     );
 
     if (!deposit) {
@@ -100,9 +115,8 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Deposit found — activate subscription.
-    // Update status from pending OR expired → completed.
-    const { data: completedPayment } = await admin
+    // Deposit found — mark payment completed and activate subscription.
+    await admin
       .from("payments")
       .update({
         status: "completed",
@@ -110,22 +124,15 @@ export async function POST(req: NextRequest) {
         completed_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
-      .eq("id", paymentToVerify.id)
-      .in("status", ["pending", "expired"])
-      .select("id")
-      .maybeSingle();
+      .eq("id", pending.id)
+      .in("status", ["pending", "expired"]);
 
-    if (!completedPayment) {
-      return NextResponse.json({ verified: true, message: "Payment already processed" });
-    }
-
-    // Activate subscription + send notification + email
-    const { expiresAt } = await activateSubscription(admin, userId, paymentToVerify.plan);
+    const { expiresAt } = await activateSubscription(admin, userId, pending.plan);
 
     return NextResponse.json({
       verified: true,
       message: "Payment confirmed! Your subscription is now active.",
-      plan: paymentToVerify.plan,
+      plan: pending.plan,
       expires_at: expiresAt,
     });
   } catch (err) {

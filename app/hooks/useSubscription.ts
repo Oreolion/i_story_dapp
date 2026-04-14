@@ -96,6 +96,13 @@ export function useSubscription() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to create payment");
 
+      // If the server auto-activated a completed payment, refresh status
+      if (data.activated) {
+        await refreshProfile();
+        await fetchStatus();
+        return data;
+      }
+
       setPaymentInfo(data);
       return data;
     } finally {

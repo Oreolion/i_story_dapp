@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { validateAuthOrReject, isAuthError } from "@/lib/auth";
 import { createPaymentAddress, PLAN_PRICES } from "@/lib/blockradar";
 import { createSupabaseAdminClient } from "@/app/utils/supabase/supabaseAdmin";
+import { activateSubscription } from "@/lib/subscription";
 
 /**
  * POST /api/payment/create
@@ -77,6 +78,38 @@ export async function POST(req: NextRequest) {
         network: "Base",
         note: "Send exactly the amount shown in USDC to this address. Your subscription will activate automatically.",
       });
+    }
+
+    // Check for completed payments where subscription wasn't activated.
+    // This covers the case where payment was marked "completed" but
+    // activateSubscription failed — retry instead of creating a new address.
+    const { data: completedPayment } = await admin
+      .from("payments")
+      .select("id, plan")
+      .eq("user_id", userId)
+      .eq("plan", plan)
+      .eq("status", "completed")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (completedPayment) {
+      // Payment was completed but subscription isn't active (we checked above).
+      // Retry activation.
+      console.warn(`[PAYMENT_CREATE] Found completed payment ${completedPayment.id} without active subscription — activating`);
+      try {
+        const { expiresAt } = await activateSubscription(admin, userId, plan);
+        return NextResponse.json({
+          success: true,
+          activated: true,
+          plan,
+          expires_at: expiresAt,
+          message: "Your payment was already received! Subscription activated.",
+        });
+      } catch (activateErr) {
+        console.error("[PAYMENT_CREATE] Retry activation failed:", activateErr);
+        // Fall through to create new address as last resort
+      }
     }
 
     // Create Blockradar payment address

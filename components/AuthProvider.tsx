@@ -315,6 +315,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   // ─── Session hydration on mount ──────────────────────────────────────
+  // Use getUser() instead of getSession() — getUser() validates the token
+  // server-side and triggers a refresh if expired. getSession() only reads
+  // from cookies without validation, which fails when tokens are stale.
   useEffect(() => {
     if (!supabase) {
       setIsLoading(false);
@@ -323,15 +326,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let mounted = true;
     (async () => {
       try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
+        // getUser() validates + refreshes the token if needed
+        const { data: { user }, error } = await supabase.auth.getUser();
         if (!mounted) return;
+
+        if (error || !user) {
+          // No valid session — user is not signed in
+          setIsLoading(false);
+          return;
+        }
+
+        // Token is valid — now getSession() returns a fresh session
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!mounted) return;
+
         if (session?.user) {
           await handleSession(session);
         }
       } catch (err) {
-        console.error("[AUTH] initial getSession error:", err);
+        console.error("[AUTH] initial session hydration error:", err);
       } finally {
         if (mounted) setIsLoading(false);
       }
@@ -707,16 +720,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const refreshProfile = useCallback(async () => {
-    if (!supabase || !profile) return;
-    const { data } = await supabase
-      .from("users")
-      .select("*")
-      .eq("id", profile.id)
-      .maybeSingle();
-    if (data) {
-      setUnifiedProfile(data, profile.supabaseUser);
+    if (!profile) return;
+    try {
+      // Use the API route (admin client, works for both Google + wallet users).
+      // Wallet users authenticate via httpOnly cookie sent automatically.
+      const token = await getAccessToken();
+      const headers: Record<string, string> = {};
+      if (token && token !== "cookie") {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      const res = await fetch("/api/user/profile", { headers });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.user) {
+          setUnifiedProfile(data.user, profile.supabaseUser);
+          return;
+        }
+      }
+    } catch {
+      // Silent fail — profile stays as-is
     }
-  }, [supabase, profile, address, isConnected, ethBalance]);
+  }, [profile, getAccessToken]);
 
   const contextValue: AuthContextType = {
     profile,

@@ -1,3 +1,4 @@
+import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 
 // ============================================================================
@@ -106,74 +107,123 @@ function getCorsHeaders(origin: string | null): Record<string, string> {
 }
 
 // ============================================================================
+// Supabase Session Refresh
+// ============================================================================
+
+/**
+ * Refresh the Supabase session on every page navigation.
+ * Required for PKCE cookie-based auth — without this, expired sessions
+ * are never refreshed and users appear logged out after ~1 hour.
+ *
+ * See: https://supabase.com/docs/guides/auth/server-side/nextjs
+ */
+function refreshSupabaseSession(request: NextRequest, response: NextResponse): {
+  supabase: ReturnType<typeof createServerClient>;
+  response: NextResponse;
+} {
+  let currentResponse = response;
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          // Update request cookies (for downstream middleware/routes)
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value)
+          );
+          // Create a new response that includes the updated cookies
+          currentResponse = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            currentResponse.cookies.set(name, value, options)
+          );
+        },
+      },
+    }
+  );
+
+  return { supabase, get response() { return currentResponse; } };
+}
+
+// ============================================================================
 // Middleware
 // ============================================================================
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Only handle API routes
-  if (!pathname.startsWith("/api/")) {
-    return NextResponse.next();
-  }
+  // ── Step 1: Refresh Supabase session (all matched routes) ─────────
+  // This calls getUser() which validates the token server-side.
+  // If the access token is expired but the refresh token is valid,
+  // it refreshes the session and updates the cookies on the response.
+  let response = NextResponse.next({ request });
+  const { supabase, response: supabaseResponse } = refreshSupabaseSession(request, response);
 
-  const origin = request.headers.get("origin");
+  // getUser() triggers the refresh — we don't need the result
+  await supabase.auth.getUser();
+  response = supabaseResponse;
 
-  // Handle CORS preflight (OPTIONS) requests
-  if (request.method === "OPTIONS") {
-    return new NextResponse(null, {
-      status: 204,
-      headers: getCorsHeaders(origin),
-    });
-  }
+  // ── Step 2: API routes — rate limiting + CORS ─────────────────────
+  if (pathname.startsWith("/api/")) {
+    const origin = request.headers.get("origin");
 
-  const maxRequests = getRateLimit(pathname);
-  if (maxRequests === 0) {
-    const response = NextResponse.next();
+    // Handle CORS preflight (OPTIONS) requests
+    if (request.method === "OPTIONS") {
+      return new NextResponse(null, {
+        status: 204,
+        headers: getCorsHeaders(origin),
+      });
+    }
+
+    const maxRequests = getRateLimit(pathname);
+    if (maxRequests > 0) {
+      // Use IP + path prefix as rate limit key
+      const ip =
+        request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+        request.headers.get("x-real-ip") ||
+        "unknown";
+
+      // Group by path prefix (e.g., /api/ai/* all share the same bucket)
+      const pathPrefix = pathname.split("/").slice(0, 4).join("/");
+      const rateLimitKey = `${ip}:${pathPrefix}`;
+
+      const { allowed, remaining } = checkRateLimit(rateLimitKey, maxRequests);
+
+      if (!allowed) {
+        return NextResponse.json(
+          { error: "Too many requests. Please try again later." },
+          {
+            status: 429,
+            headers: {
+              "Retry-After": "60",
+              "X-RateLimit-Limit": String(maxRequests),
+              "X-RateLimit-Remaining": "0",
+              ...getCorsHeaders(origin),
+            },
+          }
+        );
+      }
+
+      response.headers.set("X-RateLimit-Limit", String(maxRequests));
+      response.headers.set("X-RateLimit-Remaining", String(remaining));
+    }
+
+    // Add CORS headers to API responses
     for (const [key, value] of Object.entries(getCorsHeaders(origin))) {
       response.headers.set(key, value);
     }
-    return response;
-  }
-
-  // Use IP + path prefix as rate limit key
-  const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown";
-
-  // Group by path prefix (e.g., /api/ai/* all share the same bucket)
-  const pathPrefix = pathname.split("/").slice(0, 4).join("/");
-  const rateLimitKey = `${ip}:${pathPrefix}`;
-
-  const { allowed, remaining } = checkRateLimit(rateLimitKey, maxRequests);
-
-  if (!allowed) {
-    return NextResponse.json(
-      { error: "Too many requests. Please try again later." },
-      {
-        status: 429,
-        headers: {
-          "Retry-After": "60",
-          "X-RateLimit-Limit": String(maxRequests),
-          "X-RateLimit-Remaining": "0",
-          ...getCorsHeaders(origin),
-        },
-      }
-    );
-  }
-
-  // Continue with rate limit + CORS headers
-  const response = NextResponse.next();
-  response.headers.set("X-RateLimit-Limit", String(maxRequests));
-  response.headers.set("X-RateLimit-Remaining", String(remaining));
-  for (const [key, value] of Object.entries(getCorsHeaders(origin))) {
-    response.headers.set(key, value);
   }
 
   return response;
 }
 
 export const config = {
-  matcher: "/api/:path*",
+  matcher: [
+    // Match all routes EXCEPT static files and images
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+  ],
 };

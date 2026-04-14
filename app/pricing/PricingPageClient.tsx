@@ -236,7 +236,10 @@ export default function PricingPageClient() {
       return;
     }
     try {
-      await subscribe(planKey);
+      const result = await subscribe(planKey);
+      if (result?.activated) {
+        toast.success(result.message || "Subscription activated!");
+      }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Failed to create payment");
     }
