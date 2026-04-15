@@ -341,7 +341,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!mounted) return;
 
         if (session?.user) {
-          await handleSession(session);
+          // Route Google users to handleGoogleSignIn — it can create new
+          // users in the `users` table. handleSession cannot (it only
+          // creates wallet users). Without this, first-time Google users
+          // hit "No wallet_address available" and appear logged out.
+          const provider = session.user.app_metadata?.provider;
+          if (provider === "google") {
+            await handleGoogleSignIn(session);
+          } else {
+            await handleSession(session);
+          }
         }
       } catch (err) {
         console.error("[AUTH] initial session hydration error:", err);
@@ -352,7 +361,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       mounted = false;
     };
-  }, [supabase]);
+  }, [supabase, handleGoogleSignIn]);
 
   // ─── Auth state change listener ──────────────────────────────────────
   useEffect(() => {
@@ -360,7 +369,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === "SIGNED_IN" && session) {
+      // Handle Google sign-in on BOTH events:
+      // - SIGNED_IN: fires during active sign-in (user clicks "Sign in with Google")
+      // - INITIAL_SESSION: fires on page load when session cookies already exist
+      //   (PKCE flow sets cookies server-side in the callback route, so the
+      //    browser client sees an existing session and fires INITIAL_SESSION,
+      //    NOT SIGNED_IN)
+      if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session) {
         const provider = session.user.app_metadata?.provider;
         if (provider === "google") {
           await handleGoogleSignIn(session);
