@@ -156,16 +156,24 @@ function refreshSupabaseSession(request: NextRequest, response: NextResponse): {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // ── Step 1: Refresh Supabase session (all matched routes) ─────────
-  // This calls getUser() which validates the token server-side.
-  // If the access token is expired but the refresh token is valid,
-  // it refreshes the session and updates the cookies on the response.
   let response = NextResponse.next({ request });
-  const { supabase, response: supabaseResponse } = refreshSupabaseSession(request, response);
 
-  // getUser() triggers the refresh — we don't need the result
-  await supabase.auth.getUser();
-  response = supabaseResponse;
+  // ── Step 1: Refresh Supabase session (page navigations only) ──────
+  // Only run session refresh for browser page loads — NOT for API routes.
+  // API routes handle their own auth via validateAuthOrReject/Bearer tokens.
+  // Running getUser() on /api/auth/callback interferes with PKCE code exchange.
+  // Running getUser() on /api/payment/webhook breaks Blockradar delivery.
+  if (!pathname.startsWith("/api/")) {
+    try {
+      const sessionHelper = refreshSupabaseSession(request, response);
+      await sessionHelper.supabase.auth.getUser();
+      // Access response AFTER getUser() so setAll cookies are captured
+      response = sessionHelper.response;
+    } catch {
+      // Never let session refresh crash the middleware — user will just
+      // see a stale session and can re-authenticate on the next load.
+    }
+  }
 
   // ── Step 2: API routes — rate limiting + CORS ─────────────────────
   if (pathname.startsWith("/api/")) {

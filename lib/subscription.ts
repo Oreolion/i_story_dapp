@@ -72,7 +72,7 @@ export async function activateSubscription(
     if (user?.email) {
       const displayName = user.display_name || user.username || "Storyteller";
       await getResend().emails.send({
-        from: "EStories <noreply@estories.app>",
+        from: "EStories <support@estories.app>",
         to: [user.email],
         subject: `Your ${planName} subscription is active!`,
         react: SubscriptionEmail({
