@@ -498,7 +498,13 @@ export default function StoryPage({
       const { isFollowing, followers_count } = await res.json();
       setIsFollowingAuthor(isFollowing);
       setAuthorFollowers(followers_count);
-      toast.success(isFollowing ? "Followed!" : "Unfollowed");
+      const authorName =
+        story.author?.name || story.author?.username || "this writer";
+      toast.success(
+        isFollowing
+          ? `You're now following ${authorName}. Their new stories will appear in your feed.`
+          : `You unfollowed ${authorName}.`
+      );
     } catch (error) {
       console.error("Follow error:", error);
       setIsFollowingAuthor(prevState);

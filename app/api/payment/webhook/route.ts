@@ -4,6 +4,9 @@ import { isPaymentSufficient } from "@/lib/blockradar";
 import { activateSubscription } from "@/lib/subscription";
 import { createHmac, timingSafeEqual } from "crypto";
 
+// Ensure Node.js runtime (crypto module required for HMAC verification)
+export const runtime = "nodejs";
+
 /**
  * POST /api/payment/webhook
  *
@@ -13,60 +16,93 @@ import { createHmac, timingSafeEqual } from "crypto";
  * Blockradar signs webhooks with HMAC-SHA512 using your API key.
  * The signature is sent in the `x-blockradar-signature` header.
  *
- * Webhook events handled:
- * - deposit.success: Payment received, activate subscription
+ * Verification follows Blockradar's documented approach:
+ *   hash = createHmac('sha512', apiKey).update(JSON.stringify(body)).digest('hex')
+ * See: https://docs.blockradar.co/en/essentials/webhooks
  */
 export async function POST(req: NextRequest) {
   try {
-    // Verify webhook authenticity via HMAC-SHA512 signature
-    // Blockradar signs the request body with your API key (per docs)
-    const apiKey = process.env.BLOCKRADAR_API_KEY;
-    if (!apiKey) {
-      console.error("[PAYMENT_WEBHOOK] BLOCKRADAR_API_KEY not configured");
+    // ── STEP 0: Read and parse body ─────────────────────────────────
+    const rawBody = await req.text();
+    let body: Record<string, unknown>;
+    try {
+      body = JSON.parse(rawBody);
+    } catch {
+      console.error("[PAYMENT_WEBHOOK] Invalid JSON body");
+      return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+    }
+
+    // ── STEP 1: Verify webhook signature (HMAC-SHA512) ──────────────
+    // Blockradar signs JSON.stringify(body) with your API key.
+    // Support a dedicated BLOCKRADAR_WEBHOOK_SECRET, falling back to
+    // BLOCKRADAR_API_KEY (Blockradar docs call it "your wallet's API key").
+    const signingKey =
+      process.env.BLOCKRADAR_WEBHOOK_SECRET || process.env.BLOCKRADAR_API_KEY;
+
+    if (!signingKey) {
+      console.error("[PAYMENT_WEBHOOK] No webhook signing key configured (set BLOCKRADAR_WEBHOOK_SECRET or BLOCKRADAR_API_KEY)");
       return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
     }
 
-    const signature = req.headers.get("x-blockradar-signature") || "";
-    const rawBody = await req.text();
+    const signature = (req.headers.get("x-blockradar-signature") || "").trim();
 
-    const expectedSignature = createHmac("sha512", apiKey)
+    if (!signature) {
+      console.warn("[PAYMENT_WEBHOOK] Missing x-blockradar-signature header");
+      return NextResponse.json({ error: "Missing signature" }, { status: 401 });
+    }
+
+    // Compute HMAC using JSON.stringify(body) — matches Blockradar's docs.
+    // Also try raw body as fallback in case Blockradar signs the raw bytes.
+    const canonicalBody = JSON.stringify(body);
+    const expectedFromCanonical = createHmac("sha512", signingKey)
+      .update(canonicalBody)
+      .digest("hex");
+    const expectedFromRaw = createHmac("sha512", signingKey)
       .update(rawBody)
       .digest("hex");
 
-    // Timing-safe comparison to prevent timing attacks
-    const sigBuffer = Buffer.from(signature, "hex");
-    const expectedBuffer = Buffer.from(expectedSignature, "hex");
-    if (
-      sigBuffer.length !== expectedBuffer.length ||
-      !timingSafeEqual(sigBuffer, expectedBuffer)
-    ) {
-      console.warn("[PAYMENT_WEBHOOK] Invalid HMAC signature");
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // Check if either approach matches
+    const matchesCanonical = signature === expectedFromCanonical;
+    const matchesRaw = signature === expectedFromRaw;
+
+    if (!matchesCanonical && !matchesRaw) {
+      // Timing-safe comparison for the canonical approach (primary)
+      try {
+        const sigBuf = Buffer.from(signature, "hex");
+        const expBuf = Buffer.from(expectedFromCanonical, "hex");
+        if (sigBuf.length === expBuf.length && timingSafeEqual(sigBuf, expBuf)) {
+          // Matches via timing-safe (shouldn't reach here if string compare passed, but safety net)
+        } else {
+          console.warn("[PAYMENT_WEBHOOK] HMAC signature mismatch — check that BLOCKRADAR_API_KEY matches the key in your Blockradar dashboard");
+          return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+      } catch {
+        console.warn("[PAYMENT_WEBHOOK] HMAC verification error — signature may have invalid format");
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
     }
 
-    const body = JSON.parse(rawBody);
-    const { event, data } = body;
+    const { event, data } = body as { event: string; data: Record<string, unknown> };
 
-    console.log(`[PAYMENT_WEBHOOK] Event: ${event}`);
+    console.log(`[PAYMENT_WEBHOOK] Verified event: ${event}`);
 
     if (event !== "deposit.success") {
       // Acknowledge non-deposit events
       return NextResponse.json({ received: true });
     }
 
-    // Extract payment details
-    const {
-      amountPaid,
-      recipientAddress,
-    } = data;
+    // Extract payment details from Blockradar payload
+    const recipientAddress = data.recipientAddress as string | undefined;
+    const amountPaid = data.amountPaid as string | undefined;
+
+    if (!recipientAddress || !amountPaid) {
+      console.error("[PAYMENT_WEBHOOK] Missing recipientAddress or amountPaid in payload");
+      return NextResponse.json({ received: true, status: "invalid_payload" });
+    }
 
     const admin = createSupabaseAdminClient();
 
-    // ── STEP 1: Find and atomically claim the pending payment ────────
-    // Always look up by address in our DB (defense in depth — don't trust
-    // webhook metadata for userId/plan). The .eq("status", "pending")
-    // filter is the idempotency guard: if the webhook is replayed, the
-    // payment is already "completed" and this returns null → no action.
+    // ── STEP 2: Find and atomically claim the pending payment ────────
     const { data: pendingPayment } = await admin
       .from("payments")
       .select("user_id, plan, amount_expected")
@@ -77,14 +113,13 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (!pendingPayment) {
-      // Either a replay (already completed) or unknown address
       console.warn("[PAYMENT_WEBHOOK] No pending payment for address:", recipientAddress);
       return NextResponse.json({ received: true, status: "already_processed" });
     }
 
     const { user_id: userId, plan } = pendingPayment;
 
-    // ── STEP 2: Verify payment amount matches plan price ─────────────
+    // ── STEP 3: Verify payment amount matches plan price ─────────────
     if (!isPaymentSufficient(amountPaid, plan)) {
       console.warn(
         `[PAYMENT_WEBHOOK] Insufficient payment: ${amountPaid} for plan ${plan}`
@@ -103,9 +138,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ received: true, status: "underpaid" });
     }
 
-    // ── STEP 3: Mark payment as completed FIRST (replay guard) ───────
-    // If this update matches 0 rows, another concurrent webhook already
-    // processed it — safe to skip.
+    // ── STEP 4: Mark payment as completed FIRST (replay guard) ───────
     const { data: completedPayment } = await admin
       .from("payments")
       .update({
@@ -120,14 +153,14 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (!completedPayment) {
-      // Another webhook instance already processed this payment
       console.warn("[PAYMENT_WEBHOOK] Payment already processed (concurrent webhook):", recipientAddress);
       return NextResponse.json({ received: true, status: "already_processed" });
     }
 
-    // ── STEP 4: Activate subscription + notify + email ─────────────
+    // ── STEP 5: Activate subscription + notify + email ─────────────
     try {
       const { expiresAt } = await activateSubscription(admin, userId, plan);
+      console.log(`[PAYMENT_WEBHOOK] Subscription activated: user=${userId} plan=${plan} expires=${expiresAt}`);
 
       return NextResponse.json({
         received: true,
@@ -137,15 +170,13 @@ export async function POST(req: NextRequest) {
       });
     } catch (activateErr) {
       console.error("[PAYMENT_WEBHOOK] Activation failed:", activateErr);
-      // Payment is already marked completed — log for manual intervention
-      // Do NOT revert payment status (that would allow double-activation on retry)
       return NextResponse.json(
         { error: "Failed to activate subscription" },
         { status: 500 }
       );
     }
   } catch (err) {
-    console.error("[PAYMENT_WEBHOOK] Error:", err);
+    console.error("[PAYMENT_WEBHOOK] Unhandled error:", err);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

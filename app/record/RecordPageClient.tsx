@@ -463,8 +463,10 @@ export default function RecordPage() {
             };
 
             const db = getVaultDb();
-            await db.stories.put(record);
-            console.log("[VAULT] Story saved locally with encryption");
+            if (db) {
+              await db.stories.put(record);
+              console.log("[VAULT] Story saved locally with encryption");
+            }
           }
         } catch (vaultErr) {
           // Vault failure never blocks cloud save success

@@ -63,14 +63,16 @@ export async function activateSubscription(
 
   // 3. Send confirmation email (best-effort)
   try {
-    const { data: user } = await admin
+    const { data: user, error: userLookupErr } = await admin
       .from("users")
-      .select("email, username, display_name")
+      .select("email, username, name")
       .eq("id", userId)
       .single();
 
-    if (user?.email) {
-      const displayName = user.display_name || user.username || "Storyteller";
+    if (userLookupErr) {
+      console.error("[SUBSCRIPTION] User lookup for email failed:", userLookupErr);
+    } else if (user?.email) {
+      const displayName = user.name || user.username || "Storyteller";
       await getResend().emails.send({
         from: "EStories <support@estories.app>",
         to: [user.email],

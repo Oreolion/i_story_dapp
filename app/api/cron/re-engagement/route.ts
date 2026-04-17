@@ -31,14 +31,12 @@ export async function GET(req: NextRequest) {
     // Find users who:
     // 1. Have been onboarded (is_onboarded = true)
     // 2. Have an email
-    // 3. Haven't written a story in 7+ days
-    // 4. Haven't opted out of re-engagement emails
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
+    // 3. Haven't opted out of re-engagement emails
     const { data: users, error: usersError } = await admin
       .from("users")
-      .select("id, name, username, email, notification_preferences")
+      .select(
+        "id, name, username, email, notification_preferences, created_at"
+      )
       .eq("is_onboarded", true)
       .not("email", "is", null);
 
@@ -54,20 +52,28 @@ export async function GET(req: NextRequest) {
     let sent = 0;
     let skipped = 0;
     const resend = getResend();
+    const now = Date.now();
+
+    // Tiered thresholds (in days). We send at most one email per 7-day window.
+    const TIER_DAYS = [30, 14, 7];
+    const MIN_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 
     for (const user of users) {
-      // Check preferences — skip if re-engagement emails are disabled
-      const prefs = user.notification_preferences;
-      if (prefs && prefs.re_engagement_emails === false) {
+      const prefs =
+        (user.notification_preferences as Record<string, unknown> | null) || {};
+
+      // Skip if re-engagement emails or email_notifications are disabled
+      if (prefs.re_engagement_emails === false) {
         skipped++;
         continue;
       }
-      if (prefs && prefs.email_notifications === false) {
+      if (prefs.email_notifications === false) {
         skipped++;
         continue;
       }
 
-      // Check last story date
+      // Compute days since last story — fall back to account creation date for
+      // users who never wrote, so brand-new users don't immediately qualify.
       const { data: lastStory } = await admin
         .from("stories")
         .select("created_at")
@@ -76,42 +82,60 @@ export async function GET(req: NextRequest) {
         .limit(1)
         .maybeSingle();
 
-      const lastStoryDate = lastStory?.created_at
-        ? new Date(lastStory.created_at)
-        : null;
+      const referenceDate = lastStory?.created_at
+        ? new Date(lastStory.created_at).getTime()
+        : user.created_at
+        ? new Date(user.created_at).getTime()
+        : now;
+      const daysSince = Math.floor((now - referenceDate) / (1000 * 60 * 60 * 24));
 
-      // Skip if they posted within the last 7 days
-      if (lastStoryDate && lastStoryDate > sevenDaysAgo) {
+      // Skip users who've been active in the last 7 days
+      if (daysSince < 7) continue;
+
+      // Throttle: never send two re-engagement emails within 7 days
+      const lastSentAt =
+        typeof prefs.last_re_engagement_sent_at === "string"
+          ? new Date(prefs.last_re_engagement_sent_at).getTime()
+          : 0;
+      if (lastSentAt && now - lastSentAt < MIN_COOLDOWN_MS) {
+        skipped++;
         continue;
       }
 
-      // Calculate days since last story (or days since account creation)
-      const daysSince = lastStoryDate
-        ? Math.floor((Date.now() - lastStoryDate.getTime()) / (1000 * 60 * 60 * 24))
-        : 14; // Default for users who never wrote
+      // Pick the highest-tier threshold the user qualifies for
+      const tier = TIER_DAYS.find((t) => daysSince >= t);
+      if (!tier) continue;
 
-      // Only send once per tier: 7 days, 14 days, 30 days
-      // Skip users who fall between tiers (e.g., 10 days — wait until 14)
-      if (daysSince < 7) continue;
-      if (daysSince > 7 && daysSince < 14) continue;
-      if (daysSince > 14 && daysSince < 30) continue;
-      if (daysSince > 30) continue; // Don't spam users who've been gone 30+ days repeatedly
+      const subject =
+        tier >= 30
+          ? "Your stories are waiting for you"
+          : tier >= 14
+          ? "Two weeks without a story?"
+          : "Time to capture today's story";
 
       try {
         await resend.emails.send({
           from: "EStories <noreply@estories.app>",
           to: [user.email],
-          subject:
-            daysSince >= 30
-              ? "Your stories are waiting for you"
-              : daysSince >= 14
-              ? "Two weeks without a story?"
-              : "Time to capture today's story",
+          subject,
           react: ReEngagementEmail({
             username: user.name || user.username || "Storyteller",
             daysSinceLastStory: daysSince,
           }),
         });
+
+        // Record the send timestamp so the same user isn't re-emailed next run.
+        await admin
+          .from("users")
+          .update({
+            notification_preferences: {
+              ...prefs,
+              last_re_engagement_sent_at: new Date().toISOString(),
+              last_re_engagement_tier: tier,
+            },
+          })
+          .eq("id", user.id);
+
         sent++;
       } catch (emailErr) {
         console.error(`[CRON re-engagement] Email to ${user.id} failed:`, emailErr);

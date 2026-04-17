@@ -249,20 +249,40 @@ export async function POST(req: NextRequest) {
         .update({ followers_count: (userData?.followers_count || 0) + 1 })
         .eq("id", followedId);
 
-      // Create follow notification
-      const { data: followerUser } = await admin
-        .from("users")
-        .select("name, username")
-        .eq("id", followerId)
-        .single();
+      // Create follow notification (best-effort — should not break the follow)
+      try {
+        const { data: followerUser } = await admin
+          .from("users")
+          .select("name, username")
+          .eq("id", followerId)
+          .single();
 
-      if (followerUser) {
-        await admin.from("notifications").insert({
+        const followerName =
+          followerUser?.name || followerUser?.username || "Someone";
+        const followerHandle = followerUser?.username
+          ? `@${followerUser.username}`
+          : null;
+
+        const { error: notifErr } = await admin.from("notifications").insert({
           user_id: followedId,
           type: "follow",
-          title: "New Follower",
-          message: `${followerUser.name || followerUser.username || "Someone"} started following you`,
+          title: "New follower",
+          message: followerHandle
+            ? `${followerName} (${followerHandle}) is now following you. Tap to view their profile.`
+            : `${followerName} is now following you. Tap to view their profile.`,
+          related_user_id: followerId,
+          link: followerUser?.username ? `/profile/${followerUser.username}` : null,
+          read: false,
         });
+
+        if (notifErr) {
+          console.error("[API /social/follow] notification insert error:", notifErr);
+          Sentry.captureException(notifErr, {
+            tags: { area: "social.follow.notification" },
+          });
+        }
+      } catch (notifErr) {
+        console.error("[API /social/follow] notification create failed:", notifErr);
       }
 
       isFollowing = true;

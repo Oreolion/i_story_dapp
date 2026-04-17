@@ -373,6 +373,11 @@ export default function SocialPage() {
     const token = await getAccessToken();
     if (!token) return toast.error("Please sign in to follow writers.");
 
+    // Capture author name before optimistic updates so the toast stays stable
+    const authorRef = stories.find((s) => s.author?.id === authorId)?.author;
+    const authorName =
+      authorRef?.name || authorRef?.username || "this writer";
+
     // Optimistic UI: toggle isFollowing on all stories by this author
     setStories((prev) =>
       prev.map((s) =>
@@ -417,7 +422,11 @@ export default function SocialPage() {
         )
       );
 
-      toast.success(isFollowing ? "Followed!" : "Unfollowed");
+      toast.success(
+        isFollowing
+          ? `You're now following ${authorName}. Their new stories will appear in your feed.`
+          : `You unfollowed ${authorName}.`
+      );
     } catch (error) {
       console.error("Follow error:", error);
       // Revert optimistic update

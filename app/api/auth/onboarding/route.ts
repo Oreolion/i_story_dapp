@@ -97,33 +97,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
-    // Fire-and-forget: Send welcome email + create welcome notification
-    // These must not block the onboarding response
-    const sendWelcomeAsync = async () => {
-      try {
-        // Welcome email
-        if (email) {
-          await getResend().emails.send({
-            from: "EStories <noreply@estories.app>",
-            to: [email],
-            subject: "Welcome to EStories!",
-            react: WelcomeEmail({ username: name || username || "Storyteller" }),
-          });
-        }
-
-        // Welcome notification (in-app)
-        await admin.from("notifications").insert({
-          user_id: userId,
-          type: "follow",
-          title: "Welcome to eStories!",
-          message: `Welcome, ${name || username}! Start capturing the stories that matter to you. Head to Record to write your first story.`,
-          read: false,
+    // Send welcome email + create welcome notification.
+    // Must be awaited — Vercel serverless kills fire-and-forget promises once
+    // the response is returned, which silently drops the welcome email.
+    try {
+      if (email) {
+        await getResend().emails.send({
+          from: "EStories <noreply@estories.app>",
+          to: [email],
+          subject: "Welcome to EStories!",
+          react: WelcomeEmail({ username: name || username || "Storyteller" }),
         });
-      } catch (emailErr) {
-        console.error("[ONBOARDING] Welcome email/notification failed (non-blocking):", emailErr);
       }
-    };
-    sendWelcomeAsync();
+
+      await admin.from("notifications").insert({
+        user_id: userId,
+        type: "follow",
+        title: "Welcome to eStories!",
+        message: `Welcome, ${name || username}! Start capturing the stories that matter to you. Head to Record to write your first story.`,
+        read: false,
+      });
+    } catch (emailErr) {
+      console.error("[ONBOARDING] Welcome email/notification failed (non-blocking):", emailErr);
+    }
 
     return NextResponse.json({ success: true, user: profile });
   } catch (err: unknown) {
