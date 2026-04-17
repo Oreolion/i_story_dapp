@@ -431,3 +431,6 @@ cast call $CONTRACT_ADDRESS \
 - using the development guide and design used in the project, create a structure that i can just copy to use in another project, it doesnt have to use the same dependencies or tools as they are obviously different apps for different things, what i need is architectural framework, design patterns that works here and is standard and conventional, including tests, securities, seo, mobile-app etc also make sure it is conventional and production ready before you see it as that. i just need something global my dev environment can always use as guard, something 100% production ready, well tested and guanrateed across everthing that makes a production app standard and production ready. 
 
 - we have to make sure everything is working as expected in this app, i thought your tests are to make sure of all this- i thought you already fixed this, than means after fix, you have to use playwright to make sure all this is fixed and working as expected and that every feature is working as expected accross app and ready for production
+
+
+- stories profile can develope into a sort of Replit AI Storyboard for creating contents

@@ -314,10 +314,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [supabase, address, isConnected, ethBalance]
   );
 
-  // ─── Session hydration on mount ──────────────────────────────────────
-  // Use getUser() instead of getSession() — getUser() validates the token
-  // server-side and triggers a refresh if expired. getSession() only reads
-  // from cookies without validation, which fails when tokens are stale.
+  // ─── Token refresh on mount (no profile setting here) ────────────────
+  // We call getUser() once to validate/refresh stale cookies, but we do
+  // NOT set profile here. onAuthStateChange's INITIAL_SESSION below is the
+  // single source of truth — running profile-load from both paths caused
+  // a race where the second call's network hiccup cleared the profile.
   useEffect(() => {
     if (!supabase) {
       setIsLoading(false);
@@ -326,72 +327,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let mounted = true;
     (async () => {
       try {
-        // getUser() validates + refreshes the token if needed
-        const { data: { user }, error } = await supabase.auth.getUser();
-        if (!mounted) return;
-
-        if (error || !user) {
-          // No valid session — user is not signed in
-          setIsLoading(false);
-          return;
-        }
-
-        // Token is valid — now getSession() returns a fresh session
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!mounted) return;
-
-        if (session?.user) {
-          // Route Google users to handleGoogleSignIn — it can create new
-          // users in the `users` table. handleSession cannot (it only
-          // creates wallet users). Without this, first-time Google users
-          // hit "No wallet_address available" and appear logged out.
-          const provider = session.user.app_metadata?.provider;
-          if (provider === "google") {
-            await handleGoogleSignIn(session);
-          } else {
-            await handleSession(session);
-          }
-        }
+        await supabase.auth.getUser();
       } catch (err) {
-        console.error("[AUTH] initial session hydration error:", err);
-      } finally {
-        if (mounted) setIsLoading(false);
+        console.error("[AUTH] token refresh error:", err);
       }
+      if (!mounted) return;
     })();
     return () => {
       mounted = false;
     };
-  }, [supabase, handleGoogleSignIn]);
+  }, [supabase]);
 
-  // ─── Auth state change listener ──────────────────────────────────────
+  // ─── Auth state change listener (single source of truth) ─────────────
   useEffect(() => {
     if (!supabase) return;
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "SIGNED_OUT") {
+        if (!isConnected) {
+          setProfile(null);
+          setNeedsOnboarding(false);
+        }
+        setIsLoading(false);
+        return;
+      }
+
       // Handle Google sign-in on BOTH events:
       // - SIGNED_IN: fires during active sign-in (user clicks "Sign in with Google")
       // - INITIAL_SESSION: fires on page load when session cookies already exist
       //   (PKCE flow sets cookies server-side in the callback route, so the
       //    browser client sees an existing session and fires INITIAL_SESSION,
       //    NOT SIGNED_IN)
-      if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session) {
+      if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session?.user) {
         const provider = session.user.app_metadata?.provider;
         if (provider === "google") {
           await handleGoogleSignIn(session);
-          return;
+        } else {
+          await handleSession(session);
         }
-      }
-      if (event === "SIGNED_OUT") {
-        if (!isConnected) {
-          setProfile(null);
-          setNeedsOnboarding(false);
-        }
+        setIsLoading(false);
         return;
       }
+
+      // Token refreshed or user updated — re-hydrate from existing session
       if (session) {
         await handleSession(session);
       }
+      setIsLoading(false);
     });
     return () => subscription.unsubscribe();
   }, [supabase, isConnected, handleGoogleSignIn]);

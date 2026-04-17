@@ -419,32 +419,31 @@ export default function StoryPage({
   const handlePostComment = async () => {
     if (!newComment.trim()) return;
     if (!authInfo?.id) return toast.error("Please sign in to comment");
-    if (!supabase) return;
+
+    const token = await getAccessToken();
+    if (!token) return toast.error("Please sign in to comment");
 
     setIsPostingComment(true);
     try {
-      const { data, error } = await supabase
-        .from("comments")
-        .insert({
+      const res = await fetch("/api/social/comment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
           story_id: storyId,
-          author_id: authInfo.id,
-          author_wallet: authInfo.wallet_address,
           content: newComment,
-        })
-        .select(
-          `
-            id, content, created_at,
-            author:users!comments_author_id_fkey (name, avatar, wallet_address)
-        `
-        )
-        .single();
+        }),
+      });
 
-      if (error) throw error;
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload?.error || "Failed to post comment");
+      }
 
-      // Handle author data - could be array or single object from Supabase
-      const authorData = Array.isArray(data.author)
-        ? data.author[0]
-        : data.author;
+      const data = payload?.data;
+      const authorData = Array.isArray(data?.author) ? data.author[0] : data?.author;
 
       const newCommentObj: CommentDataTypes = {
         id: data.id,
