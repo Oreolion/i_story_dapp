@@ -3,6 +3,7 @@ import { createSupabaseAdminClient } from "@/app/utils/supabase/supabaseAdmin";
 import { Resend } from "resend";
 import { safeCompare } from "@/lib/crypto";
 import ReEngagementEmail from "@/components/emails/ReEngagementEmail";
+import { buildUnsubscribeUrl } from "@/lib/unsubscribeToken";
 
 export const dynamic = "force-dynamic";
 
@@ -114,6 +115,7 @@ export async function GET(req: NextRequest) {
           : "Time to capture today's story";
 
       try {
+        const unsubscribeUrl = buildUnsubscribeUrl(user.id, "re_engagement");
         await resend.emails.send({
           from: "EStories <noreply@estories.app>",
           to: [user.email],
@@ -121,7 +123,12 @@ export async function GET(req: NextRequest) {
           react: ReEngagementEmail({
             username: user.name || user.username || "Storyteller",
             daysSinceLastStory: daysSince,
+            unsubscribeUrl,
           }),
+          headers: {
+            "List-Unsubscribe": `<${unsubscribeUrl}>`,
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+          },
         });
 
         // Record the send timestamp so the same user isn't re-emailed next run.

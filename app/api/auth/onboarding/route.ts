@@ -3,6 +3,7 @@ import { createSupabaseAdminClient } from "@/app/utils/supabase/supabaseAdmin";
 import { validateAuthOrReject, isAuthError } from "@/lib/auth";
 import { Resend } from "resend";
 import WelcomeEmail from "@/components/emails/WelcomeEmail";
+import { buildUnsubscribeUrl } from "@/lib/unsubscribeToken";
 
 let _resend: Resend | null = null;
 function getResend() {
@@ -102,11 +103,19 @@ export async function POST(req: NextRequest) {
     // the response is returned, which silently drops the welcome email.
     try {
       if (email) {
+        const unsubscribeUrl = buildUnsubscribeUrl(authenticatedUserId, "all");
         await getResend().emails.send({
           from: "EStories <noreply@estories.app>",
           to: [email],
           subject: "Welcome to EStories!",
-          react: WelcomeEmail({ username: name || username || "Storyteller" }),
+          react: WelcomeEmail({
+            username: name || username || "Storyteller",
+            unsubscribeUrl,
+          }),
+          headers: {
+            "List-Unsubscribe": `<${unsubscribeUrl}>`,
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+          },
         });
       }
 

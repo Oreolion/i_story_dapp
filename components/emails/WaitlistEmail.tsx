@@ -12,12 +12,14 @@ import {
   Tailwind,
 } from "@react-email/components";
 import * as React from "react";
+import EmailFooter from "./EmailFooter";
 
 interface WaitlistEmailProps {
   email: string;
+  unsubscribeUrl?: string;
 }
 
-export const WaitlistEmail = ({ email }: WaitlistEmailProps) => {
+export const WaitlistEmail = ({ email, unsubscribeUrl }: WaitlistEmailProps) => {
   const previewText =
     "You're on the EStories waitlist — we'll let you know when the mobile app launches.";
 
@@ -69,6 +71,7 @@ export const WaitlistEmail = ({ email }: WaitlistEmailProps) => {
               EStories waitlist. If this wasn&apos;t you, you can safely ignore
               this email.
             </Text>
+            <EmailFooter unsubscribeUrl={unsubscribeUrl} />
           </Container>
         </Body>
       </Tailwind>

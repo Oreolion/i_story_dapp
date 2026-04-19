@@ -11,17 +11,20 @@ import {
   Tailwind,
 } from "@react-email/components";
 import * as React from "react";
+import EmailFooter from "./EmailFooter";
 
 interface SubscriptionEmailProps {
   username: string;
   plan: string;
   expiresAt: string;
+  unsubscribeUrl?: string;
 }
 
 export const SubscriptionEmail = ({
   username,
   plan,
   expiresAt,
+  unsubscribeUrl,
 }: SubscriptionEmailProps) => {
   const planName = plan.charAt(0).toUpperCase() + plan.slice(1);
   const previewText = `Your ${planName} subscription is now active!`;
@@ -78,6 +81,7 @@ export const SubscriptionEmail = ({
               If you have questions about your subscription, reply to this
               email or visit your profile settings.
             </Text>
+            <EmailFooter unsubscribeUrl={unsubscribeUrl} />
           </Container>
         </Body>
       </Tailwind>

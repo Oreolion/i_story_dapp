@@ -1,6 +1,7 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import SubscriptionEmail from "@/components/emails/SubscriptionEmail";
+import { buildUnsubscribeUrl } from "@/lib/unsubscribeToken";
 
 let _resend: Resend | null = null;
 function getResend() {
@@ -73,6 +74,7 @@ export async function activateSubscription(
       console.error("[SUBSCRIPTION] User lookup for email failed:", userLookupErr);
     } else if (user?.email) {
       const displayName = user.name || user.username || "Storyteller";
+      const unsubscribeUrl = buildUnsubscribeUrl(userId, "all");
       await getResend().emails.send({
         from: "EStories <support@estories.app>",
         to: [user.email],
@@ -81,7 +83,12 @@ export async function activateSubscription(
           username: displayName,
           plan,
           expiresAt: expiresDisplay,
+          unsubscribeUrl,
         }),
+        headers: {
+          "List-Unsubscribe": `<${unsubscribeUrl}>`,
+          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+        },
       });
     }
   } catch (emailErr) {

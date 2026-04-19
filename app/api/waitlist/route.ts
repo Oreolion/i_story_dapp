@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import WaitlistEmail from "@/components/emails/WaitlistEmail";
 import { createSupabaseAdminClient } from "@/app/utils/supabase/supabaseAdmin";
+import { buildEmailUnsubscribeUrl } from "@/lib/unsubscribeToken";
 
 let _resend: Resend | null = null;
 function getResend() {
@@ -71,11 +72,16 @@ export async function POST(req: NextRequest) {
     // Send confirmation email (best-effort — don't fail the request)
     try {
       if (process.env.RESEND_API_KEY) {
+        const unsubscribeUrl = buildEmailUnsubscribeUrl(email, "waitlist");
         const { error: emailError } = await getResend().emails.send({
           from: "EStories <noreply@estories.app>",
           to: [email],
           subject: "You're on the EStories waitlist!",
-          react: WaitlistEmail({ email }),
+          react: WaitlistEmail({ email, unsubscribeUrl }),
+          headers: {
+            "List-Unsubscribe": `<${unsubscribeUrl}>`,
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+          },
         });
 
         if (emailError) {

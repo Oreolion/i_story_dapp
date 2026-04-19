@@ -38,6 +38,24 @@ export async function POST(request: NextRequest) {
     let isLiked: boolean;
     let totalLikes: number;
 
+    // Atomic counter helper — falls back to read-then-write if RPC not yet deployed
+    async function adjustLikes(op: "inc" | "dec"): Promise<number> {
+      const fn = op === "inc" ? "increment_story_likes" : "decrement_story_likes";
+      const { data: rpcData, error: rpcErr } = await admin.rpc(fn, { p_story_id: storyId });
+      if (!rpcErr && typeof rpcData === "number") return rpcData;
+
+      // Fallback (pre-migration 018): racy but preserves prior behavior
+      const { data: story } = await admin
+        .from("stories")
+        .select("likes")
+        .eq("id", storyId)
+        .single();
+      const current = story?.likes || 0;
+      const next = op === "inc" ? current + 1 : Math.max(0, current - 1);
+      await admin.from("stories").update({ likes: next }).eq("id", storyId);
+      return next;
+    }
+
     if (existingLike) {
       // Unlike: delete the like record
       const { error: deleteErr } = await admin
@@ -50,21 +68,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Failed to unlike" }, { status: 500 });
       }
 
-      // Decrement story likes count (floor at 0)
-      const { data: story } = await admin
-        .from("stories")
-        .select("likes")
-        .eq("id", storyId)
-        .single();
-
-      const newLikes = Math.max(0, (story?.likes || 0) - 1);
-      await admin
-        .from("stories")
-        .update({ likes: newLikes })
-        .eq("id", storyId);
-
+      totalLikes = await adjustLikes("dec");
       isLiked = false;
-      totalLikes = newLikes;
     } else {
       // Like: insert new like record (upsert for safety)
       const { error: insertErr } = await admin
@@ -79,21 +84,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Failed to like" }, { status: 500 });
       }
 
-      // Increment story likes count
-      const { data: story } = await admin
-        .from("stories")
-        .select("likes")
-        .eq("id", storyId)
-        .single();
-
-      const newLikes = (story?.likes || 0) + 1;
-      await admin
-        .from("stories")
-        .update({ likes: newLikes })
-        .eq("id", storyId);
-
+      totalLikes = await adjustLikes("inc");
       isLiked = true;
-      totalLikes = newLikes;
 
       // Create like notification for story author
       const { data: storyAuthor } = await admin

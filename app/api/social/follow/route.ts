@@ -181,6 +181,24 @@ export async function POST(req: NextRequest) {
       followedWallet = followedUser?.wallet_address?.toLowerCase() || null;
     }
 
+    // Atomic counter helper — falls back to read-then-write if RPC not yet deployed
+    async function adjustFollowers(op: "inc" | "dec"): Promise<number> {
+      const fn = op === "inc" ? "increment_user_followers" : "decrement_user_followers";
+      const { data: rpcData, error: rpcErr } = await admin.rpc(fn, { p_user_id: followedId });
+      if (!rpcErr && typeof rpcData === "number") return rpcData;
+
+      // Fallback (pre-migration 018): racy but preserves prior behavior
+      const { data: u } = await admin
+        .from("users")
+        .select("followers_count")
+        .eq("id", followedId)
+        .single();
+      const current = u?.followers_count || 0;
+      const next = op === "inc" ? current + 1 : Math.max(0, current - 1);
+      await admin.from("users").update({ followers_count: next }).eq("id", followedId);
+      return next;
+    }
+
     // Check if already following (by user IDs)
     const { data: existing } = await admin
       .from("follows")
@@ -190,6 +208,7 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     let isFollowing: boolean;
+    let followersCount = 0;
 
     if (existing) {
       // === UNFOLLOW ===
@@ -203,20 +222,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
       }
 
-      // Decrement followers_count
-      const { data: userData } = await admin
-        .from("users")
-        .select("followers_count")
-        .eq("id", followedId)
-        .single();
-
-      if (userData) {
-        await admin
-          .from("users")
-          .update({ followers_count: Math.max(0, (userData.followers_count || 0) - 1) })
-          .eq("id", followedId);
-      }
-
+      followersCount = await adjustFollowers("dec");
       isFollowing = false;
     } else {
       // === FOLLOW ===
@@ -237,17 +243,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
       }
 
-      // Increment followers_count
-      const { data: userData } = await admin
-        .from("users")
-        .select("followers_count")
-        .eq("id", followedId)
-        .single();
-
-      await admin
-        .from("users")
-        .update({ followers_count: (userData?.followers_count || 0) + 1 })
-        .eq("id", followedId);
+      followersCount = await adjustFollowers("inc");
 
       // Create follow notification (best-effort — should not break the follow)
       try {
@@ -288,16 +284,9 @@ export async function POST(req: NextRequest) {
       isFollowing = true;
     }
 
-    // Get updated followers count
-    const { data: updatedUser } = await admin
-      .from("users")
-      .select("followers_count")
-      .eq("id", followedId)
-      .single();
-
     return NextResponse.json({
       isFollowing,
-      followers_count: updatedUser?.followers_count || 0,
+      followers_count: followersCount,
     });
   } catch (err: unknown) {
     console.error("[API /social/follow POST] unexpected:", err);

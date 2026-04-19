@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     // Verify user exists and get wallet
     const { data: userRow, error: userErr } = await admin
       .from("users")
-      .select("id, wallet_address")
+      .select("id, wallet_address, name, username")
       .eq("id", authenticatedUserId)
       .single();
 
@@ -68,6 +68,44 @@ export async function POST(req: NextRequest) {
         { error: "Failed to save book" },
         { status: 500 }
       );
+    }
+
+    // Notify followers (best-effort — don't fail the request on notification errors)
+    try {
+      if (userRow.wallet_address) {
+        const { data: followerRows } = await admin
+          .from("follows")
+          .select("follower_wallet")
+          .eq("followed_wallet", userRow.wallet_address.toLowerCase());
+
+        const followerWallets = (followerRows || [])
+          .map((r) => r.follower_wallet)
+          .filter(Boolean);
+
+        if (followerWallets.length > 0) {
+          const { data: followerUsers } = await admin
+            .from("users")
+            .select("id")
+            .in("wallet_address", followerWallets);
+
+          const authorName = userRow.name || userRow.username || "A storyteller";
+          const notifications = (followerUsers || []).map((u) => ({
+            user_id: u.id,
+            type: "book_published",
+            title: `${authorName} published a new book`,
+            message: `"${title}" is now available.`,
+            link: `/books/${inserted.id}`,
+            read: false,
+            metadata: { book_id: inserted.id, author_id: authenticatedUserId },
+          }));
+
+          if (notifications.length > 0) {
+            await admin.from("notifications").insert(notifications);
+          }
+        }
+      }
+    } catch (notifErr) {
+      console.error("[API /books] follower notify failed (non-blocking):", notifErr);
     }
 
     return NextResponse.json({ book: inserted }, { status: 200 });

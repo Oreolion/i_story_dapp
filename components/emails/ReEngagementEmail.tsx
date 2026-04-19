@@ -11,15 +11,18 @@ import {
   Tailwind,
 } from "@react-email/components";
 import * as React from "react";
+import EmailFooter from "./EmailFooter";
 
 interface ReEngagementEmailProps {
   username: string;
   daysSinceLastStory: number;
+  unsubscribeUrl?: string;
 }
 
 export const ReEngagementEmail = ({
   username,
   daysSinceLastStory,
+  unsubscribeUrl,
 }: ReEngagementEmailProps) => {
   const previewText = `We miss your stories, ${username}!`;
 
@@ -64,6 +67,7 @@ export const ReEngagementEmail = ({
               </a>
               .
             </Text>
+            <EmailFooter unsubscribeUrl={unsubscribeUrl} />
           </Container>
         </Body>
       </Tailwind>

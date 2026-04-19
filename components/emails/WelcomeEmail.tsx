@@ -11,12 +11,14 @@ import {
   Tailwind,
 } from "@react-email/components";
 import * as React from "react";
+import EmailFooter from "./EmailFooter";
 
 interface WelcomeEmailProps {
   username: string;
+  unsubscribeUrl?: string;
 }
 
-export const WelcomeEmail = ({ username }: WelcomeEmailProps) => {
+export const WelcomeEmail = ({ username, unsubscribeUrl }: WelcomeEmailProps) => {
   const previewText = `Welcome to EStories, ${username}!`;
 
   return (
@@ -48,6 +50,7 @@ export const WelcomeEmail = ({ username }: WelcomeEmailProps) => {
             <Text className="text-black text-[14px] leading-[24px]">
               Your stories are now immutable.
             </Text>
+            <EmailFooter unsubscribeUrl={unsubscribeUrl} />
           </Container>
         </Body>
       </Tailwind>
