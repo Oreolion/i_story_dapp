@@ -24,11 +24,10 @@ export async function GET(req: NextRequest) {
       .order("created_at", { ascending: false });
 
     if (error) {
+      // Log server-side but return empty feed rather than 500.
+      // A temporarily unavailable feed shows as empty rather than crashing pages.
       console.error("[API /stories/feed] fetch error:", error);
-      return NextResponse.json(
-        { error: "Failed to fetch feed" },
-        { status: 500 }
-      );
+      return NextResponse.json({ stories: [] });
     }
 
     if (!stories || stories.length === 0) {
@@ -63,9 +62,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ stories: storiesWithAuthors });
   } catch (err: unknown) {
     console.error("[API /stories/feed] unexpected error:", err);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ stories: [] });
   }
 }

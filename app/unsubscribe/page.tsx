@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -43,12 +44,12 @@ export default async function UnsubscribePage({
       <div className="max-w-md w-full text-center">
         <h1 className="text-2xl font-semibold text-black mb-4">{title}</h1>
         <p className="text-gray-600 leading-relaxed">{message}</p>
-        <a
+        <Link
           href="/"
           className="inline-block mt-8 text-sm text-amber-700 underline"
         >
           Return to EStories
-        </a>
+        </Link>
       </div>
     </main>
   );

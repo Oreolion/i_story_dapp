@@ -370,6 +370,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      // INITIAL_SESSION fired with no Supabase session → could be a wallet user
+      // whose session lives in an httpOnly cookie (no Supabase auth user involved).
+      // Probe the server immediately so profile is restored without waiting for
+      // the wallet extension to reconnect. This prevents the stale logged-out
+      // state in Firefox where wallet reconnection is significantly slower than
+      // Chrome and the effect gated on isConnected fires too late.
+      if (event === "INITIAL_SESSION" && !session) {
+        try {
+          const probeRes = await fetch("/api/user/profile");
+          if (probeRes.ok) {
+            const probeData = await probeRes.json();
+            if (probeData?.user) {
+              setUnifiedProfile(probeData.user, null);
+              setIsLoading(false);
+              return;
+            }
+          }
+        } catch {
+          // No valid cookie — user is genuinely logged out, fall through
+        }
+      }
+
       // Token refreshed or user updated — re-hydrate from existing session
       if (session) {
         await handleSession(session);
