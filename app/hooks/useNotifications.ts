@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { useAccount } from "wagmi";
 import { toast } from "react-hot-toast";
 import { useAuth } from "../../components/AuthProvider";
 
@@ -58,7 +57,6 @@ interface UseNotificationsReturn {
 // ============================================
 
 export function useNotifications(): UseNotificationsReturn {
-  const { isConnected } = useAccount();
   const { getAccessToken, profile, isLoading: isAuthLoading } = useAuth();
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -76,7 +74,7 @@ export function useNotifications(): UseNotificationsReturn {
    */
   const fetchNotifications = useCallback(
     async (params: FetchNotificationsParams = {}) => {
-      if (!isConnected || isAuthLoading) {
+      if (isAuthLoading || !profile?.id) {
         return;
       }
 
@@ -128,14 +126,14 @@ export function useNotifications(): UseNotificationsReturn {
         setLoading(false);
       }
     },
-    [isConnected, isAuthLoading, getAccessToken, notifications]
+    [isAuthLoading, profile?.id, getAccessToken, notifications]
   );
 
   /**
    * Fetch unread notification count
    */
   const fetchUnreadCount = useCallback(async () => {
-    if (!isConnected || isAuthLoading) return;
+    if (isAuthLoading || !profile?.id) return;
 
     const token = await getAccessToken();
     if (!token) return;
@@ -158,7 +156,7 @@ export function useNotifications(): UseNotificationsReturn {
     } catch (err) {
       console.error("Error fetching unread count:", err);
     }
-  }, [isConnected, isAuthLoading, getAccessToken]);
+  }, [isAuthLoading, profile?.id, getAccessToken]);
 
   /**
    * Create a new notification
@@ -382,11 +380,11 @@ export function useNotifications(): UseNotificationsReturn {
    * Subscribe to real-time notifications (polling)
    */
   const subscribe = useCallback(() => {
-    if (!isConnected || isAuthLoading) return;
+    if (isAuthLoading || !profile?.id) return;
 
     fetchUnreadCount();
     fetchNotifications();
-  }, [isConnected, isAuthLoading, fetchNotifications, fetchUnreadCount]);
+  }, [isAuthLoading, profile?.id, fetchNotifications, fetchUnreadCount]);
 
   /**
    * Unsubscribe from notifications
@@ -407,7 +405,7 @@ export function useNotifications(): UseNotificationsReturn {
    * Auto-fetch on mount when auth is ready, poll unread count on a stable interval
    */
   useEffect(() => {
-    if (!isConnected || isAuthLoading || !profile?.id) return;
+    if (isAuthLoading || !profile?.id) return;
 
     // Initial fetch (once)
     fetchUnreadCount();
@@ -434,7 +432,7 @@ export function useNotifications(): UseNotificationsReturn {
     };
     // Only re-run when auth state truly changes, NOT when callbacks/state update
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConnected, isAuthLoading, profile?.id]);
+  }, [isAuthLoading, profile?.id]);
 
   return {
     notifications,

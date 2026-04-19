@@ -434,3 +434,11 @@ cast call $CONTRACT_ADDRESS \
 
 
 - stories profile can develope into a sort of Replit AI Storyboard for creating contents
+
+- i got onboaridng email, but no notification welcoming user in app. are you sure notification is properly wired
+
+- i followed a user and liked stories but the other account did not recieve notfications.
+
+- data are not fetched during navigation until i reload after i have stayed on a page for a while
+
+- i expect vault to be part of premium plans. and that it is working well to allow files ans stories be saved on user device

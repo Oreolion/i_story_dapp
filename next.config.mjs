@@ -8,6 +8,10 @@ const nextConfig = {
     dirs: ["app", "components", "lib", "scripts", "contracts", "__tests__", "e2e"],
   },
   experimental: {
+    staleTimes: {
+      dynamic: 0,
+      static: 0,
+    },
     optimizePackageImports: [
       "lucide-react",
       "framer-motion",
