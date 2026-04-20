@@ -357,28 +357,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [supabase, address, isConnected, ethBalance]
   );
 
-  // ─── Token refresh on mount (no profile setting here) ────────────────
-  // We call getUser() once to validate/refresh stale cookies, but we do
-  // NOT set profile here. onAuthStateChange's INITIAL_SESSION below is the
-  // single source of truth — running profile-load from both paths caused
-  // a race where the second call's network hiccup cleared the profile.
+  // Bail out of loading state if Supabase isn't available (SSR / no env).
+  // The auth state machine is driven entirely by onAuthStateChange below;
+  // we used to also call getUser() here to "validate stale cookies", but
+  // that's redundant — getAccessToken refreshes on demand, and the extra
+  // call competed with INITIAL_SESSION for Supabase's auth lock (Web Locks
+  // API in @supabase/ssr), causing Firefox to hang on mount.
   useEffect(() => {
     if (!supabase) {
       setIsLoading(false);
-      return;
     }
-    let mounted = true;
-    (async () => {
-      try {
-        await withTimeout(supabase.auth.getUser(), AUTH_CALL_TIMEOUT_MS, "getUser");
-      } catch (err) {
-        console.error("[AUTH] token refresh error:", err);
-      }
-      if (!mounted) return;
-    })();
-    return () => {
-      mounted = false;
-    };
   }, [supabase]);
 
   // ─── Auth state change listener (single source of truth) ─────────────

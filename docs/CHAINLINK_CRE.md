@@ -433,3 +433,6 @@ cast call $CONTRACT_ADDRESS \
 - stories profile can develop into a sort of Replit AI Storyboard for creating UGC powered story contents
 
 - i expect vault to be part of premium plans. and that it is working well to allow files and stories be saved on user device
+
+
+- in notification dropdown i noticed that a notifcation about a user following redirected to a 404 page instead of the actual follower account
