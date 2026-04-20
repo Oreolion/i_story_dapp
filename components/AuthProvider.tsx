@@ -17,6 +17,38 @@ import type { OnboardingData } from "@/app/types";
 // Legacy localStorage key kept only for migration cleanup.
 const WALLET_TOKEN_KEY = "estory_wallet_token";
 
+// Firefox throttles background tabs aggressively; Supabase auth calls and
+// fetches can zombie after the tab returns from idle. Bound every external
+// call so the UI can never stall waiting on a hung request.
+const AUTH_CALL_TIMEOUT_MS = 8_000;
+// Tab idle longer than this triggers a session refresh + profile re-probe on
+// return. Short enough to catch "came back from lunch" without over-firing
+// during quick tab switches.
+const IDLE_REFRESH_THRESHOLD_MS = 60_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`[AUTH] ${label} timed out after ${ms}ms`)), ms),
+    ),
+  ]);
+}
+
+async function fetchWithTimeout(
+  input: RequestInfo,
+  init: RequestInit = {},
+  ms = AUTH_CALL_TIMEOUT_MS,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export type PlanType = "free" | "storyteller" | "creator";
 
 export interface UnifiedUserProfile {
@@ -122,7 +154,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // 1. Try Supabase session (Google OAuth users)
     try {
       if (supabase) {
-        const { data } = await supabase.auth.getSession();
+        const { data } = await withTimeout(
+          supabase.auth.getSession(),
+          AUTH_CALL_TIMEOUT_MS,
+          "getSession",
+        );
         const session = data?.session;
         if (session?.access_token) {
           // Verify session isn't expired (with 60s buffer)
@@ -130,14 +166,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return session.access_token;
           }
           // Session expired — attempt refresh
-          const { data: refreshed } = await supabase.auth.refreshSession();
+          const { data: refreshed } = await withTimeout(
+            supabase.auth.refreshSession(),
+            AUTH_CALL_TIMEOUT_MS,
+            "refreshSession",
+          );
           if (refreshed?.session?.access_token) {
             return refreshed.session.access_token;
           }
         }
       }
-    } catch {
-      // Supabase session unavailable
+    } catch (err) {
+      // Supabase session unavailable or timed out — fall through to wallet cookie
+      if (err instanceof Error && err.message.includes("timed out")) {
+        console.warn("[AUTH] getAccessToken:", err.message);
+      }
     }
 
     // 2. Wallet user — httpOnly cookie is sent automatically.
@@ -327,7 +370,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let mounted = true;
     (async () => {
       try {
-        await supabase.auth.getUser();
+        await withTimeout(supabase.auth.getUser(), AUTH_CALL_TIMEOUT_MS, "getUser");
       } catch (err) {
         console.error("[AUTH] token refresh error:", err);
       }
@@ -378,7 +421,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Chrome and the effect gated on isConnected fires too late.
       if (event === "INITIAL_SESSION" && !session) {
         try {
-          const probeRes = await fetch("/api/user/profile");
+          const probeRes = await fetchWithTimeout("/api/user/profile");
           if (probeRes.ok) {
             const probeData = await probeRes.json();
             if (probeData?.user) {
@@ -387,8 +430,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               return;
             }
           }
-        } catch {
-          // No valid cookie — user is genuinely logged out, fall through
+        } catch (err) {
+          // Timeout or no valid cookie — user is genuinely logged out (or
+          // server is unreachable). Fall through so isLoading flips to false.
+          if (err instanceof Error && err.name === "AbortError") {
+            console.warn("[AUTH] INITIAL_SESSION probe aborted after timeout");
+          }
         }
       }
 
@@ -400,6 +447,66 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     return () => subscription.unsubscribe();
   }, [supabase, isConnected, handleGoogleSignIn]);
+
+  // ─── Tab visibility: recover from idle (Firefox zombie-connection fix) ─
+  // Firefox throttles background tabs and can leave Supabase's auth client
+  // and cookies in a stale state after >60s idle. On return, force a
+  // session refresh and re-probe the profile so the UI doesn't flash
+  // logged-out or leave data hooks hanging on a stuck getAccessToken().
+  useEffect(() => {
+    if (!supabase) return;
+    if (typeof document === "undefined") return;
+
+    let hiddenAt: number | null = null;
+
+    const onVisibilityChange = async () => {
+      if (document.visibilityState === "hidden") {
+        hiddenAt = Date.now();
+        return;
+      }
+      if (hiddenAt === null) return;
+      const idleMs = Date.now() - hiddenAt;
+      hiddenAt = null;
+      if (idleMs < IDLE_REFRESH_THRESHOLD_MS) return;
+
+      // Unstick Supabase's auth client for Google users. Safe to call even
+      // if there's no session (returns null, no-op).
+      try {
+        await withTimeout(
+          supabase.auth.refreshSession(),
+          AUTH_CALL_TIMEOUT_MS,
+          "visibility refreshSession",
+        );
+      } catch (err) {
+        if (err instanceof Error) {
+          console.warn("[AUTH] visibility refresh failed:", err.message);
+        }
+      }
+
+      // Re-probe profile for wallet users (cookie is still valid, just need
+      // a fresh read). For Google users, the session refresh above already
+      // re-hydrated; probe is cheap and idempotent.
+      try {
+        const probeRes = await fetchWithTimeout("/api/user/profile");
+        if (probeRes.ok) {
+          const probeData = await probeRes.json();
+          if (probeData?.user) {
+            setUnifiedProfile(
+              probeData.user,
+              probeData.user.auth_provider === "google" ? profile?.supabaseUser ?? null : null,
+            );
+          }
+        }
+        // Don't clear profile on failure — transient errors shouldn't log
+        // the user out. Next real API call will surface a 401 if needed.
+      } catch {
+        // Silent — network blip or offline
+      }
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [supabase, profile?.supabaseUser]);
 
   // ─── Supabase session handler (Google/OAuth) ─────────────────────────
   const handleSession = async (session: Session | null) => {
@@ -570,7 +677,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (supabase) {
           const {
             data: { session: existingSession },
-          } = await supabase.auth.getSession();
+          } = await withTimeout(
+            supabase.auth.getSession(),
+            AUTH_CALL_TIMEOUT_MS,
+            "wallet getSession",
+          );
 
           // Only trust the session if it's not expired
           const sessionValid = existingSession?.expires_at
@@ -600,7 +711,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // the server with a lightweight call to check if we're authenticated.
         if (supabase) {
           try {
-            const probeRes = await fetch("/api/user/profile", {
+            const probeRes = await fetchWithTimeout("/api/user/profile", {
               headers: { "x-probe": "1" },
             });
             if (probeRes.ok) {
@@ -611,7 +722,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               }
             }
           } catch {
-            // Probe failed — fall through to re-authenticate
+            // Probe failed or timed out — fall through to re-authenticate
           }
 
           // Clean up legacy localStorage token if present

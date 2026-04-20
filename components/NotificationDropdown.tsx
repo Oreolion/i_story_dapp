@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Bell, Check, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNotifications } from "@/app/hooks/useNotifications";
@@ -16,6 +17,7 @@ export function NotificationDropdown() {
     deleteNotification,
     loading,
   } = useNotifications();
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -143,6 +145,16 @@ export function NotificationDropdown() {
                     key={notification.id}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
+                    onClick={() => {
+                      if (!notification.read) markAsRead(notification.id);
+                      const target =
+                        notification.link ||
+                        (notification.story_id ? `/story/${notification.story_id}` : null);
+                      if (target) {
+                        setIsOpen(false);
+                        router.push(target);
+                      }
+                    }}
                     className={cn(
                       "px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer",
                       !notification.read && "bg-purple-50 dark:bg-purple-900/20"
@@ -225,6 +237,10 @@ export function NotificationDropdown() {
                 <Button
                   variant="ghost"
                   size="sm"
+                  onClick={() => {
+                    setIsOpen(false);
+                    router.push("/notifications");
+                  }}
                   className="text-xs text-gray-600 dark:text-gray-400 hover:text-purple-600"
                 >
                   View all notifications
