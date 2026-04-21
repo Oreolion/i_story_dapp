@@ -170,11 +170,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // 1. Try Supabase session (Google OAuth users)
     try {
       if (supabase) {
-        const { data } = await withTimeout(
-          supabase.auth.getSession(),
-          AUTH_CALL_TIMEOUT_MS,
-          "getSession",
-        );
+        const { data } = await supabase.auth.getSession();
         const session = data?.session;
         if (session?.access_token) {
           // Verify session isn't expired (with 60s buffer)
@@ -182,20 +178,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return session.access_token;
           }
           // Session expired — attempt refresh
-          const { data: refreshed } = await withTimeout(
-            supabase.auth.refreshSession(),
-            AUTH_CALL_TIMEOUT_MS,
-            "refreshSession",
-          );
+          const { data: refreshed } = await supabase.auth.refreshSession();
           if (refreshed?.session?.access_token) {
             return refreshed.session.access_token;
           }
         }
       }
     } catch (err) {
-      // Supabase session unavailable or timed out — fall through to wallet cookie
-      if (err instanceof Error && err.message.includes("timed out")) {
-        console.warn("[AUTH] getAccessToken:", err.message);
+      // Supabase session unavailable — fall through to wallet cookie
+      if (err instanceof Error) {
+        console.warn("[AUTH] getAccessToken getSession/refreshSession failed:", err.message);
       }
     }
 
@@ -374,11 +366,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
   handleGoogleSignInRef.current = handleGoogleSignIn;
 
-  // ─── Mount-time eager auth probe ────────────────────────────────────
-  // Bypass Supabase auth lock entirely. For wallet users, the httpOnly
-  // cookie may be valid even when onAuthStateChange is stuck (Firefox Web
-  // Locks deadlock). This restores the fast path that was lost when the
-  // mount-time getUser() call was removed.
+  // ─── Mount-time eager auth hydration ────────────────────────────────
+  // Replaces the removed getUser() call. This is the fastest way to
+  // restore auth state without waiting for onAuthStateChange, which can
+  // hang in Firefox (Web Locks deadlock).
+  //
+  // Order:
+  //   1. Try Supabase session (Google users) via getSession()
+  //   2. Try wallet cookie directly via /api/user/profile
+  //   3. If neither works, flip isLoading false so the wallet effect can run
   useEffect(() => {
     if (!supabase) {
       setIsLoading(false);
@@ -387,6 +383,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
     (async () => {
       try {
+        // Fast path 1: Supabase session (Google / OAuth users)
+        const { data: { session } } = await supabase.auth.getSession();
+        if (cancelled) return;
+        if (session?.user) {
+          const provider = session.user.app_metadata?.provider;
+          if (provider === "google") {
+            await handleGoogleSignInRef.current?.(session);
+          } else {
+            await handleSessionRef.current?.(session);
+          }
+          setIsLoading(false);
+          return;
+        }
+      } catch {
+        // getSession failed or timed out — fall through
+      }
+
+      try {
+        // Fast path 2: Wallet httpOnly cookie (wallet users)
         const res = await fetchWithTimeout("/api/user/profile");
         if (cancelled) return;
         if (res.ok) {
@@ -398,8 +413,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
       } catch {
-        // Probe failed — fall through to onAuthStateChange / safety timeout
+        // Probe failed — fall through
       }
+
+      if (!cancelled) setIsLoading(false);
     })();
     return () => {
       cancelled = true;
@@ -551,11 +568,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Unstick Supabase's auth client for Google users. Safe to call even
       // if there's no session (returns null, no-op).
       try {
-        await withTimeout(
-          supabase.auth.refreshSession(),
-          AUTH_CALL_TIMEOUT_MS,
-          "visibility refreshSession",
-        );
+        await supabase.auth.refreshSession();
       } catch (err) {
         if (err instanceof Error) {
           console.warn("[AUTH] visibility refresh failed:", err.message);
@@ -757,11 +770,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (supabase) {
           const {
             data: { session: existingSession },
-          } = await withTimeout(
-            supabase.auth.getSession(),
-            AUTH_CALL_TIMEOUT_MS,
-            "wallet getSession",
-          );
+          } = await supabase.auth.getSession();
 
           // Only trust the session if it's not expired
           const sessionValid = existingSession?.expires_at

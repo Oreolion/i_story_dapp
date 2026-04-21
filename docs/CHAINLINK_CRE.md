@@ -446,6 +446,6 @@ cast call $CONTRACT_ADDRESS \
 
 - add
 ## 2. The Mechanics of Pattern Recognition (eStories)
-eStories is an engine for individuation. The patterns your AI reveals to users will inevitably touch upon their repressed, unconscious traits. 
+eStories is an engine for individuation. The patterns your AI reveals to users will inevitably touch upon their repressed, unconscious traits.
 
-*   **Actionable Focus:** Architect eStories to help users safely identify and integrate their `` rather than reject it.
+ **Actionable Focus:** Architect eStories to help users safely identify and integrate their `` rather than reject it.
