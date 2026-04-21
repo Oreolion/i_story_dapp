@@ -108,10 +108,13 @@ export default function SocialPage() {
   // Helper to get auth headers for API calls
   const getAuthHeaders = async (): Promise<Record<string, string>> => {
     const token = await getAccessToken();
-    return {
+    const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
+    if (token && token !== "cookie") {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    return headers;
   };
 
   // --- Fetch Data ---
@@ -168,9 +171,9 @@ export default function SocialPage() {
         let likedMap: Record<string, boolean> = {};
         const token = await getAccessToken();
         if (token) {
-          const authHeaders = {
+          const authHeaders: Record<string, string> = {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
+            ...(token !== "cookie" ? { Authorization: `Bearer ${token}` } : {}),
           };
 
           const [followResult, likeResult] = await Promise.allSettled([
@@ -339,7 +342,7 @@ export default function SocialPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          ...(token !== "cookie" ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ storyId: story.id }),
       });
@@ -396,7 +399,7 @@ export default function SocialPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          ...(token !== "cookie" ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           followed_id: authorId,

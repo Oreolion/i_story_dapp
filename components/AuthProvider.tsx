@@ -27,12 +27,20 @@ const AUTH_CALL_TIMEOUT_MS = 8_000;
 const IDLE_REFRESH_THRESHOLD_MS = 60_000;
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error(`[AUTH] ${label} timed out after ${ms}ms`)), ms),
-    ),
-  ]);
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`[AUTH] ${label} timed out after ${ms}ms`));
+    }, ms);
+    promise
+      .then((value) => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
 }
 
 async function fetchWithTimeout(
@@ -43,7 +51,7 @@ async function fetchWithTimeout(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ms);
   try {
-    return await fetch(input, { ...init, signal: controller.signal });
+    return await fetch(input, { credentials: "same-origin", ...init, signal: controller.signal });
   } finally {
     clearTimeout(timer);
   }
@@ -101,6 +109,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const signInAttemptRef = useRef(false);
+
+  // Refs to stabilize onAuthStateChange callback without adding unstable
+  // dependencies (isConnected, handleGoogleSignIn) that cause constant
+  // re-subscription and can suppress INITIAL_SESSION events.
+  const isConnectedRef = useRef(isConnected);
+  isConnectedRef.current = isConnected;
+  const handleGoogleSignInRef = useRef<any>(null);
+  const handleSessionRef = useRef<any>(null);
 
   const VALID_PLANS: PlanType[] = ["free", "storyteller", "creator"];
 
@@ -356,20 +372,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     },
     [supabase, address, isConnected, ethBalance]
   );
+  handleGoogleSignInRef.current = handleGoogleSignIn;
 
-  // Bail out of loading state if Supabase isn't available (SSR / no env).
-  // The auth state machine is driven entirely by onAuthStateChange below;
-  // we used to also call getUser() here to "validate stale cookies", but
-  // that's redundant — getAccessToken refreshes on demand, and the extra
-  // call competed with INITIAL_SESSION for Supabase's auth lock (Web Locks
-  // API in @supabase/ssr), causing Firefox to hang on mount.
+  // ─── Mount-time eager auth probe ────────────────────────────────────
+  // Bypass Supabase auth lock entirely. For wallet users, the httpOnly
+  // cookie may be valid even when onAuthStateChange is stuck (Firefox Web
+  // Locks deadlock). This restores the fast path that was lost when the
+  // mount-time getUser() call was removed.
   useEffect(() => {
     if (!supabase) {
       setIsLoading(false);
+      return;
     }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetchWithTimeout("/api/user/profile");
+        if (cancelled) return;
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.user) {
+            setUnifiedProfile(data.user, null);
+            setIsLoading(false);
+            return;
+          }
+        }
+      } catch {
+        // Probe failed — fall through to onAuthStateChange / safety timeout
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [supabase]);
 
   // ─── Auth state change listener (single source of truth) ─────────────
+  // Subscription is created ONCE and never recreated. Unstable callbacks
+  // are accessed via refs to avoid suppressing INITIAL_SESSION events.
   useEffect(() => {
     if (!supabase) return;
     const {
@@ -377,7 +416,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       try {
         if (event === "SIGNED_OUT") {
-          if (!isConnected) {
+          if (!isConnectedRef.current) {
             setProfile(null);
             setNeedsOnboarding(false);
           }
@@ -393,9 +432,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session?.user) {
           const provider = session.user.app_metadata?.provider;
           if (provider === "google") {
-            await handleGoogleSignIn(session);
+            await handleGoogleSignInRef.current?.(session);
           } else {
-            await handleSession(session);
+            await handleSessionRef.current?.(session);
           }
           return;
         }
@@ -427,7 +466,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Token refreshed or user updated — re-hydrate from existing session
         if (session) {
-          await handleSession(session);
+          await handleSessionRef.current?.(session);
         }
       } catch (err) {
         console.error("[AUTH] onAuthStateChange unexpected error:", err);
@@ -438,7 +477,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
     return () => subscription.unsubscribe();
-  }, [supabase, isConnected, handleGoogleSignIn]);
+  }, [supabase]);
 
   // ─── Auth hydration safety net ───────────────────────────────────────
   // Firefox can leave Supabase's auth client in a state where
@@ -451,6 +490,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const safetyTimer = setTimeout(() => {
       setIsLoading((currentlyLoading) => {
         if (!currentlyLoading) return false;
+
+        // Don't race with an active wallet login flow.
+        if (signInAttemptRef.current) {
+          console.warn(
+            "[AUTH] Auth hydration safety timeout skipped — sign-in attempt in progress"
+          );
+          return false;
+        }
 
         console.warn(
           "[AUTH] Auth hydration safety timeout fired — forcing isLoading false"
@@ -679,6 +726,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setProfile(null);
     }
   };
+  handleSessionRef.current = handleSession;
 
   // ─── Wallet connection effect ────────────────────────────────────────
   // For returning users with a stored wallet JWT, hydrate profile immediately.
