@@ -425,14 +425,152 @@ cast call $CONTRACT_ADDRESS \
 
 #### here are the things i notice needs touching in app now
 
-- using the development guide and design used in the project, create a structure that i can just copy to use in another project, it doesnt have to use the same dependencies or tools as they are obviously different apps for different things, what i need is architectural framework, design patterns that works here and is standard and conventional, including tests, securities, seo, mobile-app etc also make sure it is conventional and production ready before you see it as that. i just need something global my dev environment can always use as guard, something 100% production ready, well tested and guanrateed across everthing that makes a production app standard and production ready. 
-
-- we have to make sure everything is working as expected in this app, i thought your tests are to make sure of all this- i thought you already fixed this, than means after fix, you have to use playwright to make sure all this is fixed and working as expected and that every feature is working as expected accross app and ready for production
+- make critical and very accurate analysis using the archetecture decisions, development guide and design used in the project taking note of every part of the app, create a structure  that i can just copy to use in another project or a reuseable skill that note every details, it doesnt have to use the same dependencies or tools as they are obviously different apps for different things, what i need is architectural framework, design patterns that works here and is standard and conventional, including tests, securities, seo, mobile-app etc also make sure it is conventional and very production ready secure and safe before you see it as that. i just need something global my dev environment can always use as guard, something 100% production ready, well tested and guanrateed across everthing that makes a production app standard and production ready. think very deeply and critically about this --- give this prompt to AI to make it into a better prompt -- usecase: use it to check where other projects are lagging e.g. ecollabs and as blueprint or template for new projects.
 
 
-- stories profile can develop into a sort of Replit AI Storyboard for creating UGC powered story contents
+- **Shareability hooks to build into the product:**
+1. **"Share Your Story" button** after AI analysis -- generates a beautiful card image (Canva-style, but auto-generated) with a quote from the analysis + the user's name + eStories branding. One tap to share on X, LinkedIn, or download.
+
+
+
+
+
+
+
+- i need you to improve welcome email and others
+- use this email sequence as refenrence
+## Part 5: Email Sequences
+
+### Welcome Sequence
+
+#### Email 1: Welcome (Immediate)
+```
+Subject: Welcome to eStories — Let's record your first story
+
+---
+
+Hey [Name],
+
+You just joined eStories. Here's what to do next:
+
+📱 Open the app
+🎙️ Hit the record button
+🗣️ Speak for 60 seconds about anything
+
+That's it. Your first entry saved.
+
+No prompts. No pressure. Just talk.
+
+The AI will transcribe it, clean it up, and find the themes.
+You'll start seeing patterns after 5-10 entries.
+
+One tip: don't overthink it.
+
+The best stories aren't polished. They're honest.
+Speak like you're talking to yourself (because you are).
+
+Questions? Just reply to this email.
+
+Welcome to your memory archive.
+
+— [Founder name]
+
+P.S. Your first 10 stories AI analysis are free. No credit card needed.
+```
+
+#### Email 2: Day 3 (If no story recorded)
+```
+Subject: Your brain is interesting — let's capture it
+
+---
+
+Hey [Name],
+
+You signed up for eStories 3 days ago but haven't recorded yet.
+
+I get it. New apps are easy to forget.
+
+But here's the thing: you're already talking to yourself.
+
+In the shower. On your commute. At 2am when you can't sleep.
+
+Those thoughts disappear forever.
+Unless you capture them.
+
+Here's a challenge: record ONE story today.
+
+Open the app. Hit record. Talk for 60 seconds.
+
+About anything:
+- What's on your mind right now
+- Something that happened today
+- A decision you're weighing
+- A memory that surfaced
+
+No structure. No rules. Just capture.
+
+Your future self will thank you.
+
+— [Founder name]
+```
+
+#### Email 3: Day 7 (Engagement prompt)
+```
+Subject: What patterns are hiding in your thoughts?
+
+---
+
+Hey [Name],
+
+Week one ✓
+
+If you've recorded a few stories, something interesting is happening.
+
+The AI is starting to see patterns.
+
+Themes that recur. Emotions that cluster. People you mention.
+
+After 10+ entries, you'll unlock your pattern dashboard.
+
+It's like having a therapist review your stories and say:
+"Here's what I'm noticing..."
+
+Except it's AI. And it's instant. And it's private.
+
+The more you record, the clearer the picture.
+
+Your patterns are waiting to be seen.
+
+— [Founder name]
+
+P.S. Hit reply and tell me: what's one thing you've noticed 
+about yourself from your entries so far?
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### content
+-**Encouraging UGC without being pushy:**
+- After the 3rd journal entry: "Your stories are powerful. Want to share one? [Share button]"
+- After first NFT mint: "You just made your journal entry permanent on the blockchain. That's worth sharing. [Share button]"
+- stories profile can develop into a sort of Replit AI Storyboard for creating UGC powered story contents or Hyperframe made video contents
 
 - i expect vault to be part of premium plans. and that it is working well to allow files and stories be saved on user device
-
-
-- in notification dropdown i noticed that a notifcation about a user following redirected to a 404 page instead of the actual follower account

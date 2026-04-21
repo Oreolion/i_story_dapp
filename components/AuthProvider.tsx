@@ -375,66 +375,110 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === "SIGNED_OUT") {
-        if (!isConnected) {
-          setProfile(null);
-          setNeedsOnboarding(false);
+      try {
+        if (event === "SIGNED_OUT") {
+          if (!isConnected) {
+            setProfile(null);
+            setNeedsOnboarding(false);
+          }
+          return;
         }
-        setIsLoading(false);
-        return;
-      }
 
-      // Handle Google sign-in on BOTH events:
-      // - SIGNED_IN: fires during active sign-in (user clicks "Sign in with Google")
-      // - INITIAL_SESSION: fires on page load when session cookies already exist
-      //   (PKCE flow sets cookies server-side in the callback route, so the
-      //    browser client sees an existing session and fires INITIAL_SESSION,
-      //    NOT SIGNED_IN)
-      if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session?.user) {
-        const provider = session.user.app_metadata?.provider;
-        if (provider === "google") {
-          await handleGoogleSignIn(session);
-        } else {
-          await handleSession(session);
+        // Handle Google sign-in on BOTH events:
+        // - SIGNED_IN: fires during active sign-in (user clicks "Sign in with Google")
+        // - INITIAL_SESSION: fires on page load when session cookies already exist
+        //   (PKCE flow sets cookies server-side in the callback route, so the
+        //    browser client sees an existing session and fires INITIAL_SESSION,
+        //    NOT SIGNED_IN)
+        if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session?.user) {
+          const provider = session.user.app_metadata?.provider;
+          if (provider === "google") {
+            await handleGoogleSignIn(session);
+          } else {
+            await handleSession(session);
+          }
+          return;
         }
-        setIsLoading(false);
-        return;
-      }
 
-      // INITIAL_SESSION fired with no Supabase session → could be a wallet user
-      // whose session lives in an httpOnly cookie (no Supabase auth user involved).
-      // Probe the server immediately so profile is restored without waiting for
-      // the wallet extension to reconnect. This prevents the stale logged-out
-      // state in Firefox where wallet reconnection is significantly slower than
-      // Chrome and the effect gated on isConnected fires too late.
-      if (event === "INITIAL_SESSION" && !session) {
-        try {
-          const probeRes = await fetchWithTimeout("/api/user/profile");
-          if (probeRes.ok) {
-            const probeData = await probeRes.json();
-            if (probeData?.user) {
-              setUnifiedProfile(probeData.user, null);
-              setIsLoading(false);
-              return;
+        // INITIAL_SESSION fired with no Supabase session → could be a wallet user
+        // whose session lives in an httpOnly cookie (no Supabase auth user involved).
+        // Probe the server immediately so profile is restored without waiting for
+        // the wallet extension to reconnect. This prevents the stale logged-out
+        // state in Firefox where wallet reconnection is significantly slower than
+        // Chrome and the effect gated on isConnected fires too late.
+        if (event === "INITIAL_SESSION" && !session) {
+          try {
+            const probeRes = await fetchWithTimeout("/api/user/profile");
+            if (probeRes.ok) {
+              const probeData = await probeRes.json();
+              if (probeData?.user) {
+                setUnifiedProfile(probeData.user, null);
+                return;
+              }
+            }
+          } catch (err) {
+            // Timeout or no valid cookie — user is genuinely logged out (or
+            // server is unreachable). Fall through so isLoading flips to false.
+            if (err instanceof Error && err.name === "AbortError") {
+              console.warn("[AUTH] INITIAL_SESSION probe aborted after timeout");
             }
           }
-        } catch (err) {
-          // Timeout or no valid cookie — user is genuinely logged out (or
-          // server is unreachable). Fall through so isLoading flips to false.
-          if (err instanceof Error && err.name === "AbortError") {
-            console.warn("[AUTH] INITIAL_SESSION probe aborted after timeout");
-          }
         }
-      }
 
-      // Token refreshed or user updated — re-hydrate from existing session
-      if (session) {
-        await handleSession(session);
+        // Token refreshed or user updated — re-hydrate from existing session
+        if (session) {
+          await handleSession(session);
+        }
+      } catch (err) {
+        console.error("[AUTH] onAuthStateChange unexpected error:", err);
+        setProfile(null);
+        setNeedsOnboarding(false);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     });
     return () => subscription.unsubscribe();
   }, [supabase, isConnected, handleGoogleSignIn]);
+
+  // ─── Auth hydration safety net ───────────────────────────────────────
+  // Firefox can leave Supabase's auth client in a state where
+  // onAuthStateChange never fires INITIAL_SESSION (Web Locks deadlock,
+  // background tab throttling, or zombie connections). This guarantees
+  // the UI never stays in loading limbo.
+  useEffect(() => {
+    if (!supabase) return;
+
+    const safetyTimer = setTimeout(() => {
+      setIsLoading((currentlyLoading) => {
+        if (!currentlyLoading) return false;
+
+        console.warn(
+          "[AUTH] Auth hydration safety timeout fired — forcing isLoading false"
+        );
+
+        // Attempt one last lightweight probe via API (avoids Supabase auth
+        // lock entirely). If it fails, assume logged out.
+        fetchWithTimeout("/api/user/profile")
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => {
+            if (data?.user) {
+              setUnifiedProfile(data.user, null);
+            } else {
+              setProfile(null);
+              setNeedsOnboarding(false);
+            }
+          })
+          .catch(() => {
+            setProfile(null);
+            setNeedsOnboarding(false);
+          });
+
+        return false;
+      });
+    }, 10_000);
+
+    return () => clearTimeout(safetyTimer);
+  }, [supabase]);
 
   // ─── Tab visibility: recover from idle (Firefox zombie-connection fix) ─
   // Firefox throttles background tabs and can leave Supabase's auth client

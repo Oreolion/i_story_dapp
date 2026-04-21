@@ -60,3 +60,4 @@ node_modules/
 
 # MCP config (contains auth tokens)
 .mcp.json
+.vscode/mcp.json

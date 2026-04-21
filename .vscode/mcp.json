@@ -3,6 +3,429 @@
     "sentry": {
       "type": "http",
       "url": "https://mcp.sentry.dev/mcp"
+    },
+    "tavily": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "tavily-mcp"
+      ],
+      "env": {
+        "TAVILY_API_KEY": ""
+      }
+    },
+    "exa": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "exa-mcp-server"
+      ],
+      "env": {
+        "EXA_API_KEY": ""
+      }
+    },
+    "brave-search": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-brave-search"
+      ],
+      "env": {
+        "BRAVE_API_KEY": ""
+      }
+    },
+    "perplexity": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "perplexity-mcp"
+      ],
+      "env": {
+        "PERPLEXITY_API_KEY": ""
+      }
+    },
+    "context7": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "context7-mcp"
+      ]
+    },
+    "firecrawl": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@mendable/firecrawl-mcp"
+      ],
+      "env": {
+        "FIRECRAWL_API_KEY": ""
+      }
+    },
+    "apify": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@apify/actors-mcp-server"
+      ],
+      "env": {
+        "APIFY_API_TOKEN": ""
+      }
+    },
+    "bright-data": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "bright-data-mcp"
+      ],
+      "env": {
+        "BRIGHT_DATA_API_KEY": ""
+      }
+    },
+    "crawl4ai": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "crawl4ai-mcp"
+      ]
+    },
+    "playwright": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-playwright"
+      ]
+    },
+    "browserbase": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@browserbasehq/mcp-server-browserbase"
+      ],
+      "env": {
+        "BROWSERBASE_API_KEY": ""
+      }
+    },
+    "github": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "github-mcp-server"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": ""
+      }
+    },
+    "linear": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "linear-mcp-server"
+      ],
+      "env": {
+        "LINEAR_API_KEY": ""
+      }
+    },
+    "vercel": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "vercel-mcp"
+      ],
+      "env": {
+        "VERCEL_TOKEN": ""
+      }
+    },
+    "atlassian": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "atlassian-mcp-server"
+      ],
+      "env": {
+        "ATLASSIAN_API_TOKEN": "",
+        "ATLASSIAN_USER_EMAIL": ""
+      }
+    },
+    "supabase": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp",
+      "headers": {
+        "Authorization": "Bearer "
+      }
+    },
+    "postgres": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-postgres"
+      ],
+      "env": {
+        "DATABASE_URL": ""
+      }
+    },
+    "mongodb": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@mongodb/mongodb-mcp-server"
+      ],
+      "env": {
+        "MONGODB_URI": ""
+      }
+    },
+    "neo4j": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@neo4j/neo4j-mcp-server"
+      ],
+      "env": {
+        "NEO4J_URI": "",
+        "NEO4J_USER": "",
+        "NEO4J_PASSWORD": ""
+      }
+    },
+    "pinecone": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "pinecone-mcp"
+      ],
+      "env": {
+        "PINECONE_API_KEY": ""
+      }
+    },
+    "qdrant": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "qdrant-mcp-server"
+      ],
+      "env": {
+        "QDRANT_URL": "",
+        "QDRANT_API_KEY": ""
+      }
+    },
+    "chroma": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@chroma-core/chroma-mcp"
+      ]
+    },
+    "memory": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ]
+    },
+    "notion": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-notion"
+      ],
+      "env": {
+        "NOTION_TOKEN": ""
+      }
+    },
+    "slack": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-slack"
+      ],
+      "env": {
+        "SLACK_TOKEN": ""
+      }
+    },
+    "todoist": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "todoist-mcp-server"
+      ],
+      "env": {
+        "TODOIST_API_TOKEN": ""
+      }
+    },
+    "zapier": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@zapier/zapier-mcp-server"
+      ],
+      "env": {
+        "ZAPIER_API_KEY": ""
+      }
+    },
+    "stripe": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@stripe/agent-toolkit"
+      ],
+      "env": {
+        "STRIPE_SECRET_KEY": ""
+      }
+    },
+    "hubspot": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "hubspot-mcp-server"
+      ],
+      "env": {
+        "HUBSPOT_ACCESS_TOKEN": ""
+      }
+    },
+    "figma": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "figma-mcp"
+      ],
+      "env": {
+        "FIGMA_ACCESS_TOKEN": ""
+      }
+    },
+    "bannerbear": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@bannerbear/mcp-server"
+      ],
+      "env": {
+        "BANNERBEAR_API_KEY": ""
+      }
+    },
+    "cloudflare": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@cloudflare/mcp-server-cloudflare"
+      ],
+      "env": {
+        "CLOUDFLARE_API_TOKEN": ""
+      }
+    },
+    "docker": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "docker-mcp"
+      ]
+    },
+    "grafana": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@grafana/mcp-server"
+      ],
+      "env": {
+        "GRAFANA_URL": "",
+        "GRAFANA_API_KEY": ""
+      }
     }
   }
 }
