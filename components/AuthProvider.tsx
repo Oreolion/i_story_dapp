@@ -26,23 +26,6 @@ const AUTH_CALL_TIMEOUT_MS = 8_000;
 // during quick tab switches.
 const IDLE_REFRESH_THRESHOLD_MS = 60_000;
 
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      reject(new Error(`[AUTH] ${label} timed out after ${ms}ms`));
-    }, ms);
-    promise
-      .then((value) => {
-        clearTimeout(timer);
-        resolve(value);
-      })
-      .catch((err) => {
-        clearTimeout(timer);
-        reject(err);
-      });
-  });
-}
-
 async function fetchWithTimeout(
   input: RequestInfo,
   init: RequestInit = {},
@@ -381,7 +364,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     let cancelled = false;
-    (async () => {
+
+    const run = async () => {
       try {
         // Fast path 1: Supabase session (Google / OAuth users)
         const { data: { session } } = await supabase.auth.getSession();
@@ -397,7 +381,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
       } catch {
-        // getSession failed or timed out — fall through
+        // getSession failed — fall through
       }
 
       try {
@@ -417,9 +401,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (!cancelled) setIsLoading(false);
-    })();
+    };
+
+    run();
+
+    // UI safety net: if getSession() hangs on a cross-tab lock, don't
+    // block the page forever. Unblock after 3s so public data can load.
+    const uiTimeout = setTimeout(() => {
+      if (!cancelled) setIsLoading(false);
+    }, 3_000);
+
     return () => {
       cancelled = true;
+      clearTimeout(uiTimeout);
     };
   }, [supabase]);
 
@@ -565,19 +559,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       hiddenAt = null;
       if (idleMs < IDLE_REFRESH_THRESHOLD_MS) return;
 
-      // Unstick Supabase's auth client for Google users. Safe to call even
-      // if there's no session (returns null, no-op).
-      try {
-        await supabase.auth.refreshSession();
-      } catch (err) {
-        if (err instanceof Error) {
-          console.warn("[AUTH] visibility refresh failed:", err.message);
-        }
-      }
-
-      // Re-probe profile for wallet users (cookie is still valid, just need
-      // a fresh read). For Google users, the session refresh above already
-      // re-hydrated; probe is cheap and idempotent.
+      // Re-probe profile. We intentionally do NOT call refreshSession()
+      // here because it can hold the Supabase auth lock for seconds if the
+      // network is slow, blocking all subsequent getSession() calls and
+      // causing the UI to hang on the next navigation.
       try {
         const probeRes = await fetchWithTimeout("/api/user/profile");
         if (probeRes.ok) {
