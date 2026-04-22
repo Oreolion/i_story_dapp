@@ -239,6 +239,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ─── Google OAuth handler ────────────────────────────────────────────
   const handleGoogleSignIn = useCallback(
     async (session: Session) => {
+      console.log("[DIAGNOSTIC] handleGoogleSignIn START", { userId: session.user?.id?.slice(0, 8) });
       if (!supabase) return;
       const user = session.user;
       const googleId = user.identities?.[0]?.id ?? user.id;
@@ -292,11 +293,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         // PRIORITY 2: Look up by Supabase auth user id (returning Google user)
+        console.log("[DIAGNOSTIC] handleGoogleSignIn: querying users by id");
         const { data: existing } = await supabase
           .from("users")
           .select("*")
           .eq("id", user.id)
           .maybeSingle();
+        console.log("[DIAGNOSTIC] handleGoogleSignIn: users by id result:", { found: !!existing });
 
         if (existing) {
           setUnifiedProfile(existing, user);
@@ -304,25 +307,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         // PRIORITY 3: Look up by google_id (account was merged, ID differs)
+        console.log("[DIAGNOSTIC] handleGoogleSignIn: querying users by google_id");
         const { data: byGoogleId } = await supabase
           .from("users")
           .select("*")
           .eq("google_id", googleId)
           .maybeSingle();
+        console.log("[DIAGNOSTIC] handleGoogleSignIn: users by google_id result:", { found: !!byGoogleId });
 
         if (byGoogleId) {
           setUnifiedProfile(byGoogleId, user);
+          console.log("[DIAGNOSTIC] handleGoogleSignIn: set profile from google_id");
           return;
         }
 
         // PRIORITY 4: Check by email for potential auto-linking (same email)
         const userEmail = user.email;
         if (userEmail) {
+          console.log("[DIAGNOSTIC] handleGoogleSignIn: querying users by email");
           const { data: emailMatch } = await supabase
             .from("users")
             .select("*")
             .eq("email", userEmail)
             .maybeSingle();
+          console.log("[DIAGNOSTIC] handleGoogleSignIn: users by email result:", { found: !!emailMatch });
 
           if (emailMatch && !emailMatch.google_id) {
             console.log(
@@ -344,6 +352,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             if (!updateErr && updated) {
               setUnifiedProfile(updated, user);
+              console.log("[DIAGNOSTIC] handleGoogleSignIn: set profile from email match");
               return;
             }
           }
@@ -351,6 +360,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // PRIORITY 5: Create new Google-only user (fresh Google sign-up)
         // Set is_onboarded: false so they go through OnboardingModal to pick a username
+        console.log("[DIAGNOSTIC] handleGoogleSignIn: creating new user");
         const { data: created, error: createErr } = await supabase
           .from("users")
           .upsert(
@@ -371,6 +381,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           )
           .select()
           .maybeSingle();
+        console.log("[DIAGNOSTIC] handleGoogleSignIn: create result:", { created: !!created, error: !!createErr });
 
         if (createErr) {
           console.error("[AUTH] Google user creation failed:", createErr);
@@ -392,8 +403,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setProfile(null);
           }
         }
+        console.log("[DIAGNOSTIC] handleGoogleSignIn END");
       } catch (err) {
-        console.error("[AUTH] handleGoogleSignIn error:", err);
+        console.error("[DIAGNOSTIC] handleGoogleSignIn error:", err);
         setProfile(null);
       }
     },
@@ -506,6 +518,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session?.user) {
           const provider = session.user.app_metadata?.provider;
           console.log("[DIAGNOSTIC] Handling", event, "for provider:", provider);
+
+          // Firefox fires SIGNED_IN on every tab visibility change via
+          // _recoverAndRefresh(). handleGoogleSignIn makes direct Supabase
+          // REST queries (*.supabase.co) that can hang in Firefox ETP.
+          // Skip duplicate SIGNED_IN for the already-signed-in user.
+          if (event === "SIGNED_IN" && profile?.id === session.user.id) {
+            console.log("[DIAGNOSTIC] Skipping duplicate SIGNED_IN for already-signed-in user");
+            return;
+          }
+
           if (provider === "google") {
             await handleGoogleSignInRef.current?.(session);
           } else {

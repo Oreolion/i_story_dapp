@@ -72,11 +72,28 @@ const createSupabaseClient = () => {
     throw new Error("Direct Supabase refresh disabled — use /api/auth/refresh");
   };
 
+  // Safety net: if getSession() still hangs for any reason, force a timeout
+  // so AuthProvider can fall back to /api/auth/refresh instead of blocking
+  // the UI forever.
+  const originalGetSession = client.auth.getSession.bind(client.auth);
+  client.auth.getSession = async () => {
+    return Promise.race([
+      originalGetSession(),
+      new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("getSession timeout — falling back to proxy")),
+          4000
+        )
+      ),
+    ]) as any;
+  };
+
   console.log("[DIAGNOSTIC supabaseClient] created:", {
     isFirefox,
     autoRefreshToken: (client.auth as any).autoRefreshToken,
     hasLockOverride: isFirefox,
     hasRefreshOverride: true,
+    hasGetSessionTimeout: true,
   });
 
   return client;
