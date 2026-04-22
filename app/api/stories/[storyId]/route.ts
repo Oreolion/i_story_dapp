@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/app/utils/supabase/supabaseAdmin";
 import { validateAuth } from "@/lib/auth";
+import { isValidUuid } from "@/lib/validation";
 
 /** Extract the storage path from a Supabase public URL (e.g. ".../story-audio/userId/123.webm" → "userId/123.webm") */
 function extractStoragePath(publicUrl: string): string | null {
@@ -20,8 +21,8 @@ export async function GET(
 ) {
   try {
     const { storyId } = await params;
-    if (!storyId) {
-      return NextResponse.json({ error: "Missing storyId" }, { status: 400 });
+    if (!storyId || !isValidUuid(storyId)) {
+      return NextResponse.json({ error: "Invalid storyId" }, { status: 400 });
     }
 
     const admin = createSupabaseAdminClient();

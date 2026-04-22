@@ -341,5 +341,47 @@ See `~/.claude/rules/agent-command-graph.md` for full agent/plugin tables and sl
 
 ---
 
+---
+
+## Recent Auth Architecture Changes (2026-04-21)
+
+> **CRITICAL**: All AI agents must be aware of these changes before modifying auth-related code.
+
+### Problem Fixed
+Firefox's Enhanced Tracking Protection / Total Cookie Protection silently blocks cross-origin requests to `*.supabase.co`. This caused:
+- Auth breaking after ~50 minutes (when auto-refresh fires)
+- Data not loading until reload
+- Firefox Dev Edition login loops
+
+### Solution Implemented
+1. **Same-origin refresh proxy**: `app/api/auth/refresh/route.ts` — server-side proxy that calls `supabase.auth.refreshSession()`
+2. **Disabled auto-refresh**: `autoRefreshToken: false` in `app/utils/supabase/supabaseClient.ts`
+3. **Updated `getAccessToken()`**: Calls `/api/auth/refresh` instead of direct `supabase.auth.refreshSession()`
+
+### Key Patterns to Maintain
+- **Never wrap Supabase auth calls with `Promise.race` / timeout** — creates zombie Web Lock holders
+- **Always use `credentials: "same-origin"`** on `fetch` calls for cookie-based auth
+- **`onAuthStateChange` subscription deps: `[supabase]` ONLY** — use refs for callbacks
+- **Mount effect has 3-second UI safety timeout** — unblocks page if `getSession()` hangs
+- **Tab visibility handler does NOT call `refreshSession()`** — only re-probes `/api/user/profile`
+
+### Files to Touch Carefully
+| File | Why |
+|------|-----|
+| `components/AuthProvider.tsx` | Complex auth state machine, easy to break Firefox compatibility |
+| `app/utils/supabase/supabaseClient.ts` | Cookie options affect all auth sessions |
+| `app/api/auth/refresh/route.ts` | Same-origin proxy — critical for Firefox support |
+| `middleware.ts` | Session refresh on page loads |
+
+### Emergency Rollback
+```bash
+git checkout 10729729bc7b78d4b0e61d9ffbe2d0a4e568fd1b -- components/AuthProvider.tsx
+```
+
+### Detailed Analysis
+See `docs/AUTH_BUG_ANALYSIS.md` for full root-cause analysis, failed fixes, and lessons learned.
+
+---
+
 *Last synced from: `.claude/settings.json` (global) + `.claude/settings.local.json` (project) + `.cursor/mcp.json` + `.codex/config.toml`*
 *Sync date: 2026-04-21*

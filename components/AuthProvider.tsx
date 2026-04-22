@@ -155,30 +155,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (supabase) {
         const { data } = await supabase.auth.getSession();
         const session = data?.session;
-        if (session?.access_token) {
-          // Verify session isn't expired (with 60s buffer)
-          if (session.expires_at && session.expires_at * 1000 > Date.now() + 60_000) {
-            return session.access_token;
-          }
-          // Session expired — refresh via same-origin proxy.
-          // Firefox's Enhanced Tracking Protection blocks cross-origin requests
-          // to *.supabase.co, causing NetworkError with status (null). By
-          // routing refresh through /api/auth/refresh we bypass the blocklist.
-          const res = await fetchWithTimeout("/api/auth/refresh", {
-            method: "POST",
-          });
-          if (res.ok) {
-            const refreshed = await res.json();
-            if (refreshed?.access_token) {
-              return refreshed.access_token;
+
+        const sessionValid =
+          session?.expires_at && session.expires_at * 1000 > Date.now() + 60_000;
+
+        if (session?.access_token && sessionValid) {
+          return session.access_token;
+        }
+
+        // Session is expired or missing — attempt refresh.
+        // Priority: same-origin proxy (bypasses Firefox ETP) → direct fallback.
+        if (session?.refresh_token || profile?.auth_provider === "google" || profile?.auth_provider === "both") {
+          try {
+            const res = await fetchWithTimeout("/api/auth/refresh", {
+              method: "POST",
+            });
+            if (res.ok) {
+              const refreshed = await res.json();
+              if (refreshed?.access_token) {
+                return refreshed.access_token;
+              }
             }
+            console.warn("[AUTH] Proxy refresh failed, status:", res.status);
+          } catch (proxyErr) {
+            console.warn("[AUTH] Proxy refresh threw:", proxyErr);
+          }
+
+          // Fallback: direct cross-origin refresh (works in Chrome, may fail in Firefox)
+          try {
+            const { data: refreshed } = await supabase.auth.refreshSession();
+            if (refreshed?.session?.access_token) {
+              return refreshed.session.access_token;
+            }
+          } catch (directErr) {
+            console.warn("[AUTH] Direct refreshSession threw:", directErr);
           }
         }
       }
     } catch (err) {
-      // Supabase session unavailable — fall through to wallet cookie
       if (err instanceof Error) {
-        console.warn("[AUTH] getAccessToken failed:", err.message);
+        console.warn("[AUTH] getAccessToken getSession failed:", err.message);
       }
     }
 

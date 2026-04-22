@@ -7,6 +7,10 @@ const nextConfig = {
   eslint: {
     dirs: ["app", "components", "lib", "scripts", "contracts", "__tests__", "e2e"],
   },
+  // Prevent DoS via oversized request bodies
+  // NOTE: Next.js App Router does not support global bodyParser config.
+  // Size limits are enforced in middleware (see middleware.ts) and
+  // individual API routes via content-length checks.
   experimental: {
     staleTimes: {
       dynamic: 0,

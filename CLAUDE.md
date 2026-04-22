@@ -102,6 +102,24 @@ Merge conflicts happen when two branches edit the same file in the same area. Co
 
 ---
 
+## Never Do This
+
+These rules are non-negotiable. Violating them will be reverted on sight.
+
+1. **Never install packages without asking the user first.** Always explain why a package is needed and get explicit approval. The project already has a large dependency tree.
+2. **Never rewrite components or pages that weren't explicitly asked for.** If you need to refactor for a requested change, keep the scope minimal and explain what you're touching.
+3. **Never use `useEffect` for data fetching.** Use React Query (`@tanstack/react-query`) with the hooks in `lib/queries/hooks.ts`. `useEffect` + `fetch` is banned for data fetching.
+4. **Never add `console.log` to production code.** Use `console.error` for actual errors only. Remove or comment out debug logs before marking a task complete.
+5. **Never use inline styles (`style={{ ... }}`).** Use Tailwind CSS classes only. The only exception is dynamic CSS variables passed to components.
+6. **Never suggest switching frameworks, databases, auth providers, or build tools.** The stack is fixed (Next.js, Supabase, Tailwind). Work within it.
+7. **Never add placeholder TODO comments like `// TODO: fix this later`.** If something needs doing, do it or file a real issue. Commented-out code is also forbidden — delete it.
+8. **Never use emojis in code comments or commit messages.** Use plain text only.
+9. **Never wrap code in `try/catch` without explaining why.** Silent swallowing (`catch { /* ignored */ }`) must be justified in a comment. If you can't explain it, don't catch it.
+10. **Never modify `next.config.mjs` to add an `api` key.** Next.js App Router does not support this. Use per-route `export const config` or middleware instead.
+11. **Never ignore build, TypeScript, or test failures.** Fix them before marking a task complete. The only exception is pre-existing warnings that would require risky refactors to fix — document those instead.
+
+---
+
 ## Database
 
 - **Always run migrations after creating them.** Verify the migration was applied by checking the database schema before moving on. Never mark a migration task as complete without executing it.

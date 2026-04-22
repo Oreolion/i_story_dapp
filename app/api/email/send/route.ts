@@ -4,6 +4,7 @@ import WelcomeEmail from "@/components/emails/WelcomeEmail";
 import WaitlistEmail from "@/components/emails/WaitlistEmail";
 import SubscriptionEmail from "@/components/emails/SubscriptionEmail";
 import { validateAuthOrReject, isAuthError } from "@/lib/auth";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
 let _resend: Resend | null = null;
 function getResend() {
@@ -11,17 +12,33 @@ function getResend() {
   return _resend;
 }
 
+const EMAIL_RATE_LIMIT = 5; // per hour per user
+
 export async function POST(req: NextRequest) {
   try {
     // Auth check
     const authResult = await validateAuthOrReject(req);
     if (isAuthError(authResult)) return authResult;
+    const userId = authResult;
+
+    // Rate limit: 5 emails per hour per authenticated user
+    const { allowed, remaining } = checkRateLimit(
+      `email:send:${userId}`,
+      EMAIL_RATE_LIMIT,
+      60 * 60_000
+    );
+    if (!allowed) {
+      return NextResponse.json(
+        { error: `Email rate limit exceeded. Max ${EMAIL_RATE_LIMIT} per hour.` },
+        { status: 429 }
+      );
+    }
 
     const body = await req.json();
     const { email, username, type, plan, expiresAt } = body;
 
-    if (!email) {
-      return NextResponse.json({ error: "Email is required" }, { status: 400 });
+    if (!email || typeof email !== "string" || !email.includes("@")) {
+      return NextResponse.json({ error: "Valid email is required" }, { status: 400 });
     }
 
     let emailComponent;

@@ -1,5 +1,7 @@
 // eStories Service Worker — offline shell caching
-const CACHE_NAME = "estories-v1";
+// WARNING: Cache-first for static assets means new deployments require
+// cache-busting via CACHE_NAME version bump.
+const CACHE_NAME = "estories-v2";
 
 // App shell: pages and static assets that enable basic offline navigation
 const APP_SHELL = [
@@ -53,6 +55,17 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // CRITICAL FIX: Skip Next.js RSC payloads.
+  // RSC payloads are fetched with ?_rsc= query params during client-side
+  // navigation. They are NOT HTML pages and must never be cached or
+  // intercepted by the service worker. If fetch() fails and we fall back
+  // to caches.match(), the cache won't contain the RSC payload (only HTML
+  // pages are cached), causing caches.match() to return undefined and
+  // event.respondWith() to throw a NetworkError — breaking navigation.
+  if (url.searchParams.has("_rsc")) {
+    return;
+  }
+
   // Static assets (JS, CSS, images, fonts): cache-first
   if (
     url.pathname.match(/\.(js|css|png|jpg|jpeg|svg|ico|woff2?)$/) ||
@@ -83,6 +96,17 @@ self.addEventListener("fetch", (event) => {
         }
         return response;
       })
-      .catch(() => caches.match(request))
+      .catch(() =>
+        caches.match(request).then((cached) => {
+          if (cached) return cached;
+          // Not in cache and network failed — return a synthetic 503 so
+          // the browser doesn't see an uncaught NetworkError
+          return new Response("Offline — not cached", {
+            status: 503,
+            statusText: "Service Unavailable",
+            headers: { "Content-Type": "text/plain" },
+          });
+        })
+      )
   );
 });

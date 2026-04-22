@@ -1,6 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 
 /**
  * POST /api/auth/refresh
@@ -8,18 +7,17 @@ import { NextResponse } from "next/server";
  * Same-origin proxy for Supabase session refresh.
  *
  * Firefox's Enhanced Tracking Protection / Total Cookie Protection silently
- * blocks cross-origin requests to *.supabase.co (categorized as trackers).
- * When the Supabase browser client's auto-refresh fires, it gets a NetworkError
- * with status (null), corrupting the auth state and causing all subsequent
- * getSession() calls to fail.
+ * blocks cross-origin requests to *.supabase.co. By routing refresh through
+ * this same-origin endpoint, we bypass the blocklist entirely.
  *
- * By disabling auto-refresh in the browser client and routing refresh through
- * this same-origin endpoint, we bypass Firefox's blocklist entirely. The
- * server-side Supabase client has full cookie access and refreshes the session
- * without any browser privacy interference.
+ * Cookie handling:
+ *   - Uses explicit request/response cookie adapter (Next.js App Router pattern)
+ *   - Ensures refreshed session cookies are ALWAYS set on the response
+ *   - Returns the new access_token so the caller can use it immediately
  */
-export async function POST() {
-  const cookieStore = await cookies();
+export async function POST(request: NextRequest) {
+  // Start with a response object that shares the request cookies
+  const response = NextResponse.next({ request });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -27,11 +25,16 @@ export async function POST() {
     {
       cookies: {
         getAll() {
-          return cookieStore.getAll().map(({ name, value }) => ({ name, value }));
+          return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
+          // Mutate request cookies (for downstream middleware if any)
+          cookiesToSet.forEach(({ name, value }) => {
+            request.cookies.set(name, value);
+          });
+          // Set cookies on the response so the browser stores them
           cookiesToSet.forEach(({ name, value, options }) => {
-            cookieStore.set({ name, value, ...options });
+            response.cookies.set(name, value, options);
           });
         },
       },
@@ -41,14 +44,30 @@ export async function POST() {
   const { data, error } = await supabase.auth.refreshSession();
 
   if (error || !data.session) {
+    console.warn("[AUTH REFRESH] Failed:", error?.message || "No session");
     return NextResponse.json(
       { error: error?.message || "No active session" },
       { status: 401 }
     );
   }
 
-  return NextResponse.json({
+  // Build final JSON response and copy over any cookies that were set
+  // during refreshSession() above
+  const finalResponse = NextResponse.json({
     access_token: data.session.access_token,
     expires_at: data.session.expires_at,
+    refresh_token: data.session.refresh_token,
   });
+
+  for (const cookie of response.cookies.getAll()) {
+    finalResponse.cookies.set(cookie.name, cookie.value, {
+      httpOnly: cookie.httpOnly,
+      maxAge: cookie.maxAge,
+      path: cookie.path,
+      sameSite: cookie.sameSite,
+      secure: cookie.secure,
+    });
+  }
+
+  return finalResponse;
 }

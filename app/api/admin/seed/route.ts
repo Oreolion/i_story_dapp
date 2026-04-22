@@ -1,18 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/app/utils/supabase/supabaseAdmin";
 import { safeCompare } from "@/lib/crypto";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 
 /**
  * POST /api/admin/seed
  * Seeds the platform with sample public stories and featured profiles.
- * Protected by ADMIN_SECRET.
- *
- * This is for soft launch preparation — new users should see activity on arrival.
+ * Protected by ADMIN_SECRET + strict rate limiting.
  */
 export async function POST(req: NextRequest) {
   try {
+    // Rate limit: 10 requests per hour per IP (admin endpoints are sensitive)
+    const ip = getClientIp(req);
+    const { allowed, remaining } = checkRateLimit(`admin:seed:${ip}`, 10, 60 * 60_000);
+    if (!allowed) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+    }
+
     const authHeader = req.headers.get("authorization");
     const adminSecret = process.env.ADMIN_SECRET;
 

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApp } from "../../components/Provider";
 import { useAuth } from "../../components/AuthProvider";
 import { useBackgroundMode } from "@/contexts/BackgroundContext";
@@ -9,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import {
   TrendingUp,
@@ -17,20 +18,17 @@ import {
   Star,
   BookOpen,
   Zap,
-  Loader2,
   Search,
 } from "lucide-react";
 import { BrandedLoader } from "@/components/ui/branded-loader";
 import { toast } from "react-hot-toast";
-
-// FIX: Relative paths based on app/social/ location
 import { StoryCard } from "../../components/StoryCard";
 import { StoryDataType } from "../types/index";
 import { useEStoryToken } from "../hooks/useIStoryToken";
 import { useStoryProtocol } from "../hooks/useStoryProtocol";
-import { supabaseClient } from "../../app/utils/supabase/supabaseClient";
 import { useAccount } from "wagmi";
 import Link from "next/link";
+import { apiGet, apiPost } from "@/lib/api";
 
 // --- Types ---
 interface AuthorProfile {
@@ -84,121 +82,89 @@ const featuredWriters: FeaturedWriterType[] = [
 export default function SocialPage() {
   const { isConnected } = useApp();
   const { address } = useAccount();
+  const { getAccessToken, isLoading: isAuthLoading } = useAuth();
+  const qc = useQueryClient();
 
   // Set background mode for this page
-  useBackgroundMode('social');
+  useBackgroundMode("social");
 
   // State
-  const [stories, setStories] = useState<StoryDataType[]>([]);
   const [activeTab, setActiveTab] = useState("feed");
   const [unlockedStories, setUnlockedStories] = useState<Set<string>>(
     new Set()
   );
-  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
   // Hooks
   const eStoryToken = useEStoryToken();
   const { payPaywall } = useStoryProtocol();
-  const supabase = supabaseClient;
 
-  // Use centralized auth token from AuthProvider
-  const { getAccessToken, isLoading: isAuthLoading, profile: authInfo } = useAuth();
+  // ==============================
+  // React Query Data Fetching
+  // ==============================
 
-  // Helper to get auth headers for API calls
-  const getAuthHeaders = async (): Promise<Record<string, string>> => {
-    const token = await getAccessToken();
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    if (token && token !== "cookie") {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
-    return headers;
-  };
+  // 1. Fetch stories feed
+  const { data: feedData, isLoading: isFeedLoading } = useQuery({
+    queryKey: ["stories", "feed"],
+    queryFn: async () => {
+      const token = await getAccessToken();
+      return apiGet<{ stories: any[] }>(token, "/api/stories/feed");
+    },
+    staleTime: 30_000,
+  });
 
-  // --- Fetch Data ---
-  useEffect(() => {
-    // Wait for auth to hydrate before fetching — prevents race conditions
-    // where getAccessToken() returns null before session is restored
-    if (isAuthLoading) return;
+  const rawStories = feedData?.stories || [];
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15_000);
+  // 2. Batch follow status (dependent on stories)
+  const authorIds = useMemo(
+    () =>
+      [...new Set(rawStories.map((s) => s.author?.id).filter(Boolean))] as string[],
+    [rawStories]
+  );
 
-    const fetchSupabaseData = async () => {
-      setIsLoading(true);
-      try {
-        // 1. Fetch ALL stories via API route (bypasses RLS, uses admin client)
-        let data: any[] = [];
-        try {
-          const res = await fetch("/api/stories/feed", { signal: controller.signal });
-          if (res.ok) {
-            const json = await res.json();
-            data = json.stories || [];
-          }
-        } catch (e: any) {
-          if (e.name === "AbortError") return;
-        }
+  const { data: followData } = useQuery({
+    queryKey: ["social", "follow", "batch", authorIds],
+    queryFn: async () => {
+      if (authorIds.length === 0) return { following: {} };
+      const token = await getAccessToken();
+      return apiGet<{ following: Record<string, boolean> }>(
+        token,
+        `/api/social/follow?followed_ids=${authorIds.join(",")}`
+      );
+    },
+    enabled: authorIds.length > 0 && !isAuthLoading,
+    staleTime: 10_000,
+  });
 
-        // Fallback: retry the API route once (skip direct Supabase — RLS issues)
-        if (data.length === 0 && !controller.signal.aborted) {
-          try {
-            const retryRes = await fetch("/api/stories/feed", { signal: controller.signal });
-            if (retryRes.ok) {
-              const retryJson = await retryRes.json();
-              data = retryJson.stories || [];
-            }
-          } catch (e: any) {
-            if (e.name === "AbortError") return;
-          }
-        }
+  // 3. Batch like status (dependent on stories)
+  const storyIds = useMemo(
+    () => rawStories.map((s) => s.id),
+    [rawStories]
+  );
 
-        // 2. Filter out stories with missing authors (data integrity) and non-public
-        const validStories = (data?.filter((s: any) => s.author) as any[]) || [];
+  const { data: likeData } = useQuery({
+    queryKey: ["social", "like", "batch", storyIds],
+    queryFn: async () => {
+      if (storyIds.length === 0) return { liked: {} };
+      const token = await getAccessToken();
+      return apiGet<{ liked: Record<string, boolean> }>(
+        token,
+        `/api/social/like/status?story_ids=${storyIds.join(",")}`
+      );
+    },
+    enabled: storyIds.length > 0 && !isAuthLoading,
+    staleTime: 10_000,
+  });
 
-        // 3. Collect unique author IDs for follow status check
-        const authorIds = [
-          ...new Set(
-            validStories
-              .map((s) => s.author?.id)
-              .filter(Boolean)
-          ),
-        ] as string[];
+  // 4. Build unified stories list with follow/like status
+  const stories = useMemo<StoryDataType[]>(() => {
+    const followingMap = followData?.following || {};
+    const likedMap = likeData?.liked || {};
 
-        // 4. Fetch follow status + like status in parallel (if user is authenticated)
-        let followingMap: Record<string, boolean> = {};
-        let likedMap: Record<string, boolean> = {};
-        const token = await getAccessToken();
-        if (token) {
-          const authHeaders: Record<string, string> = {
-            "Content-Type": "application/json",
-            ...(token !== "cookie" ? { Authorization: `Bearer ${token}` } : {}),
-          };
-
-          const [followResult, likeResult] = await Promise.allSettled([
-            // Follow status
-            authorIds.length > 0
-              ? fetch(`/api/social/follow?followed_ids=${authorIds.join(",")}`, { headers: authHeaders, signal: controller.signal })
-                  .then((r) => r.ok ? r.json() : null)
-              : Promise.resolve(null),
-            // Like status
-            validStories.length > 0
-              ? fetch(`/api/social/like/status?story_ids=${validStories.map((s: any) => s.id).join(",")}`, { headers: authHeaders, signal: controller.signal })
-                  .then((r) => r.ok ? r.json() : null)
-              : Promise.resolve(null),
-          ]);
-
-          if (followResult.status === "fulfilled" && followResult.value) {
-            followingMap = followResult.value.following || {};
-          }
-          if (likeResult.status === "fulfilled" && likeResult.value) {
-            likedMap = likeResult.value.liked || {};
-          }
-        }
-
-        // 5. Map DB data to UI format
-        const authorProfile = (s: any): AuthorProfile => ({
+    return rawStories
+      .filter((s: any) => s.author)
+      .map((s: any) => {
+        const author: AuthorProfile = {
           id: s.author.id,
           name: s.author.name || "Anonymous Writer",
           username:
@@ -206,73 +172,128 @@ export default function SocialPage() {
             `@user${s.author.wallet_address?.slice(0, 4)}`,
           avatar: s.author.avatar,
           wallet_address: s.author.wallet_address,
-          followers:
-            s.author.followers_count ?? 0,
+          followers: s.author.followers_count ?? 0,
           badges: s.author.badges ?? ["Storyteller"],
-          isFollowing:
-            followingMap[s.author.id] || false,
-        });
+          isFollowing: followingMap[s.author.id] || false,
+        };
 
-        const storiesWithDefaults: StoryDataType[] = validStories.map((s) => {
-          const author = authorProfile(s);
-          return {
-            id: s.id,
-            numeric_id: s.numeric_id ?? String(s.id),
+        return {
+          id: s.id,
+          numeric_id: s.numeric_id ?? String(s.id),
+          author,
+          author_wallet: author,
+          title: s.title ?? "Untitled Story",
+          content: s.content ?? "",
+          teaser: s.teaser,
+          timestamp: s.created_at,
+          likes: s.likes ?? 0,
+          comments: s.comments_count ?? 0,
+          shares: s.shares ?? 0,
+          views: s.view_count ?? 0,
+          hasAudio: s.has_audio ?? false,
+          audio_url: s.audio_url,
+          mood: s.mood || "neutral",
+          tags: s.tags && s.tags.length > 0 ? s.tags : ["life", "story"],
+          paywallAmount: s.paywall_amount ?? 0,
+          is_public: true,
+          story_date: s.story_date || s.created_at,
+          created_at: s.created_at,
+          isLiked: likedMap[s.id] || false,
+          isPaid: false,
+        } as StoryDataType;
+      });
+  }, [rawStories, followData, likeData]);
 
-            // Author Mapping - both author and author_wallet required
-            author: author,
-            author_wallet: author,
+  // ==============================
+  // Mutations (Like / Follow)
+  // ==============================
 
-            // Story Content Mapping
-            title: s.title ?? "Untitled Story",
-            content: s.content ?? "",
-            teaser: s.teaser,
-            timestamp: s.created_at,
+  const likeMutation = useMutation({
+    mutationFn: async (storyId: string) => {
+      const token = await getAccessToken();
+      return apiPost<{
+        success: boolean;
+        data: { isLiked: boolean; totalLikes: number };
+      }>(token, "/api/social/like", { storyId });
+    },
+    onMutate: async (storyId) => {
+      await qc.cancelQueries({ queryKey: ["social", "like", "batch"] });
+      const previous = qc.getQueryData<{ liked: Record<string, boolean> }>([
+        "social",
+        "like",
+        "batch",
+        storyIds,
+      ]);
 
-            // Stats Mapping
-            likes: s.likes ?? 0,
-            comments: s.comments_count ?? 0,
-            shares: s.shares ?? 0,
-            views: s.view_count ?? 0,
+      qc.setQueryData(["social", "like", "batch", storyIds], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          liked: { ...old.liked, [storyId]: !old.liked?.[storyId] },
+        };
+      });
 
-            // Media & Meta
-            hasAudio: s.has_audio ?? false,
-            audio_url: s.audio_url,
-            mood: s.mood || "neutral",
-            tags: s.tags && s.tags.length > 0 ? s.tags : ["life", "story"],
-            paywallAmount: s.paywall_amount ?? 0,
-
-            // Required fields
-            is_public: true,
-            story_date: s.story_date || s.created_at,
-            created_at: s.created_at,
-
-            // Interactive State
-            isLiked: likedMap[s.id] || false,
-            isPaid: false,
-          };
-        });
-
-        setStories(storiesWithDefaults);
-      } catch (err: any) {
-        if (err.name === "AbortError") return;
-        console.error("[SOCIAL PAGE] Fetch error:", err);
-        toast.error("Failed to load the feed");
-      } finally {
-        if (!controller.signal.aborted) setIsLoading(false);
+      return { previous };
+    },
+    onError: (_err, _storyId, context) => {
+      if (context?.previous) {
+        qc.setQueryData(
+          ["social", "like", "batch", storyIds],
+          context.previous
+        );
       }
-    };
+      toast.error("Like action failed");
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ["social", "like", "batch"] });
+      qc.invalidateQueries({ queryKey: ["stories", "feed"] });
+    },
+  });
 
-    fetchSupabaseData();
+  const followMutation = useMutation({
+    mutationFn: async (authorId: string) => {
+      const token = await getAccessToken();
+      return apiPost<{
+        isFollowing: boolean;
+        followers_count: number;
+      }>(token, "/api/social/follow", { followed_id: authorId });
+    },
+    onMutate: async (authorId) => {
+      await qc.cancelQueries({ queryKey: ["social", "follow", "batch"] });
+      const previous = qc.getQueryData<{
+        following: Record<string, boolean>;
+      }>(["social", "follow", "batch", authorIds]);
 
-    return () => {
-      clearTimeout(timeout);
-      controller.abort();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthLoading, authInfo?.id]);
+      qc.setQueryData(["social", "follow", "batch", authorIds], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          following: {
+            ...old.following,
+            [authorId]: !old.following?.[authorId],
+          },
+        };
+      });
 
-  // --- Event Handlers ---
+      return { previous };
+    },
+    onError: (_err, _authorId, context) => {
+      if (context?.previous) {
+        qc.setQueryData(
+          ["social", "follow", "batch", authorIds],
+          context.previous
+        );
+      }
+      toast.error("Follow action failed");
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ["social", "follow", "batch"] });
+    },
+  });
+
+  // ==============================
+  // Event Handlers
+  // ==============================
 
   const handleUnlock = async (storyNumericId: string) => {
     if (!isConnected || !address || !eStoryToken) {
@@ -289,16 +310,9 @@ export default function SocialPage() {
 
       const authorAddress = story.author_wallet.wallet_address as string;
 
-      await payPaywall(
-        authorAddress,
-        story.paywallAmount,
-        story.numeric_id
-      );
+      await payPaywall(authorAddress, story.paywallAmount, story.numeric_id);
 
       setUnlockedStories((prev) => new Set(prev).add(String(story.id)));
-      setStories((prev) =>
-        prev.map((s) => (String(s.id) === String(story.id) ? { ...s, isPaid: true } : s))
-      );
 
       toast.success(`Unlocked! Paid ${story.paywallAmount} $ESTORY`, {
         id: "unlock-toast",
@@ -309,143 +323,15 @@ export default function SocialPage() {
     }
   };
 
-  const handleLike = async (storyNumericId: string) => {
-    const token = await getAccessToken();
-    if (!token) {
-      return toast.error("Please sign in to like stories.");
-    }
-
-    const storyIndex = stories.findIndex(
-      (s) => s.numeric_id === storyNumericId
-    );
-    if (storyIndex === -1) return;
-
-    const story = stories[storyIndex];
-    const isCurrentlyLiked = story.isLiked;
-    const originalLikes = story.likes;
-
-    // Optimistic UI Update
-    setStories((prev) =>
-      prev.map((s, i) =>
-        i === storyIndex
-          ? {
-              ...s,
-              isLiked: !isCurrentlyLiked,
-              likes: isCurrentlyLiked ? s.likes - 1 : s.likes + 1,
-            }
-          : s
-      )
-    );
-
-    try {
-      const res = await fetch("/api/social/like", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token !== "cookie" ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ storyId: story.id }),
-      });
-
-      if (!res.ok) throw new Error("Like failed");
-
-      const { data } = await res.json();
-      // Sync with server state
-      setStories((prev) =>
-        prev.map((s, i) =>
-          i === storyIndex
-            ? { ...s, isLiked: data.isLiked, likes: data.totalLikes }
-            : s
-        )
-      );
-    } catch (error) {
-      console.error("Like error:", error);
-      // Revert UI on failure
-      setStories((prev) =>
-        prev.map((s, i) =>
-          i === storyIndex
-            ? { ...s, isLiked: isCurrentlyLiked, likes: originalLikes }
-            : s
-        )
-      );
-      toast.error("Like action failed");
-    }
+  const handleLike = (storyNumericId: string) => {
+    const story = stories.find((s) => s.numeric_id === storyNumericId);
+    if (!story) return;
+    likeMutation.mutate(String(story.id));
   };
 
-  const handleFollow = async (authorId: string) => {
-    const token = await getAccessToken();
-    if (!token) return toast.error("Please sign in to follow writers.");
-
-    // Capture author name before optimistic updates so the toast stays stable
-    const authorRef = stories.find((s) => s.author?.id === authorId)?.author;
-    const authorName =
-      authorRef?.name || authorRef?.username || "this writer";
-
-    // Optimistic UI: toggle isFollowing on all stories by this author
-    setStories((prev) =>
-      prev.map((s) =>
-        s.author?.id === authorId
-          ? {
-              ...s,
-              author_wallet: { ...s.author_wallet, isFollowing: !s.author_wallet?.isFollowing },
-              author: { ...s.author, isFollowing: !s.author.isFollowing },
-            }
-          : s
-      )
-    );
-
-    try {
-      const res = await fetch("/api/social/follow", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token !== "cookie" ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          followed_id: authorId,
-        }),
-      });
-
-      if (!res.ok) {
-        throw new Error("Follow action failed");
-      }
-
-      const { isFollowing, followers_count } = await res.json();
-
-      // Update with server-confirmed state and follower count
-      setStories((prev) =>
-        prev.map((s) =>
-          s.author?.id === authorId
-            ? {
-                ...s,
-                author_wallet: { ...s.author_wallet, isFollowing, followers: followers_count },
-                author: { ...s.author, isFollowing, followers: followers_count },
-              }
-            : s
-        )
-      );
-
-      toast.success(
-        isFollowing
-          ? `You're now following ${authorName}. Their new stories will appear in your feed.`
-          : `You unfollowed ${authorName}.`
-      );
-    } catch (error) {
-      console.error("Follow error:", error);
-      // Revert optimistic update
-      setStories((prev) =>
-        prev.map((s) =>
-          s.author?.id === authorId
-            ? {
-                ...s,
-                author_wallet: { ...s.author_wallet, isFollowing: !s.author_wallet?.isFollowing },
-                author: { ...s.author, isFollowing: !s.author.isFollowing },
-              }
-            : s
-        )
-      );
-      toast.error("Follow action failed");
-    }
+  const handleFollow = (authorId: string) => {
+    if (!authorId) return;
+    followMutation.mutate(authorId);
   };
 
   const handleShare = (id: string) => {
@@ -464,14 +350,16 @@ export default function SocialPage() {
       story.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       story.content.toLowerCase().includes(searchQuery.toLowerCase());
 
-    if (activeTab === "trending") return matchesSearch && story.likes > 5; // Dummy trending logic
+    if (activeTab === "trending") return matchesSearch && story.likes > 5;
     if (activeTab === "following")
-      return matchesSearch && story.author_wallet?.isFollowing; // Dummy following logic
+      return matchesSearch && story.author_wallet?.isFollowing;
 
     return matchesSearch;
   });
 
   // --- Render ---
+
+  const isLoading = isFeedLoading || isAuthLoading;
 
   if (isLoading) {
     return (
@@ -516,7 +404,7 @@ export default function SocialPage() {
             <div className="text-center space-y-2">
               <Users className="w-6 h-6 mx-auto text-[hsl(var(--insight-500))]" />
               <div className="text-xl font-bold text-gray-900 dark:text-white">
-                {new Set(stories.map(s => s.author?.id).filter(Boolean)).size}
+                {new Set(stories.map((s) => s.author?.id).filter(Boolean)).size}
               </div>
               <div className="text-sm text-gray-600 dark:text-gray-400">
                 Active Writers
@@ -586,15 +474,14 @@ export default function SocialPage() {
                           story={{
                             ...story,
                             isPaid:
-                              story.isPaid || unlockedStories.has(String(story.id)),
+                              story.isPaid ||
+                              unlockedStories.has(String(story.id)),
                           }}
                           onFollow={() =>
-                            handleFollow(
-                              story.author?.id || ""
-                            )
+                            handleFollow(story.author?.id || "")
                           }
                           onShare={() => handleShare(String(story.id))}
-                          onLike={() => handleLike(story.numeric_id)}
+                          onLike={() => handleLike(String(story.numeric_id))}
                           onUnlock={() => handleUnlock(story.numeric_id)}
                         />
                       </Link>
