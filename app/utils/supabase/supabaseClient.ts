@@ -59,10 +59,24 @@ const createSupabaseClient = () => {
   (client.auth as any).autoRefreshToken = false;
   client.auth.stopAutoRefresh();
 
+  // CRITICAL: getSession() internally calls _refreshAccessToken() when the
+  // session is expired — regardless of autoRefreshToken setting. In Firefox,
+  // the fetch() to *.supabase.co can hang FOREVER (not just fail) when ETP
+  // blocks it. This blocks getSession() indefinitely, which blocks
+  // getAccessToken(), which blocks all React Query hooks → infinite loading.
+  //
+  // By overriding _refreshAccessToken to throw immediately, we force
+  // getSession() to fail fast. AuthProvider.getAccessToken() catches the
+  // error and falls back to our same-origin /api/auth/refresh proxy.
+  (client.auth as any)._refreshAccessToken = async () => {
+    throw new Error("Direct Supabase refresh disabled — use /api/auth/refresh");
+  };
+
   console.log("[DIAGNOSTIC supabaseClient] created:", {
     isFirefox,
     autoRefreshToken: (client.auth as any).autoRefreshToken,
     hasLockOverride: isFirefox,
+    hasRefreshOverride: true,
   });
 
   return client;
