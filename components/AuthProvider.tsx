@@ -160,17 +160,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (session.expires_at && session.expires_at * 1000 > Date.now() + 60_000) {
             return session.access_token;
           }
-          // Session expired — attempt refresh
-          const { data: refreshed } = await supabase.auth.refreshSession();
-          if (refreshed?.session?.access_token) {
-            return refreshed.session.access_token;
+          // Session expired — refresh via same-origin proxy.
+          // Firefox's Enhanced Tracking Protection blocks cross-origin requests
+          // to *.supabase.co, causing NetworkError with status (null). By
+          // routing refresh through /api/auth/refresh we bypass the blocklist.
+          const res = await fetchWithTimeout("/api/auth/refresh", {
+            method: "POST",
+          });
+          if (res.ok) {
+            const refreshed = await res.json();
+            if (refreshed?.access_token) {
+              return refreshed.access_token;
+            }
           }
         }
       }
     } catch (err) {
       // Supabase session unavailable — fall through to wallet cookie
       if (err instanceof Error) {
-        console.warn("[AUTH] getAccessToken getSession/refreshSession failed:", err.message);
+        console.warn("[AUTH] getAccessToken failed:", err.message);
       }
     }
 
