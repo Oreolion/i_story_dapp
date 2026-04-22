@@ -23,18 +23,37 @@ export async function GET(req: NextRequest) {
   const code = searchParams.get("code");
   const next = searchParams.get("next");
 
+  const allCookies = req.cookies.getAll();
+  const supabaseCookie = allCookies.find((c) =>
+    c.name.startsWith("sb-") && c.name.endsWith("-auth-token")
+  );
+  console.log("[DIAGNOSTIC /api/auth/callback] request:", {
+    hasCode: !!code,
+    cookieNames: allCookies.map((c) => c.name),
+    hasSupabaseCookie: !!supabaseCookie,
+    nextParam: next,
+  });
+
   if (!code) {
     // PKCE flow always provides a code param. Missing code means the user
     // navigated here directly or an upstream error occurred — redirect home.
+    console.warn("[DIAGNOSTIC /api/auth/callback] NO code param — redirecting home");
     return NextResponse.redirect(origin);
   }
 
   try {
     const supabase = await createSupabaseServerClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
+    console.log("[DIAGNOSTIC /api/auth/callback] exchangeCodeForSession result:", {
+      hasSession: !!data?.session,
+      hasError: !!error,
+      errorMessage: error?.message || null,
+      userId: data?.session?.user?.id?.slice(0, 8) + "..." || null,
+    });
 
     if (error) {
-      console.error("[AUTH CALLBACK] Code exchange failed:", error.message);
+      console.error("[DIAGNOSTIC /api/auth/callback] Code exchange failed:", error.message);
       return NextResponse.redirect(`${origin}/?auth_error=exchange_failed`);
     }
 

@@ -411,7 +411,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   //   2. Try wallet cookie directly via /api/user/profile
   //   3. If neither works, flip isLoading false so the wallet effect can run
   useEffect(() => {
+    console.log("[DIAGNOSTIC] Mount effect running");
     if (!supabase) {
+      console.log("[DIAGNOSTIC] No supabase client — setting isLoading false");
       setIsLoading(false);
       return;
     }
@@ -420,10 +422,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const run = async () => {
       try {
         // Fast path 1: Supabase session (Google / OAuth users)
+        console.log("[DIAGNOSTIC] Mount effect: calling getSession()");
         const { data: { session } } = await supabase.auth.getSession();
+        console.log("[DIAGNOSTIC] Mount effect: getSession result:", { hasSession: !!session, hasUser: !!session?.user });
         if (cancelled) return;
         if (session?.user) {
           const provider = session.user.app_metadata?.provider;
+          console.log("[DIAGNOSTIC] Mount effect: found session, provider:", provider);
           if (provider === "google") {
             await handleGoogleSignInRef.current?.(session);
           } else {
@@ -432,13 +437,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setIsLoading(false);
           return;
         }
-      } catch {
-        // getSession failed — fall through
+      } catch (err) {
+        console.warn("[DIAGNOSTIC] Mount effect: getSession failed:", (err as Error)?.message);
       }
 
       try {
         // Fast path 2: Wallet httpOnly cookie (wallet users)
+        console.log("[DIAGNOSTIC] Mount effect: probing /api/user/profile");
         const res = await fetchWithTimeout("/api/user/profile");
+        console.log("[DIAGNOSTIC] Mount effect: probe status:", res.status);
         if (cancelled) return;
         if (res.ok) {
           const data = await res.json();
@@ -448,11 +455,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return;
           }
         }
-      } catch {
-        // Probe failed — fall through
+      } catch (err) {
+        console.warn("[DIAGNOSTIC] Mount effect: probe failed:", (err as Error)?.message);
       }
 
-      if (!cancelled) setIsLoading(false);
+      if (!cancelled) {
+        console.log("[DIAGNOSTIC] Mount effect: no auth found — setting isLoading false");
+        setIsLoading(false);
+      }
     };
 
     run();
@@ -477,6 +487,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("[DIAGNOSTIC] onAuthStateChange event:", event, "hasSession:", !!session, "userId:", session?.user?.id?.slice(0, 8));
       try {
         if (event === "SIGNED_OUT") {
           if (!isConnectedRef.current) {
@@ -494,6 +505,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         //    NOT SIGNED_IN)
         if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session?.user) {
           const provider = session.user.app_metadata?.provider;
+          console.log("[DIAGNOSTIC] Handling", event, "for provider:", provider);
           if (provider === "google") {
             await handleGoogleSignInRef.current?.(session);
           } else {
@@ -509,8 +521,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // state in Firefox where wallet reconnection is significantly slower than
         // Chrome and the effect gated on isConnected fires too late.
         if (event === "INITIAL_SESSION" && !session) {
+          console.log("[DIAGNOSTIC] INITIAL_SESSION with no session — probing /api/user/profile");
           try {
             const probeRes = await fetchWithTimeout("/api/user/profile");
+            console.log("[DIAGNOSTIC] INITIAL_SESSION probe result:", probeRes.status);
             if (probeRes.ok) {
               const probeData = await probeRes.json();
               if (probeData?.user) {
@@ -522,17 +536,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Timeout or no valid cookie — user is genuinely logged out (or
             // server is unreachable). Fall through so isLoading flips to false.
             if (err instanceof Error && err.name === "AbortError") {
-              console.warn("[AUTH] INITIAL_SESSION probe aborted after timeout");
+              console.warn("[DIAGNOSTIC] INITIAL_SESSION probe aborted after timeout");
             }
           }
         }
 
         // Token refreshed or user updated — re-hydrate from existing session
         if (session) {
+          console.log("[DIAGNOSTIC] Session update event:", event);
           await handleSessionRef.current?.(session);
         }
       } catch (err) {
-        console.error("[AUTH] onAuthStateChange unexpected error:", err);
+        console.error("[DIAGNOSTIC] onAuthStateChange unexpected error:", err);
         setProfile(null);
         setNeedsOnboarding(false);
       } finally {
@@ -919,12 +934,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ─── Public API ──────────────────────────────────────────────────────
   const signInWithGoogle = useCallback(async () => {
     if (!supabase) return;
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/api/auth/callback`,
-      },
-    });
+    console.log("[DIAGNOSTIC] signInWithGoogle() called");
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/api/auth/callback`,
+        },
+      });
+      console.log("[DIAGNOSTIC] signInWithOAuth result:", { hasUrl: !!data?.url, error: error?.message || null });
+      if (error) {
+        console.error("[DIAGNOSTIC] signInWithOAuth error:", error);
+      }
+    } catch (err) {
+      console.error("[DIAGNOSTIC] signInWithOAuth threw:", err);
+    }
   }, [supabase]);
 
   const signOut = useCallback(async () => {
