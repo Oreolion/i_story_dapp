@@ -389,3 +389,154 @@ git checkout 10729729bc7b78d4b0e61d9ffbe2d0a4e568fd1b -- components/AuthProvider
 ```
 
 **Note**: The old code had the same Firefox issues, just masked by luck. Rolling back is a temporary measure, not a fix.
+
+---
+
+## 16. Post-Deployment Catastrophic Failure — 2026-04-22
+
+> **CRITICAL**: The current deployed code has made the auth situation **worse** than before the fix. Do not attempt further auth fixes without reading this section completely.
+
+### New Severity
+- **Normal Firefox** (not just Dev Edition) now **cannot log in** — login succeeds briefly then immediately logs out on navigation or reload
+- **Previously**: Normal Firefox worked for ~50 min, Dev Edition was broken
+- **Now**: Both normal Firefox and Dev Edition are broken immediately after login
+
+### Timeline of Failure (User-Observed)
+
+1. **User logs in** (Google OAuth)
+2. **Initial landing page loads correctly** — no 401s, authenticated data is fetched successfully
+3. **User navigates to a new tab** (e.g., `/library`, `/social`, `/story/[id]`)
+4. **UI briefly shows "Connect" / logged-out state** — as if auth was lost
+5. **Then console floods with 401 errors** on ALL API endpoints:
+   ```
+   GET /api/user/profile → 401
+   GET /api/stories → 401
+   GET /api/stories/collections → 401
+   GET /api/social/follow?followed_ids=... → 401
+   GET /api/social/like/status?story_ids=... → 401
+   ```
+6. **Story page loads infinitely** (spinner never stops)
+7. **Reloading the page does NOT fix it** — user remains logged out
+8. **Re-logging in also fails** — the cycle repeats
+
+### Critical Observations
+
+#### A. The Cookie IS Present
+Request headers show the Supabase auth cookie `sb-qfwhtsmqndnocfidhdhy-auth-token` is being sent with the 401 requests. The server receives the cookie but rejects it.
+
+#### B. Auth Works Initially, Then Collapses
+The fact that authenticated data loads **correctly immediately after login** proves:
+- The cookie is valid at the moment of login
+- The server CAN validate the cookie
+- The React Query hooks CAN fetch authenticated data
+
+The collapse happens **on client-side navigation**, not on initial server render. This is a **massive clue**.
+
+#### C. "Connect" State Appears Before 401s
+The UI briefly shows the logged-out "Connect" state when navigating. This suggests `useAuth()` is returning `null` for `profile` during navigation, which causes:
+1. Components to render logged-out UI
+2. React Query hooks to still fire (because they're not gated by auth state)
+3. API calls to go out with a stale/invalid token → 401
+
+#### D. Story Page Infinite Loading
+The story page loading spinner never stops. This suggests:
+- `useStory(storyId)` is in `isLoading: true` state
+- Either the 401 is not being caught as an error, OR
+- The query is retrying indefinitely, OR
+- `isLoading` is derived from something that never flips (e.g., `isAuthLoading` from `useAuth()` stuck true)
+
+### What Changed That Made It Worse?
+
+The only auth-related changes between "old buggy but semi-working" and "now completely broken" are:
+
+1. **`autoRefreshToken: false`** in `supabaseClient.ts` — stops background refresh
+2. **`getAccessToken()` calls `/api/auth/refresh`** instead of `supabase.auth.refreshSession()`
+3. **Removed `refreshSession()` from tab visibility handler**
+4. **React Query migrations** in `SocialPageClient`, `LibraryPageClient`, `StoryPageClient`, `ProfilePageClient`, `RecordPageClient` — added `useQuery` hooks that call APIs immediately on mount
+
+**Hypothesis: The React Query migration introduced a race condition.**
+
+Before the migration, pages used `useEffect` + `fetch` inside the component. The `useEffect` ran AFTER React's render cycle, giving `AuthProvider`'s mount effect time to finish. After migration, `useQuery` hooks execute during render (or at least earlier in the lifecycle), firing API calls before `AuthProvider` has finished hydrating the session.
+
+When the user navigates client-side:
+1. Next.js unmounts the old page, mounts the new page
+2. New page's `useQuery` hooks fire immediately
+3. `getAccessToken()` runs, but `AuthProvider` may be in a transient state
+4. The token returned is stale/expired/null
+5. API returns 401
+6. `AuthProvider` sees 401s and assumes the user is logged out
+7. Auth state resets to null
+8. All subsequent API calls also 401
+
+**This creates a death spiral**: React Query fires → 401 → AuthProvider clears session → more 401s → UI shows logged out.
+
+### Why Reload Doesn't Fix It
+
+If the cookie itself is valid, why does reload not fix it? Possible explanations:
+1. The server-side render on reload ALSO gets a 401 (cookie is valid but SSR supabase client can't read it)
+2. The `AuthProvider` mount effect is now broken (possibly due to `autoRefreshToken: false` changes)
+3. Something in the new `getAccessToken()` path permanently corrupts the cookie/session
+
+### The IndexedDB Error
+```
+Analytics SDK: Error: IndexedDB:Set:InternalError
+```
+This is a **Sentry/analytics SDK error**, likely unrelated to the auth bug. However, if the IndexedDB error is from Supabase's own storage (not Sentry), it could indicate that Supabase's client-side session storage is failing. Verify which SDK this error comes from.
+
+### Previous "Fix" Files That May Have Caused Regression
+
+| File | Change | Risk |
+|------|--------|------|
+| `app/utils/supabase/supabaseClient.ts` | `autoRefreshToken: false` | **HIGH** — Stops all background refresh. If proactive refresh in `getAccessToken()` fails, session dies permanently |
+| `components/AuthProvider.tsx` | `getAccessToken()` calls `/api/auth/refresh` | **HIGH** — New code path, untested in production. May return wrong token or corrupt cookie |
+| `components/AuthProvider.tsx` | Removed `refreshSession()` from visibility handler | **MEDIUM** — Removed a recovery path |
+| `lib/queries/hooks.ts` | Added `useUserStories`, `useStory`, `useLikeStatus`, etc. | **HIGH** — These hooks fire immediately on navigation, racing with auth hydration |
+| Multiple pages | Replaced `useEffect` + `fetch` with `useQuery` | **HIGH** — Changed execution timing of data fetching relative to auth initialization |
+
+### What Must NOT Be Changed Without Extreme Care
+
+1. **`components/AuthProvider.tsx`** — This is the auth brain. Any change here affects ALL users, ALL auth methods (Google + wallet), ALL pages.
+2. **`app/api/auth/refresh/route.ts`** — Server-side cookie handling. A bug here could corrupt cookies for all users.
+3. **`app/utils/supabase/supabaseClient.ts`** — Browser client config. Changing `autoRefreshToken` back to `true` without understanding the full implications could re-introduce the Firefox ETP bug.
+4. **Any database schema or user table migrations** — There are registered users. Do not touch `users` table, `unlocked_content`, `payments`, or any table with production data.
+5. **Payment/web3 flows** — `useStoryProtocol`, `useEStoryToken`, `useStoryNFT` hooks. Do not change these.
+
+### Recommended Immediate Diagnostic Actions (Read-Only / Logging Only)
+
+1. **Add console logging to `getAccessToken()`** in `AuthProvider.tsx`:
+   ```ts
+   console.log("[getAccessToken] called");
+   console.log("[getAccessToken] session:", session?.access_token?.slice(0,10));
+   console.log("[getAccessToken] refresh response:", refreshed?.access_token?.slice(0,10));
+   ```
+
+2. **Add console logging to API route `/api/auth/refresh`**:
+   ```ts
+   console.log("[/api/auth/refresh] cookies:", cookies().getAll().map(c => c.name));
+   console.log("[/api/auth/refresh] refresh result:", data);
+   ```
+
+3. **Add console logging to `/api/user/profile`**:
+   ```ts
+   console.log("[/api/user/profile] cookies:", cookies().getAll().map(c => c.name));
+   console.log("[/api/user/profile] auth result:", authResult);
+   ```
+
+4. **Add React Query `onError` logging** in `lib/api.ts`:
+   ```ts
+   console.error("[API] 401 on:", endpoint, "token prefix:", token?.slice(0,10));
+   ```
+
+5. **Verify `/api/auth/refresh` is actually being called** during navigation:
+   - The user reports 401s on ALL APIs
+   - If `getAccessToken()` is working, `/api/auth/refresh` should be called before each API
+   - If it's NOT being called, the proactive refresh isn't firing
+
+### Nuclear Option (If Nothing Else Works)
+
+If the auth system cannot be fixed safely, the safest path is:
+1. **Rollback `components/AuthProvider.tsx`** to the pre-fix state (commit before the same-origin proxy was added)
+2. **Keep the React Query migrations** (they're not the root cause, just exposing it faster)
+3. **Accept that Firefox ETP will still be an issue** until a proper fix is designed
+
+**DO NOT attempt to fix both the auth race condition AND the Firefox ETP issue in the same deployment.** These are two different bugs that got tangled together.

@@ -82,7 +82,7 @@ export default function StoryPage({
   const router = useRouter();
   const { isConnected } = useApp();
   const { address } = useAccount();
-  const { profile: authInfo, getAccessToken, isLoading: isAuthLoading } = useAuth();
+  const { profile: authInfo, getAccessToken } = useAuth();
 
   const supabase = supabaseClient;
 
@@ -102,7 +102,12 @@ export default function StoryPage({
   const { requireWallet } = useWalletGuard();
 
   // React Query hooks
-  const { data: storyApiData, isLoading: isStoryLoading } = useStory(storyId);
+  const {
+    data: storyApiData,
+    isLoading: isStoryLoading,
+    isError: isStoryError,
+    error: storyError,
+  } = useStory(storyId);
   const { data: likeStatusData } = useLikeStatus(storyId);
   const { data: followStatusData } = useFollowStatus(storyApiData?.story?.author?.id || "");
   const likeMutation = useToggleLike();
@@ -131,6 +136,9 @@ export default function StoryPage({
   const [showPaywallDialog, setShowPaywallDialog] = useState(false);
 
   const isLoading = isStoryLoading;
+  const isAuthError =
+    isStoryError &&
+    (storyError as any)?.status === 401;
 
   // Sync story data from React Query into local state
   useEffect(() => {
@@ -483,6 +491,27 @@ export default function StoryPage({
 
   if (isLoading) {
     return <BrandedLoader fullScreen message="Loading story..." />;
+  }
+
+  if (isAuthError) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center px-4">
+        <div className="text-center space-y-6 max-w-sm">
+          <div className="w-16 h-16 mx-auto rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
+            <Lock className="w-8 h-8 text-red-500" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-semibold text-foreground">Session Expired</h2>
+            <p className="text-sm text-muted-foreground">
+              Your session has expired. Please sign in again to view this story.
+            </p>
+          </div>
+          <Button onClick={() => router.push("/")} className="bg-indigo-600">
+            Sign In
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   if (!story) {

@@ -123,7 +123,7 @@ const getHeatmapColor = (count: number) => {
 export default function ProfilePage() {
   const { user: wagmiUser, isConnected } = useApp();
   const { address } = useAccount();
-  const { profile: authInfo, signInWithGoogle, refreshProfile, getAccessToken } = useAuth();
+  const { profile: authInfo, signInWithGoogle, refreshProfile, getAccessToken, isLoading: isAuthLoading } = useAuth();
   const supabase = supabaseClient;
   const { signMessageAsync } = useSignMessage();
   const { openConnectModal } = useConnectModal();
@@ -137,13 +137,21 @@ export default function ProfilePage() {
   const queryClient = useQueryClient();
 
   // React Query hooks
-  const { data: profileQueryData, isLoading: isProfileLoading } = useProfileData(
-    authInfo?.id || ""
-  );
-  const { data: storiesData, isLoading: isStoriesLoading } = useUserStories();
-  const { data: booksCount, isLoading: isBooksCountLoading } = useUserBooksCount(
-    authInfo?.id || ""
-  );
+  const {
+    data: profileQueryData,
+    isLoading: isProfileLoading,
+    isError: isProfileError,
+  } = useProfileData(authInfo?.id || "");
+  const {
+    data: storiesData,
+    isLoading: isStoriesLoading,
+    isError: isStoriesError,
+  } = useUserStories();
+  const {
+    data: booksCount,
+    isLoading: isBooksCountLoading,
+    isError: isBooksError,
+  } = useUserBooksCount(authInfo?.id || "");
 
   const profileData = profileQueryData as UserProfileData | null;
   const stories = useMemo(() => storiesData?.stories || [], [storiesData]);
@@ -323,7 +331,8 @@ export default function ProfilePage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
-  const isLoading = isProfileLoading || isStoriesLoading || isBooksCountLoading;
+  const isLoading = isAuthLoading || isProfileLoading || isStoriesLoading || isBooksCountLoading;
+  const isDataError = isProfileError || isStoriesError || isBooksError;
 
   // Track intent to link wallet — when user clicks "Connect Wallet" and
   // the RainbowKit modal opens, we need to auto-continue after they connect
@@ -632,6 +641,21 @@ export default function ProfilePage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <BrandedLoader size="md" message="Loading your profile..." />
+      </div>
+    );
+  }
+
+  if (isDataError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
+        <AlertTriangle className="w-12 h-12 text-amber-500" />
+        <h2 className="text-2xl font-semibold">Failed to Load Profile</h2>
+        <p className="text-gray-600 dark:text-gray-400 max-w-md">
+          We couldn&apos;t load your profile data. This may be due to a session issue. Try refreshing the page or signing in again.
+        </p>
+        <Button onClick={() => window.location.reload()} variant="outline">
+          Refresh Page
+        </Button>
       </div>
     );
   }

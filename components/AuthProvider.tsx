@@ -150,51 +150,77 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // sent automatically by the browser with every same-origin request.
   // API routes (lib/auth.ts) check both Bearer header and cookie.
   const getAccessToken = useCallback(async (): Promise<string | null> => {
+    console.log("[DIAGNOSTIC] getAccessToken() called");
     // 1. Try Supabase session (Google OAuth users)
     try {
       if (supabase) {
         const { data } = await supabase.auth.getSession();
         const session = data?.session;
+        console.log("[DIAGNOSTIC] getSession result:", {
+          hasSession: !!session,
+          hasAccessToken: !!session?.access_token,
+          expiresAt: session?.expires_at,
+          now: Math.floor(Date.now() / 1000),
+          provider: profile?.auth_provider,
+        });
 
         const sessionValid =
           session?.expires_at && session.expires_at * 1000 > Date.now() + 60_000;
 
         if (session?.access_token && sessionValid) {
+          console.log("[DIAGNOSTIC] Returning VALID access_token");
           return session.access_token;
         }
 
         // Session is expired or missing — attempt refresh.
         // Priority: same-origin proxy (bypasses Firefox ETP) → direct fallback.
-        if (session?.refresh_token || profile?.auth_provider === "google" || profile?.auth_provider === "both") {
+        const shouldAttemptRefresh = session?.refresh_token || profile?.auth_provider === "google" || profile?.auth_provider === "both";
+        console.log("[DIAGNOSTIC] shouldAttemptRefresh:", shouldAttemptRefresh);
+        if (shouldAttemptRefresh) {
           try {
+            console.log("[DIAGNOSTIC] Calling /api/auth/refresh (same-origin proxy)");
             const res = await fetchWithTimeout("/api/auth/refresh", {
               method: "POST",
             });
+            console.log("[DIAGNOSTIC] /api/auth/refresh status:", res.status);
             if (res.ok) {
               const refreshed = await res.json();
+              console.log("[DIAGNOSTIC] /api/auth/refresh response:", {
+                hasAccessToken: !!refreshed?.access_token,
+                hasError: !!refreshed?.error,
+              });
               if (refreshed?.access_token) {
+                console.log("[DIAGNOSTIC] Returning refreshed access_token from proxy");
                 return refreshed.access_token;
               }
+            } else {
+              const errBody = await res.json().catch(() => ({}));
+              console.warn("[DIAGNOSTIC] Proxy refresh failed, status:", res.status, "body:", errBody);
             }
-            console.warn("[AUTH] Proxy refresh failed, status:", res.status);
           } catch (proxyErr) {
-            console.warn("[AUTH] Proxy refresh threw:", proxyErr);
+            console.warn("[DIAGNOSTIC] Proxy refresh threw:", proxyErr);
           }
 
           // Fallback: direct cross-origin refresh (works in Chrome, may fail in Firefox)
           try {
+            console.log("[DIAGNOSTIC] Calling supabase.auth.refreshSession() (direct fallback)");
             const { data: refreshed } = await supabase.auth.refreshSession();
+            console.log("[DIAGNOSTIC] refreshSession result:", {
+              hasSession: !!refreshed?.session,
+              hasAccessToken: !!refreshed?.session?.access_token,
+            });
             if (refreshed?.session?.access_token) {
+              console.log("[DIAGNOSTIC] Returning refreshed access_token from direct refresh");
               return refreshed.session.access_token;
             }
           } catch (directErr) {
-            console.warn("[AUTH] Direct refreshSession threw:", directErr);
+            console.warn("[DIAGNOSTIC] Direct refreshSession threw:", directErr);
           }
         }
       }
     } catch (err) {
       if (err instanceof Error) {
-        console.warn("[AUTH] getAccessToken getSession failed:", err.message);
+        console.warn("[DIAGNOSTIC] getAccessToken getSession failed:", err.message);
       }
     }
 
@@ -202,9 +228,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     //    Return "cookie" sentinel so callers know the user IS authenticated
     //    (they just don't need to set an Authorization header manually).
     if (profile?.auth_provider === "wallet" || profile?.auth_provider === "both") {
+      console.log("[DIAGNOSTIC] Returning 'cookie' sentinel for wallet user");
       return "cookie";
     }
 
+    console.log("[DIAGNOSTIC] getAccessToken returning NULL");
     return null;
   }, [supabase, profile]);
 

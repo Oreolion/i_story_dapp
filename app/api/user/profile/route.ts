@@ -4,8 +4,20 @@ import { validateAuthOrReject, isAuthError } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {
+    const allCookies = request.cookies.getAll();
+    const authHeader = request.headers.get("Authorization");
+    console.log("[DIAGNOSTIC /api/user/profile] request:", {
+      cookieNames: allCookies.map((c) => c.name),
+      hasAuthHeader: !!authHeader,
+      authHeaderPrefix: authHeader?.slice(0, 20) || null,
+    });
+
     // Auth check
     const authResult = await validateAuthOrReject(request);
+    console.log("[DIAGNOSTIC /api/user/profile] authResult:", {
+      isAuthError: isAuthError(authResult),
+      userId: typeof authResult === "string" ? authResult.slice(0, 8) + "..." : null,
+    });
     if (isAuthError(authResult)) return authResult;
     const authenticatedUserId = authResult;
 

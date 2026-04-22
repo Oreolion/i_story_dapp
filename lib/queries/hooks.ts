@@ -11,13 +11,14 @@ import { queryKeys } from "./keys";
    ========================================================================== */
 
 export function useUserProfile() {
-  const { getAccessToken } = useAuth();
+  const { getAccessToken, isLoading: isAuthLoading } = useAuth();
   return useQuery({
     queryKey: queryKeys.auth.profile,
     queryFn: async () => {
       const token = await getAccessToken();
       return apiGet<{ user: any }>(token, "/api/user/profile");
     },
+    enabled: !isAuthLoading,
     staleTime: 60_000,
     retry: (count, err) => {
       if (err instanceof ApiError && err.status === 401) return false;
@@ -82,31 +83,33 @@ export interface Story {
 }
 
 export function useStoriesFeed() {
-  const { getAccessToken } = useAuth();
+  const { getAccessToken, isLoading: isAuthLoading } = useAuth();
   return useQuery({
     queryKey: queryKeys.stories.feed,
     queryFn: async () => {
       const token = await getAccessToken();
       return apiGet<{ stories: Story[] }>(token, "/api/stories/feed");
     },
+    enabled: !isAuthLoading,
     staleTime: 30_000,
   });
 }
 
 export function useUserStories() {
-  const { getAccessToken } = useAuth();
+  const { getAccessToken, isLoading: isAuthLoading } = useAuth();
   return useQuery({
     queryKey: queryKeys.stories.user("me"),
     queryFn: async () => {
       const token = await getAccessToken();
       return apiGet<{ stories: Story[] }>(token, "/api/stories");
     },
+    enabled: !isAuthLoading,
     staleTime: 30_000,
   });
 }
 
 export function useStory(storyId: string) {
-  const { getAccessToken } = useAuth();
+  const { getAccessToken, isLoading: isAuthLoading } = useAuth();
   return useQuery({
     queryKey: queryKeys.stories.detail(storyId),
     queryFn: async () => {
@@ -116,20 +119,20 @@ export function useStory(storyId: string) {
         comments: any[];
       }>(token, `/api/stories/${storyId}`);
     },
-    enabled: !!storyId,
+    enabled: !!storyId && !isAuthLoading,
     staleTime: 30_000,
   });
 }
 
 export function useStoryMetadata(storyId: string) {
-  const { getAccessToken } = useAuth();
+  const { getAccessToken, isLoading: isAuthLoading } = useAuth();
   return useQuery({
     queryKey: queryKeys.stories.metadata(storyId),
     queryFn: async () => {
       const token = await getAccessToken();
       return apiGet<any>(token, `/api/stories/${storyId}/metadata`);
     },
-    enabled: !!storyId,
+    enabled: !!storyId && !isAuthLoading,
     staleTime: 60_000,
   });
 }
@@ -139,7 +142,7 @@ export function useStoryMetadata(storyId: string) {
    ========================================================================== */
 
 export function useLikeStatus(storyId: string) {
-  const { getAccessToken } = useAuth();
+  const { getAccessToken, isLoading: isAuthLoading } = useAuth();
   return useQuery({
     queryKey: queryKeys.social.likeStatus(storyId),
     queryFn: async () => {
@@ -150,7 +153,7 @@ export function useLikeStatus(storyId: string) {
       );
       return { liked: data.liked[storyId] ?? false };
     },
-    enabled: !!storyId,
+    enabled: !!storyId && !isAuthLoading,
     staleTime: 10_000,
   });
 }
@@ -177,7 +180,7 @@ export function useToggleLike() {
 }
 
 export function useFollowStatus(userId: string) {
-  const { getAccessToken } = useAuth();
+  const { getAccessToken, isLoading: isAuthLoading } = useAuth();
   return useQuery({
     queryKey: queryKeys.social.followStatus(userId),
     queryFn: async () => {
@@ -188,7 +191,7 @@ export function useFollowStatus(userId: string) {
       );
       return { following: data.following[userId] ?? false };
     },
-    enabled: !!userId,
+    enabled: !!userId && !isAuthLoading,
     staleTime: 10_000,
   });
 }
@@ -250,19 +253,20 @@ export function usePostComment() {
    ========================================================================== */
 
 export function useLibraryCollections() {
-  const { getAccessToken } = useAuth();
+  const { getAccessToken, isLoading: isAuthLoading } = useAuth();
   return useQuery({
     queryKey: queryKeys.library.collections,
     queryFn: async () => {
       const token = await getAccessToken();
       return apiGet<{ collections: any[] }>(token, "/api/stories/collections");
     },
+    enabled: !isAuthLoading,
     staleTime: 30_000,
   });
 }
 
 export function useCollection(collectionId: string) {
-  const { getAccessToken } = useAuth();
+  const { getAccessToken, isLoading: isAuthLoading } = useAuth();
   return useQuery({
     queryKey: queryKeys.library.collection(collectionId),
     queryFn: async () => {
@@ -272,7 +276,7 @@ export function useCollection(collectionId: string) {
         `/api/stories/collections/${collectionId}`
       );
     },
-    enabled: !!collectionId,
+    enabled: !!collectionId && !isAuthLoading,
     staleTime: 30_000,
   });
 }
@@ -430,7 +434,7 @@ export function useParentStory(storyId: string | null) {
    ========================================================================== */
 
 export function useNotifications() {
-  const { getAccessToken } = useAuth();
+  const { getAccessToken, isLoading: isAuthLoading } = useAuth();
   return useQuery({
     queryKey: queryKeys.notifications.all,
     queryFn: async () => {
@@ -440,6 +444,7 @@ export function useNotifications() {
         "/api/notifications"
       );
     },
+    enabled: !isAuthLoading,
     staleTime: 15_000,
   });
 }
@@ -465,7 +470,7 @@ export function useMarkNotificationRead() {
    ========================================================================== */
 
 export function usePaymentStatus() {
-  const { getAccessToken } = useAuth();
+  const { getAccessToken, isLoading: isAuthLoading } = useAuth();
   return useQuery({
     queryKey: queryKeys.payments.status,
     queryFn: async () => {
@@ -475,6 +480,7 @@ export function usePaymentStatus() {
         subscription_expires_at: string | null;
       }>(token, "/api/payment/status");
     },
+    enabled: !isAuthLoading,
     staleTime: 60_000,
   });
 }

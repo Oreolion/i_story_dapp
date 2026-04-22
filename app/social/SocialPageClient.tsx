@@ -110,6 +110,7 @@ export default function SocialPage() {
       const token = await getAccessToken();
       return apiGet<{ stories: any[] }>(token, "/api/stories/feed");
     },
+    enabled: !isAuthLoading,
     staleTime: 30_000,
   });
 
