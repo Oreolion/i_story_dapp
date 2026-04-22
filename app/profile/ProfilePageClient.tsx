@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/queries/keys";
+import {
+  useProfileData,
+  useUserStories,
+  useUserBooksCount,
+} from "@/lib/queries/hooks";
 import { motion } from "framer-motion";
 import { useAccount } from "wagmi";
 import { toast } from "react-hot-toast";
@@ -116,7 +123,7 @@ const getHeatmapColor = (count: number) => {
 export default function ProfilePage() {
   const { user: wagmiUser, isConnected } = useApp();
   const { address } = useAccount();
-  const { profile: authInfo, signInWithGoogle, refreshProfile, getAccessToken, isLoading: isAuthLoading } = useAuth();
+  const { profile: authInfo, signInWithGoogle, refreshProfile, getAccessToken } = useAuth();
   const supabase = supabaseClient;
   const { signMessageAsync } = useSignMessage();
   const { openConnectModal } = useConnectModal();
@@ -127,8 +134,169 @@ export default function ProfilePage() {
   const { mintBook, isPending: isMinting } = useStoryNFT();
   const { requireWallet } = useWalletGuard();
 
-  // Data State
-  const [profileData, setProfileData] = useState<UserProfileData | null>(null);
+  const queryClient = useQueryClient();
+
+  // React Query hooks
+  const { data: profileQueryData, isLoading: isProfileLoading } = useProfileData(
+    authInfo?.id || ""
+  );
+  const { data: storiesData, isLoading: isStoriesLoading } = useUserStories();
+  const { data: booksCount, isLoading: isBooksCountLoading } = useUserBooksCount(
+    authInfo?.id || ""
+  );
+
+  const profileData = profileQueryData as UserProfileData | null;
+  const stories = useMemo(() => storiesData?.stories || [], [storiesData]);
+
+  // Derived stats & activity
+  const {
+    stats,
+    activityData,
+    heatmapData,
+    achievements,
+    todaysStories,
+  } = useMemo(() => {
+    const now = new Date();
+    const totalLikes = stories.reduce((sum, s) => sum + (s.likes || 0), 0);
+
+    const activityMap = new Map<string, number>();
+    stories.forEach((s) => {
+      const date = new Date(s.created_at).toISOString().split("T")[0];
+      activityMap.set(date, (activityMap.get(date) || 0) + 1);
+    });
+
+    // Monthly Stories
+    const monthlyStories = stories.filter((s) => {
+      const d = new Date(s.created_at);
+      return (
+        d.getMonth() === now.getMonth() &&
+        d.getFullYear() === now.getFullYear()
+      );
+    }).length;
+
+    // Streak Logic
+    let currentStreak = 0;
+    for (let i = 0; i < 365; i++) {
+      const d = new Date();
+      d.setDate(now.getDate() - i);
+      const dateStr = d.toISOString().split("T")[0];
+      if (activityMap.has(dateStr)) {
+        currentStreak++;
+      } else if (
+        i > 0 &&
+        activityMap.has(new Date().toISOString().split("T")[0]) === false
+      ) {
+        if (i > 1) break;
+      } else {
+        break;
+      }
+    }
+
+    const computedStats = {
+      stories: stories.length,
+      books: booksCount || 0,
+      likes: totalLikes,
+      views: stories.reduce((sum, s) => sum + ((s as any).view_count || 0), 0),
+      monthlyStories,
+      streak: currentStreak,
+    };
+
+    // Activity List Data (Last 14 Days)
+    const last14Days = Array.from({ length: 14 }, (_, i) => {
+      const d = new Date();
+      d.setDate(now.getDate() - i);
+      return d.toISOString().split("T")[0];
+    });
+
+    const listData = last14Days
+      .map((date) => {
+        const dayStories = stories.filter((s) =>
+          s.created_at.startsWith(date)
+        );
+        const likes = dayStories.reduce(
+          (acc, s) => acc + (s.likes || 0),
+          0
+        );
+        const entries = dayStories.length;
+        const views = dayStories.reduce(
+          (acc, s) => acc + ((s as any).view_count || 0),
+          0
+        );
+        return { date, entries, likes, views };
+      })
+      .filter((d) => d.entries > 0);
+
+    // Heatmap Data (Last ~52 weeks)
+    const heatmap = [];
+    for (let i = 371; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(now.getDate() - i);
+      const dateStr = d.toISOString().split("T")[0];
+      heatmap.push({
+        date: dateStr,
+        count: activityMap.get(dateStr) || 0,
+      });
+    }
+
+    // Achievements
+    const computedAchievements = [
+      {
+        id: 1,
+        name: "First Story",
+        description: "Recorded your first journal entry",
+        earned: stories.length > 0,
+        date: stories[stories.length - 1]?.created_at,
+      },
+      {
+        id: 2,
+        name: "Prolific Writer",
+        description: "Recorded 10+ stories",
+        earned: stories.length >= 10,
+        date: null,
+      },
+      {
+        id: 3,
+        name: "Community Star",
+        description: "Received 50+ total likes",
+        earned: totalLikes >= 50,
+        date: null,
+      },
+      {
+        id: 4,
+        name: "Book Author",
+        description: "Compiled your first digital book",
+        earned: (booksCount || 0) > 0,
+        date: null,
+      },
+      {
+        id: 5,
+        name: "Daily Grinder",
+        description: "Wrote 3 stories in one day",
+        earned: Math.max(...Array.from(activityMap.values()), 0) >= 3,
+        date: null,
+      },
+      {
+        id: 6,
+        name: "Vocalist",
+        description: "Recorded a story with audio",
+        earned: stories.some((s) => s.audio_url),
+        date: null,
+      },
+    ];
+
+    // Today's Stories
+    const todayStr = now.toISOString().split("T")[0];
+    const todays = stories.filter((s) => s.created_at.startsWith(todayStr));
+
+    return {
+      stats: computedStats,
+      activityData: listData,
+      heatmapData: heatmap,
+      achievements: computedAchievements,
+      todaysStories: todays,
+    };
+  }, [stories, booksCount]);
+
   const [formData, setFormData] = useState<ProfileFormData>({
     name: "",
     username: "",
@@ -138,14 +306,7 @@ export default function ProfilePage() {
     avatar: "",
     email: "",
   });
-  
-  // Stats & Activity State
-  const [stats, setStats] = useState({ stories: 0, books: 0, likes: 0, views: 0, monthlyStories: 0, streak: 0 });
-  const [activityData, setActivityData] = useState<any[]>([]);
-  const [heatmapData, setHeatmapData] = useState<{date: string, count: number}[]>([]);
-  const [achievements, setAchievements] = useState<any[]>([]);
-  const [todaysStories, setTodaysStories] = useState<any[]>([]);
-  
+
   // Preferences State (Local UI state for now)
   const [preferences, setPreferences] = useState({
     emailNotifications: true,
@@ -157,11 +318,12 @@ export default function ProfilePage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLinkingWallet, setIsLinkingWallet] = useState(false);
   const [isLinkingGoogle, setIsLinkingGoogle] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [currentTab, setCurrentTab] = useState("overview");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
+
+  const isLoading = isProfileLoading || isStoriesLoading || isBooksCountLoading;
 
   // Track intent to link wallet — when user clicks "Connect Wallet" and
   // the RainbowKit modal opens, we need to auto-continue after they connect
@@ -269,147 +431,6 @@ export default function ProfilePage() {
     }
   };
 
-  // --- 1. Fetch All Data ---
-  useEffect(() => {
-    if (isAuthLoading) return; // Wait for auth to resolve
-    if (!supabase || !authInfo?.id) {
-        setIsLoading(false);
-        return;
-    }
-
-    const loadProfileData = async () => {
-      setIsLoading(true);
-      try {
-        // A. Fetch Profile
-        const { data: profile, error: profileError } = await supabase
-          .from("users")
-          .select("*")
-          .eq("id", authInfo.id)
-          .single();
-
-        if (profileError) throw profileError;
-        setProfileData(profile);
-
-        // B. Fetch Stories
-        const { data: stories, error: storyError } = await supabase
-          .from("stories")
-          .select("id, created_at, title, content, likes, audio_url, view_count")
-          .eq("author_id", authInfo.id)
-          .order("created_at", { ascending: false });
-
-        if (storyError) throw storyError;
-
-        // C. Fetch Books
-        const { count: booksCount } = await supabase
-          .from("books")
-          .select("*", { count: 'exact', head: true })
-          .eq("author_id", authInfo.id);
-
-        // --- Calculations ---
-        const totalLikes = stories?.reduce((sum, s) => sum + (s.likes || 0), 0) || 0;
-        const now = new Date();
-        
-        // Monthly Stories
-        const monthlyStories = stories?.filter(s => {
-            const d = new Date(s.created_at);
-            return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-        }).length || 0;
-
-        // Streak Logic
-        let currentStreak = 0;
-        const activityMap = new Map<string, number>();
-        
-        // Map all stories to dates
-        stories?.forEach(s => {
-            const date = new Date(s.created_at).toISOString().split('T')[0];
-            activityMap.set(date, (activityMap.get(date) || 0) + 1);
-        });
-
-        // Calculate Streak (Check previous days consecutively)
-        for (let i = 0; i < 365; i++) {
-             const d = new Date();
-             d.setDate(now.getDate() - i);
-             const dateStr = d.toISOString().split('T')[0];
-             if (activityMap.has(dateStr)) {
-                 currentStreak++;
-             } else if (i > 0 && activityMap.has(new Date().toISOString().split('T')[0]) === false) {
-                 // Allow streak to continue if today just started and we haven't posted YET, 
-                 // but stop if we missed yesterday.
-                 if(i > 1) break; 
-             } else {
-                 break;
-             }
-        }
-
-        setStats({
-            stories: stories?.length || 0,
-            books: booksCount || 0,
-            likes: totalLikes,
-            views: stories?.reduce((sum, s) => sum + ((s as any).view_count || 0), 0) || 0,
-            monthlyStories,
-            streak: currentStreak
-        });
-
-        // --- Activity List Data (Last 14 Days) ---
-        const last14Days = Array.from({ length: 14 }, (_, i) => {
-            const d = new Date();
-            d.setDate(now.getDate() - i);
-            return d.toISOString().split('T')[0];
-        });
-
-        const listData = last14Days.map(date => {
-             // Find specific stories for this date to sum likes
-             const dayStories = stories?.filter(s => s.created_at.startsWith(date));
-             const likes = dayStories?.reduce((acc, s) => acc + (s.likes || 0), 0) || 0;
-             const entries = dayStories?.length || 0;
-             const views = dayStories?.reduce((acc, s) => acc + ((s as any).view_count || 0), 0) || 0;
-             return { date, entries, likes, views };
-        }).filter(d => d.entries > 0); // Only show days with activity
-        
-        setActivityData(listData);
-
-        // --- Heatmap Data (Last ~52 weeks, matching grid) ---
-        const heatmap = [];
-        for (let i = 371; i >= 0; i--) {
-            const d = new Date();
-            d.setDate(now.getDate() - i);
-            const dateStr = d.toISOString().split('T')[0];
-            heatmap.push({
-                date: dateStr,
-                count: activityMap.get(dateStr) || 0
-            });
-        }
-        setHeatmapData(heatmap);
-
-        // --- Achievements ---
-        const newAchievements = [
-            { id: 1, name: "First Story", description: "Recorded your first journal entry", earned: (stories?.length || 0) > 0, date: stories?.[stories.length - 1]?.created_at },
-            { id: 2, name: "Prolific Writer", description: "Recorded 10+ stories", earned: (stories?.length || 0) >= 10, date: null },
-            { id: 3, name: "Community Star", description: "Received 50+ total likes", earned: totalLikes >= 50, date: null },
-            { id: 4, name: "Book Author", description: "Compiled your first digital book", earned: (booksCount || 0) > 0, date: null },
-            { id: 5, name: "Daily Grinder", description: "Wrote 3 stories in one day", earned: Math.max(...Array.from(activityMap.values()), 0) >= 3, date: null },
-            { id: 6, name: "Vocalist", description: "Recorded a story with audio", earned: stories?.some(s => s.audio_url), date: null },
-        ];
-        setAchievements(newAchievements);
-
-        // --- Identify Today's Stories (For Daily Journal) ---
-        const todayStr = now.toISOString().split('T')[0];
-        setTodaysStories(stories?.filter(s => s.created_at.startsWith(todayStr)) || []);
-
-      } catch (error) {
-        console.error("Profile load error:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    // Safety timeout: force loading off after 15s to prevent infinite spinner
-    const timeout = setTimeout(() => setIsLoading(false), 15_000);
-    loadProfileData().finally(() => clearTimeout(timeout));
-
-    return () => clearTimeout(timeout);
-  }, [supabase, authInfo?.id, isAuthLoading]);
-
   // --- Sync Form + Preferences ---
   useEffect(() => {
     if (profileData) {
@@ -466,7 +487,7 @@ export default function ProfilePage() {
     }
     // ---------------------------------------------------
 
-    setProfileData(prev => prev ? ({...prev, ...formData}) : null);
+    queryClient.invalidateQueries({ queryKey: queryKeys.user.profile(authInfo.id) });
     setCurrentTab("overview");
   } catch (err: any) {
     toast.error(`Save failed: ${err.message}`);
@@ -499,6 +520,7 @@ export default function ProfilePage() {
         toast.error("Failed to save preference");
         return;
       }
+      queryClient.invalidateQueries({ queryKey: queryKeys.user.profile(authInfo.id) });
     }
     toast.success("Preference updated");
   };
@@ -576,9 +598,9 @@ export default function ProfilePage() {
        if (error) throw error;
 
        toast.success("Daily Journal Minted!", { id: toastId });
-       
+
        // Refresh stats
-       setStats(prev => ({ ...prev, books: prev.books + 1 }));
+       queryClient.invalidateQueries({ queryKey: queryKeys.library.books(authInfo.id) });
 
     } catch (err: any) {
         console.error(err);

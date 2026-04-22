@@ -1,8 +1,8 @@
 # Firefox Auth Bug — Deep Analysis & Resolution Log
 
-> **Status**: Resolved (pending deployment verification)  
+> **Status**: **NOT RESOLVED** — Fix deployed but auth failure persists  
 > **Affected Browsers**: Firefox (Normal & Dev Edition), Firefox Mobile  
-> **Root Cause**: Firefox Enhanced Tracking Protection (ETP) + Total Cookie Protection silently blocking Supabase auth refresh requests  
+> **Root Cause**: Firefox Enhanced Tracking Protection (ETP) + Total Cookie Protection suspected; however, same-origin proxy fix did not resolve the issue. See Section 11.  
 > **Emergency Rollback Commit**: `10729729bc7b78d4b0e61d9ffbe2d0a4e568fd1b`  
 
 ---
@@ -254,14 +254,138 @@ The user noted that network errors could be from the computer going to sleep. He
 
 ---
 
-## 10. If This Fix Still Doesn't Work
+## 10. Post-Deployment Verification — Fix FAILED
 
-### Next Diagnostic Steps
-1. Check if Firefox Dev Edition console shows **different** errors (not the `(null)` refresh error)
-2. Look for `Partitioned` cookie attribute issues in Dev Edition
-3. Consider adding `__Host-` prefix to cookies for stricter same-site enforcement
-4. As nuclear option: store session in `localStorage` instead of cookies (less secure but bypasses cookie partitioning)
-5. The emergency rollback commit `10729729bc7b78d4b0e61d9ffbe2d0a4e568fd1b` is always available via:
-   ```bash
-   git checkout 10729729bc7b78d4b0e61d9ffbe2d0a4e568fd1b -- components/AuthProvider.tsx
-   ```
+### Symptoms After Deploying the Same-Origin Proxy Fix
+
+**Date reported**: 2026-04-22  
+**Environment**: Production (`estories.app`), Firefox 149.0 (Windows), Firefox Dev Edition  
+**User state**: Logged in with Google OAuth (cookie `sb-qfwhtsmqndnocfidhdhy-auth-token` present in request)
+
+#### Symptom 1: `/api/user/profile` returns 401
+```
+GET https://estories.app/api/user/profile
+Status: 401 Unauthorized
+```
+
+**Request headers show the Supabase auth cookie IS being sent**:
+```
+Cookie: sb-qfwhtsmqndnocfidhdhy-auth-token=base64-eyJhY2Nlc3NfdG9rZW4iOiJleUpoYkdjaU9pSklVekkxTmlJc0ltdHBaQ0k2SW1SeFNsUkVPRUpMTjFCaWFraDJTamdpTENKMGVYQWlPaUpLVjFRaWZRLmV5SnBjM01pT2lKb2RIUndjem92TDNGbWQyaDBjMjF4Ym1SdWIyTm1hV1JvWkdoNUxuTjFjR0ZpWVhObExtTnZMMkYxZEdndmRqRWlMQ0p6ZFdJaU9pSTJPR0l3TkdVek9DMWhZMk0yTFRRMU5tRXRPRGs0T1MxbU56WmxPVGxsTkRRME5HSWlMQ0poZFdRaU9pSmhkWFJvWlc1MGFXTmhkR1ZrSWl3aVpYaHdJam94TnpjMk9EWTJPVEk0TENKcFlYUWlPakUzTnpZNE5qTXpNamdzSW1WdFlXbHNJam9pY21WdGVXOXlaVzh4TVVCbmJXRnBiQzVqYjIwaUxDSndhRzl1WlNJNk…25lX3ZlcmlmaWVkIjpmYWxzZSwicHJvdmlkZXJfaWQiOiIxMDc2NTkzNTc2MDU3Njc2MDY5NDQiLCJzdWIiOiIxMDc2NTkzNTc2MDU3Njc2MDY5NDQifSwicHJvdmlkZXIiOiJnb29nbGUiLCJsYXN0X3NpZ25faW5fYXQiOiIyMDI2LTAxLTMwVDEyOjAzOjE3LjI5NTQ5N1oiLCJjcmVhdGVkX2F0IjoiMjAyNi0wMS0zMFQxMjowMzoxNy4yOTU1NTVaIiwidXBkYXRlZF9hdCI6IjIwMjYtMDQtMjJUMTA6MDQ6MDguMDQ3MDc0WiIsImVtYWlsIjoicmVteW9yZW8xMUBnbWFpbC5jb20ifV0sImNyZWF0ZWRfYXQiOiIyMDI2LTAxLTMwVDEyOjAzOjE3LjI1NjQ1NFoiLCJ1cGRhdGVkX2F0IjoiMjAyNi0wNC0yMlQxMzowODo0OC4zODA0MDlaIiwiaXNfYW5vbnltb3VzIjpmYWxzZX19
+```
+
+The cookie is present, same-origin, and the request reaches the server. Yet the server responds with **401**. This means:
+- **Firefox ETP is NOT blocking the request** — the request arrives at the server (HTTP/2 401, not `(null)` status).
+- **The cookie value is either expired, malformed, or the server-side validation is failing** for a different reason.
+
+#### Symptom 2: Infinite Loading on Navigation
+- Navigate to any data-fetching tab (e.g., `/tracker`, `/library`, `/social`)
+- Page shows loading spinner **indefinitely**
+- **Reloading the page fixes it immediately**
+- This happens consistently in both normal Firefox and Firefox Dev Edition
+
+#### Symptom 3: Firefox Dev Edition Behavior Unchanged
+- Dev Edition still exhibits the same login loop / auth failure pattern
+- No improvement after the same-origin proxy fix
+
+### Critical Insight: The Error Changed
+
+| Before Fix | After Fix |
+|------------|-----------|
+| `Status code: (null)` + `NetworkError` | `HTTP/2 401` |
+| Cross-origin `refreshSession()` blocked | Same-origin request **arrives** at server |
+| Firefox never sent the request | Firefox **sent** the request with cookie |
+
+**Conclusion**: The same-origin proxy successfully bypassed Firefox's cross-origin blocking, but the underlying auth mechanism is still broken. The problem is now server-side: the Supabase auth cookie is being transmitted but not validated correctly by the API middleware.
+
+---
+
+## 11. What Has Been Tried (And Failed)
+
+| Attempt | What Was Changed | Result |
+|---------|------------------|--------|
+| Same-origin refresh proxy | `app/api/auth/refresh/route.ts` + `autoRefreshToken: false` | Request reaches server but still 401s |
+| Proactive `getAccessToken()` refresh | `AuthProvider.tsx` calls `/api/auth/refresh` before API calls | Cookie present but invalid/expired |
+| `credentials: "same-origin"` on fetch | All `apiGet`/`apiPost` calls | Did not affect cookie validation |
+| Stabilized `onAuthStateChange` | `[supabase]` deps only | No impact on the 401 issue |
+| Removed `withTimeout` from auth calls | Prevents zombie Web Locks | No impact on the 401 issue |
+
+---
+
+## 12. New Hypotheses (For the Next Agent)
+
+### Hypothesis A: Cookie Expiry / Clock Skew
+The base64 cookie contains an `expires_at` field. If the server clock and client clock diverge, or if the cookie expires between the client reading it and the server validating it, the server rejects it. **However**, a page reload fixes it, which suggests the cookie is re-read/re-validated successfully on reload.
+
+### Hypothesis B: Supabase SSR Cookie Parsing Bug
+`@supabase/ssr` parses cookies differently on the client vs. server. The client may be sending a cookie that the server-side `createServerClient` cannot decode properly. The cookie name contains the project ref (`sb-qfwhtsmqndnocfidhdhy-auth-token`) — verify that the server-side client is looking for the **exact same cookie name**.
+
+### Hypothesis C: `getAccessToken()` Returns Stale / Wrong Token
+`getAccessToken()` in `AuthProvider.tsx` may be returning an expired token from `supabase.auth.getSession()` (client-side cache) even after the same-origin refresh "succeeds." The client-side token and the cookie token may be out of sync.
+
+### Hypothesis D: API Route Middleware Bug
+`validateAuthOrReject()` in API routes may be failing to extract or validate the cookie correctly. Check:
+- Does `createSupabaseAdminClient()` or `createServerClient()` in the API route read the cookie from `cookies()` correctly?
+- Is the cookie being parsed as base64-decoded JSON correctly?
+- Does `cookies()` from `next/headers` return the cookie when the request is made client-side via `fetch`?
+
+### Hypothesis E: React Query Cache + Auth Race
+React Query hooks fire immediately on mount. If `getAccessToken()` is called before `AuthProvider` has finished its mount hydration, the token may be `null` or stale. The component shows "loading" forever because the 401 response is not handled (no error UI — just infinite spinner).
+
+**Evidence for Hypothesis E**: The infinite loading only happens on *navigation* (client-side routing), not on full page reload. On reload, the server renders the page and `AuthProvider` hydrates before React Query fires. On navigation, React Query may fire before auth is ready.
+
+---
+
+## 13. Recommended Diagnostic Steps for Next Agent
+
+1. **Add server-side logging** to `/api/user/profile` and `/api/auth/refresh`:
+   - Log what cookies are received (`console.log(cookies().getAll())`)
+   - Log what `supabase.auth.getUser()` returns (or if it throws)
+   - Log the decoded cookie structure (is `access_token` present and non-empty?)
+
+2. **Add client-side logging** to `AuthProvider.tsx`:
+   - Log the output of `getAccessToken()` before every API call
+   - Log `document.cookie` to verify the browser actually has the cookie
+   - Log `supabase.auth.getSession()` vs. `supabase.auth.getUser()` divergence
+
+3. **Test the cookie directly**:
+   - In Firefox DevTools, copy the cookie value and base64-decode it
+   - Check `expires_at` — is it in the past?
+   - Check `access_token` — is it present and looks like a valid JWT?
+
+4. **Test the API route in isolation**:
+   - Use `curl` with the cookie to call `/api/user/profile`
+   - If `curl` works but browser `fetch` doesn't, it's a cookie/header issue
+   - If `curl` also 401s, the cookie value itself is invalid
+
+5. **Check React Query error handling**:
+   - The infinite loading suggests React Query hooks are NOT handling 401 errors
+   - Add `throwOnError: true` or `error` state rendering to see if queries are failing silently
+   - Check if `useAuth()` returns `isLoading: true` indefinitely during navigation
+
+6. **Verify the server-side Supabase client config**:
+   - In `lib/supabase/server.ts` (or wherever `createServerClient` is configured), ensure `cookieOptions` match the client-side config exactly
+   - Ensure the server client is configured with the same `auth.flowType` (pkce) and `auth.detectSessionInUrl` settings
+
+---
+
+## 14. Files That Must Be Examined
+
+| File | Why |
+|------|-----|
+| `components/AuthProvider.tsx` | `getAccessToken()` may return stale token; mount hydration may race with React Query |
+| `app/api/auth/refresh/route.ts` | May not be correctly refreshing the cookie or may be returning an expired token |
+| `app/api/user/profile/route.ts` | Server-side cookie validation is failing — add logging here |
+| `lib/supabase/server.ts` (or equivalent) | Server-side `createServerClient` config must match client config |
+| `lib/api.ts` | `apiGet`/`apiPost` may not be handling 401s or token refresh correctly during navigation |
+| `app/utils/supabase/supabaseClient.ts` | Browser client config; verify `cookieOptions` and `auth` settings |
+
+---
+
+## 15. Emergency Rollback
+
+The emergency rollback commit `10729729bc7b78d4b0e61d9ffbe2d0a4e568fd1b` is always available via:
+```bash
+git checkout 10729729bc7b78d4b0e61d9ffbe2d0a4e568fd1b -- components/AuthProvider.tsx
+```
+
+**Note**: The old code had the same Firefox issues, just masked by luck. Rolling back is a temporary measure, not a fix.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, use, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import Link from "next/link";
@@ -40,6 +40,14 @@ import { VerifiedMetricsCard } from '@/components/VerifiedMetricsCard';
 import { TestnetBanner } from '@/components/TestnetBanner';
 import { useStoryMetadata } from '../../hooks/useStoryMetadata';
 import { useVerifiedMetrics } from '../../hooks/useVerifiedMetrics';
+import {
+  useStory,
+  useLikeStatus,
+  useFollowStatus,
+  useToggleLike,
+  useToggleFollow,
+  usePostComment,
+} from "@/lib/queries/hooks";
 
 import {
   Heart,
@@ -93,18 +101,23 @@ export default function StoryPage({
   const { mintBook, isPending: isMinting } = useStoryNFT();
   const { requireWallet } = useWalletGuard();
 
+  // React Query hooks
+  const { data: storyApiData, isLoading: isStoryLoading } = useStory(storyId);
+  const { data: likeStatusData } = useLikeStatus(storyId);
+  const { data: followStatusData } = useFollowStatus(storyApiData?.story?.author?.id || "");
+  const likeMutation = useToggleLike();
+  const followMutation = useToggleFollow();
+  const commentMutation = usePostComment();
+
   // State
   const [story, setStory] = useState<StoryDataType | null>(null);
   const [comments, setComments] = useState<CommentDataTypes[]>([]);
   const [parentStory, setParentStory] = useState<{ id: string; title: string } | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isUnlocked, setIsUnlocked] = useState(false);
 
   // Actions State
-  const [isLiking, setIsLiking] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [isTipping, setIsTipping] = useState(false);
-  const [isPostingComment, setIsPostingComment] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isFollowingAuthor, setIsFollowingAuthor] = useState(false);
   const [authorFollowers, setAuthorFollowers] = useState(0);
@@ -117,178 +130,110 @@ export default function StoryPage({
   const [showTipDialog, setShowTipDialog] = useState(false);
   const [showPaywallDialog, setShowPaywallDialog] = useState(false);
 
-  // --- 1. Fetch Data ---
-  useEffect(() => {
-    // Wait for auth to hydrate before fetching
-    if (isAuthLoading) return;
+  const isLoading = isStoryLoading;
 
-    // Stop if storyId is missing
-    if (!storyId) {
-      if (storyId === undefined) return;
-      setIsLoading(false);
+  // Sync story data from React Query into local state
+  useEffect(() => {
+    if (!storyApiData?.story) {
+      setStory(null);
+      setComments([]);
+      setParentStory(null);
       return;
     }
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15_000);
+    const s = storyApiData.story;
+    const authorData = s.author;
 
-    const fetchStoryAndComments = async () => {
-      try {
-        setIsLoading(true);
+    setStory({
+      id: s.id as any,
+      numeric_id: s.numeric_id as any,
+      title: s.title,
+      content: s.content,
+      teaser: s.teaser,
+      created_at: s.created_at,
+      story_date: s.story_date || s.created_at,
+      is_public: s.is_public || false,
+      timestamp: s.created_at,
+      likes: s.likes || 0,
+      comments: s.comments_count || 0,
+      shares: s.shares || 0,
+      views: s.view_count || 0,
+      hasAudio: s.has_audio || false,
+      audio_url: s.audio_url ?? undefined,
+      isLiked: likeStatusData?.liked ?? false,
+      mood: s.mood || "neutral",
+      tags: s.tags || [],
+      paywallAmount: s.paywall_amount || 0,
+      story_type: (s.story_type as any) || undefined,
+      author: {
+        id: authorData?.id,
+        name: authorData?.name || null,
+        username: authorData?.username || null,
+        avatar: authorData?.avatar || null,
+        wallet_address: authorData?.wallet_address || null,
+        followers: authorData?.followers_count || 0,
+        badges: authorData?.badges || [],
+        isFollowing: followStatusData?.following ?? false,
+      },
+      author_wallet: {
+        id: authorData?.id,
+        name: authorData?.name || null,
+        username: authorData?.username || null,
+        avatar: authorData?.avatar || null,
+        wallet_address: authorData?.wallet_address || null,
+        followers: authorData?.followers_count || 0,
+        badges: authorData?.badges || [],
+        isFollowing: followStatusData?.following ?? false,
+      },
+    });
 
-        // Fetch story + author + comments via API (bypasses RLS)
-        // Pass auth header so the API can identify the viewer (needed for voice privacy)
-        const token = await getAccessToken();
-        const res = await fetch(`/api/stories/${storyId}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-          signal: controller.signal,
-        });
-        if (!res.ok) {
-          setStory(null);
-          return;
-        }
+    const formattedComments = (storyApiData.comments || []).map((c: any) => {
+      const commentAuthor = Array.isArray(c.author) ? c.author[0] : c.author;
+      return {
+        id: c.id,
+        content: c.content,
+        created_at: c.created_at,
+        author: {
+          name: commentAuthor?.name || "Anonymous",
+          avatar: commentAuthor?.avatar,
+          wallet_address: commentAuthor?.wallet_address,
+        },
+      };
+    });
 
-        const { story: storyData, comments: commentsData } = await res.json();
+    setComments(formattedComments);
+    setParentStory(s.parentStory || null);
+  }, [storyApiData, likeStatusData, followStatusData]);
 
-        if (storyData && storyData.author) {
-          const authorData = storyData.author;
-
-          setStory({
-            id: storyData.id,
-            numeric_id: storyData.numeric_id,
-            title: storyData.title,
-            content: storyData.content,
-            teaser: storyData.teaser,
-            created_at: storyData.created_at,
-            story_date: storyData.story_date || storyData.created_at,
-            is_public: storyData.is_public || false,
-            timestamp: storyData.created_at,
-            likes: storyData.likes || 0,
-            comments: storyData.comments_count || 0,
-            shares: storyData.shares || 0,
-            views: storyData.view_count || 0,
-            hasAudio: storyData.has_audio || false,
-            audio_url: storyData.audio_url,
-            isLiked: false,
-            mood: storyData.mood || "neutral",
-            tags: storyData.tags || [],
-            paywallAmount: storyData.paywall_amount || 0,
-            story_type: storyData.story_type || undefined,
-            author: {
-              id: authorData.id,
-              name: authorData.name || null,
-              username: authorData.username || null,
-              avatar: authorData.avatar || null,
-              wallet_address: authorData.wallet_address || null,
-              followers: authorData.followers_count || 0,
-              badges: authorData.badges || [],
-              isFollowing: false,
-            },
-            author_wallet: {
-              id: authorData.id,
-              name: authorData.name || null,
-              username: authorData.username || null,
-              avatar: authorData.avatar || null,
-              wallet_address: authorData.wallet_address || null,
-              followers: authorData.followers_count || 0,
-              badges: authorData.badges || [],
-              isFollowing: false,
-            },
-          });
-
-          // Check if unlocked in DB
-          if (authInfo?.id && storyData.paywall_amount > 0 && supabase) {
-            const { data: unlockData } = await supabase
-              .from("unlocked_content")
-              .select("id")
-              .eq("user_id", authInfo.id)
-              .eq("story_id", storyId)
-              .maybeSingle();
-
-            if (unlockData) setIsUnlocked(true);
-          }
-
-          // Fetch like status for this story
-          if (token) {
-            try {
-              const likeRes = await fetch(`/api/social/like/status?story_ids=${storyId}`, {
-                headers: { Authorization: `Bearer ${token}` },
-                signal: controller.signal,
-              });
-              if (likeRes.ok) {
-                const { liked } = await likeRes.json();
-                if (liked[storyId]) setIsLiked(true);
-              }
-            } catch {
-              // Non-critical — like status defaults to false
-            }
-          }
-        } else {
-          setStory(null);
-        }
-
-        // Format comments
-        const formattedComments = (commentsData || []).map((c: any) => {
-          const commentAuthor = Array.isArray(c.author) ? c.author[0] : c.author;
-          return {
-            id: c.id,
-            content: c.content,
-            created_at: c.created_at,
-            author: {
-              name: commentAuthor?.name || "Anonymous",
-              avatar: commentAuthor?.avatar,
-              wallet_address: commentAuthor?.wallet_address,
-            },
-          };
-        });
-
-        setComments(formattedComments);
-
-        // Set parent story if this is a continuation
-        if (storyData.parentStory) {
-          setParentStory(storyData.parentStory);
-        }
-      } catch (error) {
-        console.error("Error fetching details:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchStoryAndComments();
-
-    return () => {
-      clearTimeout(timeout);
-      controller.abort();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storyId, authInfo?.id, isAuthLoading]);
-
-  // --- 1b. Fetch follow status once story and user are available ---
+  // Sync follow status + followers when story changes
   useEffect(() => {
-    const authorId = story?.author?.id;
-    if (!authorId || !authInfo?.id) return;
-    if (authorId === authInfo.id) return; // Can't follow yourself
+    if (story?.author) {
+      setIsFollowingAuthor(story.author.isFollowing);
+      setAuthorFollowers(story.author.followers || 0);
+    }
+  }, [story?.author?.isFollowing, story?.author?.followers]);
 
-    const checkFollow = async () => {
-      try {
-        const token = await getAccessToken();
-        if (!token) return;
-        const res = await fetch(
-          `/api/social/follow?followed_ids=${authorId}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        if (res.ok) {
-          const { following } = await res.json();
-          setIsFollowingAuthor(following[authorId] || false);
-        }
-      } catch (err) {
-        console.error("[STORY PAGE] Follow status check error:", err);
-      }
+  // Sync like status when query updates
+  useEffect(() => {
+    setIsLiked(likeStatusData?.liked ?? false);
+  }, [likeStatusData]);
+
+  // Check unlock status via Supabase
+  useEffect(() => {
+    if (!authInfo?.id || !storyId || !supabase) return;
+    if (!story || story.paywallAmount <= 0) return;
+
+    const checkUnlock = async () => {
+      const { data: unlockData } = await supabase
+        .from("unlocked_content")
+        .select("id")
+        .eq("user_id", authInfo.id)
+        .eq("story_id", storyId)
+        .maybeSingle();
+      if (unlockData) setIsUnlocked(true);
     };
-    checkFollow();
-    setAuthorFollowers(story.author.followers || 0);
-  }, [story?.author?.id, authInfo?.id]);
+    checkUnlock();
+  }, [authInfo?.id, storyId, story?.paywallAmount]);
 
   // --- 2. Payment Verification Listener ---
   useEffect(() => {
@@ -357,9 +302,6 @@ export default function StoryPage({
     if (!authInfo) return toast.error("Please sign in to like stories");
     if (!story) return;
 
-    const token = await getAccessToken();
-    if (!token) return toast.error("Please sign in to like stories");
-
     const prevLiked = isLiked;
     const prevLikes = story.likes;
 
@@ -372,29 +314,17 @@ export default function StoryPage({
     );
 
     try {
-      setIsLiking(true);
-      const res = await fetch("/api/social/like", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ storyId: story.id }),
-      });
-
-      if (!res.ok) throw new Error("Like failed");
-
-      const { data } = await res.json();
+      const { data } = await likeMutation.mutateAsync(storyId);
       setIsLiked(data.isLiked);
-      setStory((prev) => prev ? { ...prev, likes: data.totalLikes } : null);
+      setStory((prev) =>
+        prev ? { ...prev, likes: data.totalLikes } : null
+      );
     } catch (error: any) {
       console.error("Like error:", error);
       // Revert on failure
       setIsLiked(prevLiked);
-      setStory((prev) => prev ? { ...prev, likes: prevLikes } : null);
+      setStory((prev) => (prev ? { ...prev, likes: prevLikes } : null));
       toast.error("Failed to like story");
-    } finally {
-      setIsLiking(false);
     }
   };
 
@@ -420,27 +350,11 @@ export default function StoryPage({
     if (!newComment.trim()) return;
     if (!authInfo?.id) return toast.error("Please sign in to comment");
 
-    const token = await getAccessToken();
-    if (!token) return toast.error("Please sign in to comment");
-
-    setIsPostingComment(true);
     try {
-      const res = await fetch("/api/social/comment", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          story_id: storyId,
-          content: newComment,
-        }),
+      const payload = await commentMutation.mutateAsync({
+        story_id: storyId,
+        content: newComment,
       });
-
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(payload?.error || "Failed to post comment");
-      }
 
       const data = payload?.data;
       const authorData = Array.isArray(data?.author) ? data.author[0] : data?.author;
@@ -462,17 +376,12 @@ export default function StoryPage({
     } catch (error) {
       console.error("Comment error:", error);
       toast.error("Failed to post comment");
-    } finally {
-      setIsPostingComment(false);
     }
   };
 
   const handleFollow = async () => {
     if (!authInfo) return toast.error("Please sign in to follow writers.");
     if (!story?.author?.id) return;
-
-    const followToken = await getAccessToken();
-    if (!followToken) return toast.error("Please sign in to follow writers.");
 
     const prevState = isFollowingAuthor;
     const prevCount = authorFollowers;
@@ -481,20 +390,9 @@ export default function StoryPage({
     setAuthorFollowers(prevState ? Math.max(0, prevCount - 1) : prevCount + 1);
 
     try {
-      const res = await fetch("/api/social/follow", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${followToken}`,
-        },
-        body: JSON.stringify({
-          followed_id: story.author.id,
-        }),
-      });
-
-      if (!res.ok) throw new Error("Follow action failed");
-
-      const { isFollowing, followers_count } = await res.json();
+      const { isFollowing, followers_count } = await followMutation.mutateAsync(
+        story.author.id
+      );
       setIsFollowingAuthor(isFollowing);
       setAuthorFollowers(followers_count);
       const authorName =
@@ -957,10 +855,10 @@ export default function StoryPage({
                 <Button
                   size="sm"
                   onClick={handlePostComment}
-                  disabled={isPostingComment || !newComment.trim()}
+                  disabled={commentMutation.isPending || !newComment.trim()}
                   className="bg-indigo-600"
                 >
-                  {isPostingComment ? (
+                  {commentMutation.isPending ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <Send className="w-4 h-4 mr-2" />

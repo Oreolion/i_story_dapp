@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-hot-toast";
@@ -9,6 +10,13 @@ import { useApp } from "../../components/Provider";
 import { useAuth } from "../../components/AuthProvider";
 import { useStoryNFT } from "../hooks/useStoryNFT";
 import { usePatterns } from "../hooks/usePatterns";
+import {
+  useUserStories,
+  useUserBooks,
+  useLibraryCollections,
+  useCreateCollection,
+  useDeleteCollection,
+} from "@/lib/queries/hooks";
 import { supabaseClient } from "../utils/supabase/supabaseClient";
 import { ipfsService } from "../utils/ipfsService";
 import { useBackgroundMode } from "@/contexts/BackgroundContext";
@@ -168,9 +176,53 @@ export default function LibraryPage() {
     isLoading: patternsLoading,
   } = usePatterns();
 
-  // Data State
-  const [entries, setEntries] = useState<LibraryItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  // React Query data hooks
+  const { data: storiesData, isLoading: isStoriesLoading } = useUserStories();
+  const { data: booksData, isLoading: isBooksLoading } = useUserBooks(authInfo?.id || "");
+  const { data: collectionsData, isLoading: isCollectionsLoading } = useLibraryCollections();
+  const createCollection = useCreateCollection();
+  const deleteCollection = useDeleteCollection();
+  const qc = useQueryClient();
+
+  const isLoading = isStoriesLoading || isBooksLoading || isAuthLoading;
+
+  const entries = useMemo<LibraryItem[]>(() => {
+    const formattedStories: StoryEntry[] = (storiesData?.stories || []).map((s: any) => ({
+      type: "entry",
+      id: s.id,
+      title: s.title || "Untitled Story",
+      content: s.content || "",
+      created_at: s.created_at,
+      story_date: s.story_date || s.created_at,
+      is_public: s.is_public || false,
+      likes: s.likes || 0,
+      views: s.view_count ?? s.views ?? 0,
+      has_audio: s.has_audio,
+      audio_url: s.audio_url,
+      mood: s.mood || "neutral",
+      tags: s.tags || [],
+    }));
+
+    const formattedBooks: BookEntry[] = (booksData || []).map((b: any) => ({
+      type: "book",
+      id: b.id,
+      title: b.title || "Untitled Book",
+      description: b.description || "",
+      created_at: b.created_at,
+      likes: b.likes || 0,
+      views: b.views || 0,
+      story_ids: b.story_ids || [],
+      ipfs_hash: b.ipfs_hash,
+      mood: "excited",
+      tags: ["compilation"],
+    }));
+
+    return [...formattedStories, ...formattedBooks].sort(
+      (a, b) => getEntryDate(b).getTime() - getEntryDate(a).getTime()
+    );
+  }, [storiesData, booksData]);
+
+  const collections = collectionsData?.collections || [];
 
   // UI State
   const [searchQuery, setSearchQuery] = useState("");
@@ -187,181 +239,34 @@ export default function LibraryPage() {
   const [newBookDesc, setNewBookDesc] = useState("");
   const [isSavingBook, setIsSavingBook] = useState(false);
 
-  // Collections State
-  const [collections, setCollections] = useState<StoryCollection[]>([]);
-  const [isCollectionsLoading, setIsCollectionsLoading] = useState(false);
+  // Collections UI State
   const [isCreateCollectionOpen, setIsCreateCollectionOpen] = useState(false);
   const [newCollectionTitle, setNewCollectionTitle] = useState("");
   const [newCollectionDesc, setNewCollectionDesc] = useState("");
 
-  // --- 1. Fetch Data ---
-  const fetchData = async () => {
-    if (!authInfo?.id || !supabase) return;
-    setIsLoading(true);
-
-    try {
-      let storiesData: any[] = [];
-      const token = await getAccessToken();
-
-      if (token) {
-        try {
-          const storiesRes = await fetch("/api/stories", {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (storiesRes.ok) {
-            const json = await storiesRes.json();
-            storiesData = json.stories || [];
-          } else {
-            console.error("[LIBRARY] /api/stories returned", storiesRes.status);
-          }
-        } catch (err) {
-          console.error("[LIBRARY] /api/stories fetch error:", err);
-        }
-      }
-
-      if (storiesData.length === 0 && supabase) {
-        const { data: directData, error: directErr } = await supabase
-          .from("stories")
-          .select("*")
-          .eq("author_id", authInfo.id)
-          .order("created_at", { ascending: false });
-        if (directErr) console.error("[LIBRARY] Direct Supabase fallback error:", directErr);
-        storiesData = directData || [];
-      }
-
-      const { data: booksData } = await supabase
-        .from("books")
-        .select("*")
-        .eq("author_id", authInfo.id)
-        .order("created_at", { ascending: false });
-
-      const formattedStories: StoryEntry[] = (storiesData || []).map((s: any) => ({
-        type: "entry",
-        id: s.id,
-        title: s.title || "Untitled Story",
-        content: s.content || "",
-        created_at: s.created_at,
-        story_date: s.story_date || s.created_at,
-        is_public: s.is_public || false,
-        likes: s.likes || 0,
-        views: s.view_count ?? s.views ?? 0,
-        has_audio: s.has_audio,
-        audio_url: s.audio_url,
-        mood: s.mood || "neutral",
-        tags: s.tags || [],
-      }));
-
-      const formattedBooks: BookEntry[] = (booksData || []).map((b: any) => ({
-        type: "book",
-        id: b.id,
-        title: b.title || "Untitled Book",
-        description: b.description || "",
-        created_at: b.created_at,
-        likes: b.likes || 0,
-        views: b.views || 0,
-        story_ids: b.story_ids || [],
-        ipfs_hash: b.ipfs_hash,
-        mood: "excited",
-        tags: ["compilation"],
-      }));
-
-      const allEntries = [...formattedStories, ...formattedBooks].sort(
-        (a, b) => getEntryDate(b).getTime() - getEntryDate(a).getTime()
-      );
-
-      setEntries(allEntries);
-    } catch (err) {
-      console.error("Library fetch error:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (isAuthLoading) return; // Wait for auth to resolve
-    if (!authInfo?.id) {
-      setIsLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-    const timeout = setTimeout(() => {
-      if (cancelled) return;
-      // Force loading off after 15s to prevent infinite spinner
-      setIsLoading(false);
-    }, 15_000);
-
-    fetchData().finally(() => clearTimeout(timeout));
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timeout);
-    };
-  }, [authInfo?.id, isAuthLoading]);
-
-  // --- 1b. Fetch Collections ---
-  const fetchCollections = async () => {
-    const token = await getAccessToken();
-    if (!token) return;
-    setIsCollectionsLoading(true);
-    try {
-      const res = await fetch("/api/stories/collections", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const { collections: data } = await res.json();
-        setCollections(data || []);
-      }
-    } catch (err) {
-      console.error("[LIBRARY] Collections fetch error:", err);
-    } finally {
-      setIsCollectionsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (authInfo?.id) fetchCollections();
-  }, [authInfo?.id]);
-
   const handleCreateCollection = async () => {
     if (!newCollectionTitle.trim()) return toast.error("Title is required");
-    const token = await getAccessToken();
-    if (!token) return toast.error("Not authenticated");
-
-    try {
-      const res = await fetch("/api/stories/collections", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ title: newCollectionTitle.trim(), description: newCollectionDesc.trim() || null }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        throw new Error(data?.error || "Failed to create collection");
+    createCollection.mutate(
+      { title: newCollectionTitle.trim(), description: newCollectionDesc.trim() || null },
+      {
+        onSuccess: () => {
+          toast.success("Collection created!");
+          setIsCreateCollectionOpen(false);
+          setNewCollectionTitle("");
+          setNewCollectionDesc("");
+        },
+        onError: (err: any) => {
+          toast.error(err?.message || "Failed to create collection");
+        },
       }
-      toast.success("Collection created!");
-      setIsCreateCollectionOpen(false);
-      setNewCollectionTitle("");
-      setNewCollectionDesc("");
-      fetchCollections();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to create collection");
-    }
+    );
   };
 
   const handleDeleteCollection = async (collectionId: string) => {
-    const token = await getAccessToken();
-    if (!token) return;
-    try {
-      const res = await fetch(`/api/stories/collections/${collectionId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to delete");
-      toast.success("Collection deleted");
-      fetchCollections();
-    } catch {
-      toast.error("Failed to delete collection");
-    }
+    deleteCollection.mutate(collectionId, {
+      onSuccess: () => toast.success("Collection deleted"),
+      onError: () => toast.error("Failed to delete collection"),
+    });
   };
 
   // --- 2. Filtering & Grouping ---
@@ -477,7 +382,9 @@ export default function LibraryPage() {
       setIsBookDialogOpen(false);
       setIsCompiling(false);
       setSelectedStoryIds(new Set());
-      fetchData();
+      // Invalidate queries to refresh the library
+      qc.invalidateQueries({ queryKey: ["library", "books"] });
+      qc.invalidateQueries({ queryKey: ["stories", "user"] });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to create book";
       if (msg.includes("User rejected")) toast.error("Minting cancelled", { id: "book-toast" });

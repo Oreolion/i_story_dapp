@@ -8,7 +8,7 @@ import { toast } from "react-hot-toast";
 // Relative paths (Preserving your working structure)
 import { useApp } from "../../components/Provider";
 import { useAuth } from "../../components/AuthProvider";
-import { supabaseClient } from "../../app/utils/supabase/supabaseClient";
+import { useParentStory } from "@/lib/queries/hooks";
 import { ipfsService } from "../../app/utils/ipfsService";
 import { useBackgroundMode } from "@/contexts/BackgroundContext";
 import { STORY_TYPES, type StoryType } from "@/app/types";
@@ -88,8 +88,6 @@ export default function RecordPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [transcribedText, setTranscribedText] = useState("");
   const [entryTitle, setEntryTitle] = useState("");
-  const [parentStoryTitle, setParentStoryTitle] = useState<string | null>(null);
-  
   // Story Type
   const [storyType, setStoryType] = useState<StoryType>("personal_journal");
 
@@ -116,8 +114,6 @@ export default function RecordPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-
-  const supabase = supabaseClient;
 
   // Use centralized auth token from AuthProvider
   const { getAccessToken } = useAuth();
@@ -160,17 +156,8 @@ export default function RecordPage() {
   }, [saveDraft]);
 
   // Fetch parent story title when continuing a story
-  useEffect(() => {
-    if (!parentStoryId || !supabase) return;
-    supabase
-      .from("stories")
-      .select("title")
-      .eq("id", parentStoryId)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data?.title) setParentStoryTitle(data.title);
-      });
-  }, [parentStoryId, supabase]);
+  const { data: parentStory } = useParentStory(parentStoryId);
+  const parentStoryTitle = parentStory?.title || null;
 
   // Helper to build auth headers from centralized token
   const getAuthHeaders = async (): Promise<Record<string, string>> => {

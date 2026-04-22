@@ -28,6 +28,9 @@ export const queryKeys = {
     collections: ["library", "collections"] as const,
     collection: (id: string) => ["library", "collection", id] as const,
     saved: ["library", "saved"] as const,
+    books: (userId: string) => ["library", "books", userId] as const,
+    book: (id: string) => ["library", "book", id] as const,
+    bookChapters: (ids: string[]) => ["library", "chapters", ids.join(",")] as const,
   },
   notifications: {
     all: ["notifications"] as const,
