@@ -519,19 +519,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const provider = session.user.app_metadata?.provider;
           console.log("[DIAGNOSTIC] Handling", event, "for provider:", provider);
 
-          // Firefox fires SIGNED_IN on every tab visibility change via
-          // _recoverAndRefresh(). handleGoogleSignIn makes direct Supabase
-          // REST queries (*.supabase.co) that can hang in Firefox ETP.
-          // Skip duplicate SIGNED_IN for the already-signed-in user.
-          if (event === "SIGNED_IN" && profile?.id === session.user.id) {
-            console.log("[DIAGNOSTIC] Skipping duplicate SIGNED_IN for already-signed-in user");
-            return;
-          }
-
+          // CRITICAL: _notifyAllSubscribers() is called from inside
+          // _initialize() while the auth lock is held. If we await
+          // handleGoogleSignIn/handleSession here, and they call
+          // supabase.from() which internally calls getSession(), we
+          // deadlock: getSession() queues behind the lock, but the lock
+          // won't release until _notifyAllSubscribers() completes.
+          //
+          // Fix: defer to next event loop tick so _initialize() finishes
+          // and releases the lock before any nested getSession() calls.
           if (provider === "google") {
-            await handleGoogleSignInRef.current?.(session);
+            setTimeout(() => {
+              handleGoogleSignInRef.current?.(session).catch((err: any) => {
+                console.error("[DIAGNOSTIC] deferred handleGoogleSignIn error:", err);
+              });
+            }, 0);
           } else {
-            await handleSessionRef.current?.(session);
+            setTimeout(() => {
+              handleSessionRef.current?.(session).catch((err: any) => {
+                console.error("[DIAGNOSTIC] deferred handleSession error:", err);
+              });
+            }, 0);
           }
           return;
         }
