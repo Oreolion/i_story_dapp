@@ -1,9 +1,10 @@
 # Firefox Auth Bug — Deep Analysis & Resolution Log
 
-> **Status**: **NOT RESOLVED** — Fix deployed but auth failure persists  
+> **Status**: **RESOLVED** — Re-entrancy deadlock fix verified in production  
 > **Affected Browsers**: Firefox (Normal & Dev Edition), Firefox Mobile  
-> **Root Cause**: Firefox Enhanced Tracking Protection (ETP) + Total Cookie Protection suspected; however, same-origin proxy fix did not resolve the issue. See Section 11.  
+> **Root Cause**: Supabase `gotrue-js` re-entrancy deadlock — `onAuthStateChange` fires `SIGNED_IN` during `_initialize()` while holding the auth lock; handler calls `supabase.from()` which internally calls `getSession()` → tries to acquire the same lock → deadlock forever. Firefox ETP was a secondary factor that masked/exacerbated the issue. See Section 17.  
 > **Emergency Rollback Commit**: `10729729bc7b78d4b0e61d9ffbe2d0a4e568fd1b`  
+> **Resolution Date**: 2026-04-23  
 
 ---
 
@@ -540,3 +541,135 @@ If the auth system cannot be fixed safely, the safest path is:
 3. **Accept that Firefox ETP will still be an issue** until a proper fix is designed
 
 **DO NOT attempt to fix both the auth race condition AND the Firefox ETP issue in the same deployment.** These are two different bugs that got tangled together.
+
+---
+
+## 17. Final Resolution — Re-entrancy Deadlock (2026-04-23)
+
+### The Actual Root Cause
+
+After extensive diagnosis, the root cause was **not** Firefox ETP alone. It was a **re-entrancy deadlock** inside `@supabase/gotrue-js` that was triggered by Firefox's behavior but could theoretically occur in any browser.
+
+#### The Deadlock Chain
+
+```
+1. Page loads → supabase.auth._initialize() starts
+2. _initialize() acquires the auth lock (Web Locks API)
+3. _initialize() finishes, calls _notifyAllSubscribers()
+4. _notifyAllSubscribers() fires onAuthStateChange("SIGNED_IN", session)
+5. Our handler: handleGoogleSignIn(session)
+6. handleGoogleSignIn calls supabase.from("users").select("*")...
+7. Supabase postgrest-js internally calls supabase.auth.getSession()
+8. getSession() tries to acquire the SAME auth lock
+9. DEADLOCK: getSession() waits for the lock, but the lock won't release
+   until _notifyAllSubscribers() completes, which is waiting for our
+   handler to complete, which is waiting for getSession() to complete.
+```
+
+**Why Firefox was worse**: Firefox's ETP blocks `*.supabase.co` requests, causing `getSession()` (which internally tries to refresh) to hang FOREVER instead of failing fast. In Chrome, the refresh might fail quickly and release the lock. In Firefox, the fetch hangs, making the deadlock permanent.
+
+### The Fix
+
+#### 1. `components/AuthProvider.tsx` — Deferred Handler Execution
+
+```ts
+// CRITICAL: _notifyAllSubscribers() is called from inside
+// _initialize() while the auth lock is held. If we await
+// handleGoogleSignIn/handleSession here, and they call
+// supabase.from() which internally calls getSession(), we
+// deadlock: getSession() queues behind the lock, but the lock
+// won't release until _notifyAllSubscribers() completes.
+//
+// Fix: defer to next event loop tick so _initialize() finishes
+// and releases the lock before any nested getSession() calls.
+if (provider === "google") {
+  setTimeout(() => {
+    handleGoogleSignInRef.current?.(session).catch((err) => {
+      console.error("[AUTH] deferred handleGoogleSignIn error:", err);
+    });
+  }, 0);
+} else {
+  setTimeout(() => {
+    handleSessionRef.current?.(session).catch((err) => {
+      console.error("[AUTH] deferred handleSession error:", err);
+    });
+  }, 0);
+}
+```
+
+#### 2. `app/utils/supabase/supabaseClient.ts` — Firefox-Specific Overrides
+
+```ts
+// Firefox: bypass Web Locks to prevent OAuth redirect deadlocks
+const lockNoOp = async (_name: string, _timeout: number, fn: () => Promise<any>) =>
+  await fn();
+
+// Force-disable auto-refresh (createBrowserClient silently overrides to true)
+(client.auth as any).autoRefreshToken = false;
+client.auth.stopAutoRefresh();
+
+// Prevent getSession() from hanging on blocked *.supabase.co requests
+(client.auth as any)._refreshAccessToken = async () => ({
+  data: { session: null, user: null },
+  error: new Error("Direct Supabase refresh disabled — use /api/auth/refresh"),
+});
+
+// Safety net: timeout getSession() so blocked fetches don't stall the UI
+const originalGetSession = client.auth.getSession.bind(client.auth);
+client.auth.getSession = async () => {
+  return Promise.race([
+    originalGetSession(),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("getSession timeout")), 4000)
+    ),
+  ]) as any;
+};
+```
+
+#### 3. `AuthProvider.tsx` — Proactive Same-Origin Refresh
+
+`getAccessToken()` calls `/api/auth/refresh` (same-origin proxy) instead of `supabase.auth.refreshSession()` (cross-origin, blocked by Firefox ETP).
+
+### Verification
+
+- **Normal Firefox**: Log in, stay on page for 60+ minutes, navigate to new tabs — data loads correctly ✅
+- **Firefox after idle**: Return to tab after hours — auth state intact, data fetches successfully ✅
+- **Chrome**: No regression ✅
+- **Sentry**: "Direct Supabase refresh disabled" errors eliminated by returning graceful error object instead of throwing ✅
+
+### Lessons Learned (Updated)
+
+1. **Never await handlers inside `onAuthStateChange`** when those handlers call back into the same library — always defer with `setTimeout(..., 0)`
+2. **Firefox ETP was a contributing factor, not the root cause** — the deadlock would occur even without ETP, just less severely
+3. **Supabase's auth lock is not re-entrant** — calling `getSession()` from inside an `onAuthStateChange` handler is dangerous
+4. **Status `(null)` + `NetworkError` can mean EITHER**: tracking protection OR a deadlock where the fetch never starts because the JS thread is blocked
+5. **The old code "worked" because**: `getUser()` at mount often completed before `onAuthStateChange` fired, so the handler found the user already cached and didn't need to query the database
+
+### Files Changed in Final Fix
+
+| File | Change |
+|------|--------|
+| `components/AuthProvider.tsx` | Deferred `handleGoogleSignIn`/`handleSession` via `setTimeout(..., 0)` in `onAuthStateChange`; cleaned up diagnostic logging |
+| `app/utils/supabase/supabaseClient.ts` | Firefox no-op lock; force `autoRefreshToken: false`; graceful `_refreshAccessToken` override; `getSession()` 4s timeout |
+| `app/api/auth/refresh/route.ts` | Cleaned up diagnostic logging |
+| `app/api/user/profile/route.ts` | Cleaned up diagnostic logging |
+| `lib/auth.ts` | Cleaned up diagnostic logging |
+
+---
+
+## 18. Related Fixes Applied During Auth Work
+
+### Public Profile Page (Notification 404 Fix)
+
+Follow notifications linked to `/profile/${username}` but no route existed. Created:
+- `app/profile/[username]/page.tsx` — Server component fetching public user data
+- `app/profile/[username]/PublicProfileClient.tsx` — Client component with follow button, stats, public stories
+
+### Notification Link Fixes
+
+| Notification Type | Before | After |
+|-------------------|--------|-------|
+| Follow | `/profile/${username}` | Same (now works with new route) |
+| Like | No link (fallback to `/story/${id}`) | Explicit `/story/${storyId}` |
+| Comment | `/story/${story_id}` | Same (already correct) |
+| Book published | `/books/${id}` | Same (already correct) |

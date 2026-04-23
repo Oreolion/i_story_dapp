@@ -23,12 +23,6 @@ export async function POST(request: NextRequest) {
   const supabaseCookie = allCookies.find((c) =>
     c.name.startsWith("sb-") && c.name.endsWith("-auth-token")
   );
-  console.log("[DIAGNOSTIC /api/auth/refresh] cookies:", {
-    count: allCookies.length,
-    names: allCookies.map((c) => c.name),
-    hasSupabaseCookie: !!supabaseCookie,
-    supabaseCookiePrefix: supabaseCookie?.name.slice(0, 30),
-  });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -54,15 +48,7 @@ export async function POST(request: NextRequest) {
 
   const { data, error } = await supabase.auth.refreshSession();
 
-  console.log("[DIAGNOSTIC /api/auth/refresh] refreshSession result:", {
-    hasSession: !!data?.session,
-    hasError: !!error,
-    errorMessage: error?.message || null,
-    accessTokenPrefix: data?.session?.access_token?.slice(0, 10) || null,
-  });
-
   if (error || !data.session) {
-    console.warn("[DIAGNOSTIC /api/auth/refresh] FAILED:", error?.message || "No session");
     return NextResponse.json(
       { error: error?.message || "No active session" },
       { status: 401 }

@@ -65,11 +65,14 @@ const createSupabaseClient = () => {
   // blocks it. This blocks getSession() indefinitely, which blocks
   // getAccessToken(), which blocks all React Query hooks → infinite loading.
   //
-  // By overriding _refreshAccessToken to throw immediately, we force
-  // getSession() to fail fast. AuthProvider.getAccessToken() catches the
-  // error and falls back to our same-origin /api/auth/refresh proxy.
+  // We override _refreshAccessToken to return a graceful error instead of
+  // throwing. Throwing creates unhandled rejections that Sentry catches.
+  // Returning { error } lets Supabase's internal callers handle it cleanly.
   (client.auth as any)._refreshAccessToken = async () => {
-    throw new Error("Direct Supabase refresh disabled — use /api/auth/refresh");
+    return {
+      data: { session: null, user: null },
+      error: new Error("Direct Supabase refresh disabled — use /api/auth/refresh"),
+    };
   };
 
   // Safety net: if getSession() still hangs for any reason, force a timeout
@@ -88,13 +91,8 @@ const createSupabaseClient = () => {
     ]) as any;
   };
 
-  console.log("[DIAGNOSTIC supabaseClient] created:", {
-    isFirefox,
-    autoRefreshToken: (client.auth as any).autoRefreshToken,
-    hasLockOverride: isFirefox,
-    hasRefreshOverride: true,
-    hasGetSessionTimeout: true,
-  });
+  // eslint-disable-next-line no-console
+  console.log("[supabaseClient] initialized — Firefox:", isFirefox, "autoRefresh:", (client.auth as any).autoRefreshToken);
 
   return client;
 };

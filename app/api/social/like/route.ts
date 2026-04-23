@@ -106,7 +106,9 @@ export async function POST(request: NextRequest) {
           type: "like",
           title: "New Like",
           message: `${liker?.name || liker?.username || "Someone"} liked your story`,
+          related_user_id: authenticatedUserId,
           story_id: storyId,
+          link: `/story/${storyId}`,
         });
       }
     }

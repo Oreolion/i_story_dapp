@@ -30,12 +30,6 @@ export async function validateAuth(
       ? authHeader.substring(7)
       : null;
 
-    console.log("[DIAGNOSTIC validateAuth] checking token:", {
-      hasAuthHeader: !!authHeader,
-      hasBearerToken: !!token,
-      tokenPrefix: token?.slice(0, 10) || null,
-    });
-
     if (token) {
       // 1. Try Supabase session token (Google/OAuth users)
       try {
@@ -45,21 +39,15 @@ export async function validateAuth(
           error,
         } = await supabase.auth.getUser(token);
 
-        console.log("[DIAGNOSTIC validateAuth] supabase.auth.getUser result:", {
-          hasUser: !!user,
-          errorMessage: error?.message || null,
-        });
-
         if (!error && user) {
           return user.id;
         }
-      } catch (supabaseErr) {
-        console.warn("[DIAGNOSTIC validateAuth] supabase getUser threw:", (supabaseErr as Error)?.message);
+      } catch {
+        /* Supabase token invalid — fall through to wallet JWT */
       }
 
       // 2. Try custom wallet JWT from Bearer header
       const walletPayload = await verifyWalletToken(token);
-      console.log("[DIAGNOSTIC validateAuth] wallet JWT result:", { valid: !!walletPayload });
       if (walletPayload) {
         return walletPayload.userId;
       }
@@ -67,7 +55,6 @@ export async function validateAuth(
 
     // 3. Try httpOnly cookie (wallet users with cookie-based auth)
     const cookieToken = request.cookies.get("estory_wallet_token")?.value;
-    console.log("[DIAGNOSTIC validateAuth] wallet cookie:", { hasCookie: !!cookieToken });
     if (cookieToken) {
       const cookiePayload = await verifyWalletToken(cookieToken);
       if (cookiePayload) {
@@ -75,10 +62,9 @@ export async function validateAuth(
       }
     }
 
-    console.log("[DIAGNOSTIC validateAuth] NO valid auth found");
     return null;
   } catch (err) {
-    console.warn("[DIAGNOSTIC validateAuth] unexpected error:", (err as Error)?.message);
+    console.warn("[AUTH] validateAuth unexpected error:", (err as Error)?.message);
     return null;
   }
 }

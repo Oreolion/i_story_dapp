@@ -150,96 +150,65 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // sent automatically by the browser with every same-origin request.
   // API routes (lib/auth.ts) check both Bearer header and cookie.
   const getAccessToken = useCallback(async (): Promise<string | null> => {
-    console.log("[DIAGNOSTIC] getAccessToken() called");
     // 1. Try Supabase session (Google OAuth users)
     try {
       if (supabase) {
         const { data } = await supabase.auth.getSession();
         const session = data?.session;
-        console.log("[DIAGNOSTIC] getSession result:", {
-          hasSession: !!session,
-          hasAccessToken: !!session?.access_token,
-          expiresAt: session?.expires_at,
-          now: Math.floor(Date.now() / 1000),
-          provider: profile?.auth_provider,
-        });
 
         const sessionValid =
           session?.expires_at && session.expires_at * 1000 > Date.now() + 60_000;
 
         if (session?.access_token && sessionValid) {
-          console.log("[DIAGNOSTIC] Returning VALID access_token");
           return session.access_token;
         }
 
         // Session is expired or missing — attempt refresh.
         // Priority: same-origin proxy (bypasses Firefox ETP) → direct fallback.
         const shouldAttemptRefresh = session?.refresh_token || profile?.auth_provider === "google" || profile?.auth_provider === "both";
-        console.log("[DIAGNOSTIC] shouldAttemptRefresh:", shouldAttemptRefresh);
         if (shouldAttemptRefresh) {
           try {
-            console.log("[DIAGNOSTIC] Calling /api/auth/refresh (same-origin proxy)");
             const res = await fetchWithTimeout("/api/auth/refresh", {
               method: "POST",
             });
-            console.log("[DIAGNOSTIC] /api/auth/refresh status:", res.status);
             if (res.ok) {
               const refreshed = await res.json();
-              console.log("[DIAGNOSTIC] /api/auth/refresh response:", {
-                hasAccessToken: !!refreshed?.access_token,
-                hasError: !!refreshed?.error,
-              });
               if (refreshed?.access_token) {
-                console.log("[DIAGNOSTIC] Returning refreshed access_token from proxy");
                 return refreshed.access_token;
               }
-            } else {
-              const errBody = await res.json().catch(() => ({}));
-              console.warn("[DIAGNOSTIC] Proxy refresh failed, status:", res.status, "body:", errBody);
             }
-          } catch (proxyErr) {
-            console.warn("[DIAGNOSTIC] Proxy refresh threw:", proxyErr);
+          } catch {
+            /* proxy refresh failed — fall through to direct */
           }
 
           // Fallback: direct cross-origin refresh (works in Chrome, may fail in Firefox)
           try {
-            console.log("[DIAGNOSTIC] Calling supabase.auth.refreshSession() (direct fallback)");
             const { data: refreshed } = await supabase.auth.refreshSession();
-            console.log("[DIAGNOSTIC] refreshSession result:", {
-              hasSession: !!refreshed?.session,
-              hasAccessToken: !!refreshed?.session?.access_token,
-            });
             if (refreshed?.session?.access_token) {
-              console.log("[DIAGNOSTIC] Returning refreshed access_token from direct refresh");
               return refreshed.session.access_token;
             }
-          } catch (directErr) {
-            console.warn("[DIAGNOSTIC] Direct refreshSession threw:", directErr);
+          } catch {
+            /* direct refresh failed */
           }
         }
       }
     } catch (err) {
       if (err instanceof Error) {
-        console.warn("[DIAGNOSTIC] getAccessToken getSession failed:", err.message);
+        console.warn("[AUTH] getAccessToken getSession failed:", err.message);
       }
     }
 
     // 2. Wallet user — httpOnly cookie is sent automatically.
-    //    Return "cookie" sentinel so callers know the user IS authenticated
-    //    (they just don't need to set an Authorization header manually).
     if (profile?.auth_provider === "wallet" || profile?.auth_provider === "both") {
-      console.log("[DIAGNOSTIC] Returning 'cookie' sentinel for wallet user");
       return "cookie";
     }
 
-    console.log("[DIAGNOSTIC] getAccessToken returning NULL");
     return null;
   }, [supabase, profile]);
 
   // ─── Google OAuth handler ────────────────────────────────────────────
   const handleGoogleSignIn = useCallback(
     async (session: Session) => {
-      console.log("[DIAGNOSTIC] handleGoogleSignIn START", { userId: session.user?.id?.slice(0, 8) });
       if (!supabase) return;
       const user = session.user;
       const googleId = user.identities?.[0]?.id ?? user.id;
@@ -277,9 +246,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (res.ok) {
               const { user: updated } = await res.json();
               if (updated) {
-                console.log(
-                  "[AUTH] Google linked successfully via secure token"
-                );
+                console.log("[AUTH] Google linked successfully via secure token");
                 setUnifiedProfile(updated, user);
                 return;
               }
@@ -293,13 +260,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         // PRIORITY 2: Look up by Supabase auth user id (returning Google user)
-        console.log("[DIAGNOSTIC] handleGoogleSignIn: querying users by id");
         const { data: existing } = await supabase
           .from("users")
           .select("*")
           .eq("id", user.id)
           .maybeSingle();
-        console.log("[DIAGNOSTIC] handleGoogleSignIn: users by id result:", { found: !!existing });
 
         if (existing) {
           setUnifiedProfile(existing, user);
@@ -307,35 +272,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         // PRIORITY 3: Look up by google_id (account was merged, ID differs)
-        console.log("[DIAGNOSTIC] handleGoogleSignIn: querying users by google_id");
         const { data: byGoogleId } = await supabase
           .from("users")
           .select("*")
           .eq("google_id", googleId)
           .maybeSingle();
-        console.log("[DIAGNOSTIC] handleGoogleSignIn: users by google_id result:", { found: !!byGoogleId });
 
         if (byGoogleId) {
           setUnifiedProfile(byGoogleId, user);
-          console.log("[DIAGNOSTIC] handleGoogleSignIn: set profile from google_id");
           return;
         }
 
         // PRIORITY 4: Check by email for potential auto-linking (same email)
         const userEmail = user.email;
         if (userEmail) {
-          console.log("[DIAGNOSTIC] handleGoogleSignIn: querying users by email");
           const { data: emailMatch } = await supabase
             .from("users")
             .select("*")
             .eq("email", userEmail)
             .maybeSingle();
-          console.log("[DIAGNOSTIC] handleGoogleSignIn: users by email result:", { found: !!emailMatch });
 
           if (emailMatch && !emailMatch.google_id) {
-            console.log(
-              "[AUTH] Auto-linking by email match (same email proves ownership)"
-            );
+            console.log("[AUTH] Auto-linking by email match (same email proves ownership)");
             const { data: updated, error: updateErr } = await supabase
               .from("users")
               .update({
@@ -352,7 +310,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             if (!updateErr && updated) {
               setUnifiedProfile(updated, user);
-              console.log("[DIAGNOSTIC] handleGoogleSignIn: set profile from email match");
               return;
             }
           }
@@ -360,7 +317,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // PRIORITY 5: Create new Google-only user (fresh Google sign-up)
         // Set is_onboarded: false so they go through OnboardingModal to pick a username
-        console.log("[DIAGNOSTIC] handleGoogleSignIn: creating new user");
         const { data: created, error: createErr } = await supabase
           .from("users")
           .upsert(
@@ -381,7 +337,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           )
           .select()
           .maybeSingle();
-        console.log("[DIAGNOSTIC] handleGoogleSignIn: create result:", { created: !!created, error: !!createErr });
 
         if (createErr) {
           console.error("[AUTH] Google user creation failed:", createErr);
@@ -403,9 +358,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setProfile(null);
           }
         }
-        console.log("[DIAGNOSTIC] handleGoogleSignIn END");
       } catch (err) {
-        console.error("[DIAGNOSTIC] handleGoogleSignIn error:", err);
+        console.error("[AUTH] handleGoogleSignIn error:", err);
         setProfile(null);
       }
     },
@@ -423,9 +377,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   //   2. Try wallet cookie directly via /api/user/profile
   //   3. If neither works, flip isLoading false so the wallet effect can run
   useEffect(() => {
-    console.log("[DIAGNOSTIC] Mount effect running");
     if (!supabase) {
-      console.log("[DIAGNOSTIC] No supabase client — setting isLoading false");
       setIsLoading(false);
       return;
     }
@@ -434,13 +386,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const run = async () => {
       try {
         // Fast path 1: Supabase session (Google / OAuth users)
-        console.log("[DIAGNOSTIC] Mount effect: calling getSession()");
         const { data: { session } } = await supabase.auth.getSession();
-        console.log("[DIAGNOSTIC] Mount effect: getSession result:", { hasSession: !!session, hasUser: !!session?.user });
         if (cancelled) return;
         if (session?.user) {
           const provider = session.user.app_metadata?.provider;
-          console.log("[DIAGNOSTIC] Mount effect: found session, provider:", provider);
           if (provider === "google") {
             await handleGoogleSignInRef.current?.(session);
           } else {
@@ -450,14 +399,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
       } catch (err) {
-        console.warn("[DIAGNOSTIC] Mount effect: getSession failed:", (err as Error)?.message);
+        console.warn("[AUTH] Mount effect getSession failed:", (err as Error)?.message);
       }
 
       try {
         // Fast path 2: Wallet httpOnly cookie (wallet users)
-        console.log("[DIAGNOSTIC] Mount effect: probing /api/user/profile");
         const res = await fetchWithTimeout("/api/user/profile");
-        console.log("[DIAGNOSTIC] Mount effect: probe status:", res.status);
         if (cancelled) return;
         if (res.ok) {
           const data = await res.json();
@@ -468,11 +415,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
       } catch (err) {
-        console.warn("[DIAGNOSTIC] Mount effect: probe failed:", (err as Error)?.message);
+        console.warn("[AUTH] Mount effect probe failed:", (err as Error)?.message);
       }
 
       if (!cancelled) {
-        console.log("[DIAGNOSTIC] Mount effect: no auth found — setting isLoading false");
         setIsLoading(false);
       }
     };
@@ -499,7 +445,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("[DIAGNOSTIC] onAuthStateChange event:", event, "hasSession:", !!session, "userId:", session?.user?.id?.slice(0, 8));
       try {
         if (event === "SIGNED_OUT") {
           if (!isConnectedRef.current) {
@@ -517,7 +462,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         //    NOT SIGNED_IN)
         if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session?.user) {
           const provider = session.user.app_metadata?.provider;
-          console.log("[DIAGNOSTIC] Handling", event, "for provider:", provider);
 
           // CRITICAL: _notifyAllSubscribers() is called from inside
           // _initialize() while the auth lock is held. If we await
@@ -531,13 +475,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (provider === "google") {
             setTimeout(() => {
               handleGoogleSignInRef.current?.(session).catch((err: any) => {
-                console.error("[DIAGNOSTIC] deferred handleGoogleSignIn error:", err);
+                console.error("[AUTH] deferred handleGoogleSignIn error:", err);
               });
             }, 0);
           } else {
             setTimeout(() => {
               handleSessionRef.current?.(session).catch((err: any) => {
-                console.error("[DIAGNOSTIC] deferred handleSession error:", err);
+                console.error("[AUTH] deferred handleSession error:", err);
               });
             }, 0);
           }
@@ -547,14 +491,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // INITIAL_SESSION fired with no Supabase session → could be a wallet user
         // whose session lives in an httpOnly cookie (no Supabase auth user involved).
         // Probe the server immediately so profile is restored without waiting for
-        // the wallet extension to reconnect. This prevents the stale logged-out
-        // state in Firefox where wallet reconnection is significantly slower than
-        // Chrome and the effect gated on isConnected fires too late.
+        // the wallet extension to reconnect.
         if (event === "INITIAL_SESSION" && !session) {
-          console.log("[DIAGNOSTIC] INITIAL_SESSION with no session — probing /api/user/profile");
           try {
             const probeRes = await fetchWithTimeout("/api/user/profile");
-            console.log("[DIAGNOSTIC] INITIAL_SESSION probe result:", probeRes.status);
             if (probeRes.ok) {
               const probeData = await probeRes.json();
               if (probeData?.user) {
@@ -563,21 +503,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               }
             }
           } catch (err) {
-            // Timeout or no valid cookie — user is genuinely logged out (or
-            // server is unreachable). Fall through so isLoading flips to false.
+            // Timeout or no valid cookie — user is genuinely logged out.
             if (err instanceof Error && err.name === "AbortError") {
-              console.warn("[DIAGNOSTIC] INITIAL_SESSION probe aborted after timeout");
+              console.warn("[AUTH] INITIAL_SESSION probe aborted after timeout");
             }
           }
         }
 
         // Token refreshed or user updated — re-hydrate from existing session
         if (session) {
-          console.log("[DIAGNOSTIC] Session update event:", event);
           await handleSessionRef.current?.(session);
         }
       } catch (err) {
-        console.error("[DIAGNOSTIC] onAuthStateChange unexpected error:", err);
+        console.error("[AUTH] onAuthStateChange unexpected error:", err);
         setProfile(null);
         setNeedsOnboarding(false);
       } finally {
