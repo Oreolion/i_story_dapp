@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "./AuthProvider";
 import { useAccount, useDisconnect } from "wagmi";
@@ -128,16 +129,16 @@ export function AuthButton() {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuItem asChild>
-              <a href="/profile" className="flex items-center gap-2">
+              <Link href="/profile" className="flex items-center gap-2 cursor-pointer">
                 <User className="w-4 h-4" />
                 Profile
-              </a>
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <a href="/pricing" className="flex items-center gap-2">
+              <Link href="/pricing" className="flex items-center gap-2 cursor-pointer">
                 <CreditCard className="w-4 h-4" />
                 Pricing
-              </a>
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             {profile.wallet_address ? (
