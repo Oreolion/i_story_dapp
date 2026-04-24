@@ -100,6 +100,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   isConnectedRef.current = isConnected;
   const handleGoogleSignInRef = useRef<any>(null);
   const handleSessionRef = useRef<any>(null);
+  // Set once mount hydrates the profile so onAuthStateChange's INITIAL_SESSION
+  // branch doesn't re-run handleGoogleSignIn / handleSession. Without this,
+  // every Google user load runs the users-table lookup twice and emits two
+  // profile object references — which cascades through getAccessToken and
+  // invalidates every React Query / useEffect consumer twice on first paint.
+  const hydratedRef = useRef(false);
 
   const VALID_PLANS: PlanType[] = ["free", "storyteller", "creator"];
 
@@ -396,6 +402,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } else {
             await handleSessionRef.current?.(session);
           }
+          hydratedRef.current = true;
           setIsLoading(false);
           return;
         }
@@ -411,6 +418,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const data = await res.json();
           if (data?.user) {
             setUnifiedProfile(data.user, null);
+            hydratedRef.current = true;
             setIsLoading(false);
             return;
           }
@@ -462,6 +470,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         //    browser client sees an existing session and fires INITIAL_SESSION,
         //    NOT SIGNED_IN)
         if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session?.user) {
+          // Skip if mount effect already hydrated — otherwise we re-query
+          // users and emit a second profile object ref, doubling downstream
+          // React Query / useCallback invalidations on first paint.
+          if (event === "INITIAL_SESSION" && hydratedRef.current) {
+            return;
+          }
+
           const provider = session.user.app_metadata?.provider;
 
           // CRITICAL: _notifyAllSubscribers() is called from inside
@@ -475,15 +490,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // and releases the lock before any nested getSession() calls.
           if (provider === "google") {
             setTimeout(() => {
-              handleGoogleSignInRef.current?.(session).catch((err: any) => {
-                console.error("[AUTH] deferred handleGoogleSignIn error:", err);
-              });
+              handleGoogleSignInRef.current?.(session)
+                .then(() => { hydratedRef.current = true; })
+                .catch((err: any) => {
+                  console.error("[AUTH] deferred handleGoogleSignIn error:", err);
+                });
             }, 0);
           } else {
             setTimeout(() => {
-              handleSessionRef.current?.(session).catch((err: any) => {
-                console.error("[AUTH] deferred handleSession error:", err);
-              });
+              handleSessionRef.current?.(session)
+                .then(() => { hydratedRef.current = true; })
+                .catch((err: any) => {
+                  console.error("[AUTH] deferred handleSession error:", err);
+                });
             }, 0);
           }
           return;
@@ -511,7 +530,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        // Token refreshed or user updated — re-hydrate from existing session
+        // TOKEN_REFRESHED fires when /api/auth/refresh rotates the sb-* cookies
+        // and @supabase/ssr re-reads them. Profile data is unchanged — re-running
+        // handleSession would emit a new profile object reference, invalidate
+        // every getAccessToken/useCallback consumer, and cascade into refetches.
+        // See docs/AUTH_BUG_ANALYSIS.md.
+        if (event === "TOKEN_REFRESHED") {
+          return;
+        }
+
+        // USER_UPDATED / PASSWORD_RECOVERY etc. — re-hydrate from session.
         if (session) {
           await handleSessionRef.current?.(session);
         }
