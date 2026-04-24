@@ -1,14 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "@supabase/ssr";
 import { verifyWalletToken } from "./jwt";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 function getAdminClient() {
   return createClient(supabaseUrl, supabaseServiceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
+}
+
+/**
+ * Validate Supabase session cookies (Google/OAuth PKCE users).
+ * Server-side only — uses @supabase/ssr to read PKCE cookies.
+ */
+async function validateSupabaseCookie(request: NextRequest): Promise<string | null> {
+  try {
+    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll() {
+          // API routes don't need to write cookies back here;
+          // middleware handles cookie refresh on page navigations.
+        },
+      },
+    });
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (!error && user) {
+      return user.id;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
 }
 
 /**
@@ -60,6 +89,14 @@ export async function validateAuth(
       if (cookiePayload) {
         return cookiePayload.userId;
       }
+    }
+
+    // 4. Try Supabase session cookies (Google OAuth / PKCE users).
+    // Fallback when no Bearer token is sent — the browser sends Supabase
+    // auth cookies automatically with same-origin requests.
+    const supabaseUserId = await validateSupabaseCookie(request);
+    if (supabaseUserId) {
+      return supabaseUserId;
     }
 
     return null;

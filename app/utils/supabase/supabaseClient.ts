@@ -78,20 +78,42 @@ const createSupabaseClient = () => {
   // Safety net: if getSession() still hangs for any reason, force a timeout
   // so AuthProvider can fall back to /api/auth/refresh instead of blocking
   // the UI forever.
+  //
+  // IMPORTANT: Promise.race() leaks uncaught rejections from the losing
+  // promise. We use a manual race that clears the timeout when
+  // originalGetSession() settles.
   const originalGetSession = client.auth.getSession.bind(client.auth);
   client.auth.getSession = async () => {
-    return Promise.race([
-      originalGetSession(),
-      new Promise((_, reject) =>
-        setTimeout(
-          () => reject(new Error("getSession timeout — falling back to proxy")),
-          4000
-        )
-      ),
-    ]) as any;
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const timer = setTimeout(() => {
+        if (!settled) {
+          settled = true;
+          resolve({
+            data: { session: null },
+            error: new Error("getSession timeout — falling back to proxy"),
+          } as any);
+        }
+      }, 4000);
+
+      originalGetSession()
+        .then((result: any) => {
+          if (!settled) {
+            settled = true;
+            clearTimeout(timer);
+            resolve(result);
+          }
+        })
+        .catch((err: any) => {
+          if (!settled) {
+            settled = true;
+            clearTimeout(timer);
+            reject(err);
+          }
+        });
+    });
   };
 
-  // eslint-disable-next-line no-console
   console.log("[supabaseClient] initialized — Firefox:", isFirefox, "autoRefresh:", (client.auth as any).autoRefreshToken);
 
   return client;

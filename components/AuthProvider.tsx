@@ -150,7 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // sent automatically by the browser with every same-origin request.
   // API routes (lib/auth.ts) check both Bearer header and cookie.
   const getAccessToken = useCallback(async (): Promise<string | null> => {
-    // 1. Try Supabase session (Google OAuth users)
+    // 1. Fast path: valid Supabase session in browser storage (Google OAuth users)
     try {
       if (supabase) {
         const { data } = await supabase.auth.getSession();
@@ -162,43 +162,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session?.access_token && sessionValid) {
           return session.access_token;
         }
-
-        // Session is expired or missing — attempt refresh.
-        // Priority: same-origin proxy (bypasses Firefox ETP) → direct fallback.
-        const shouldAttemptRefresh = session?.refresh_token || profile?.auth_provider === "google" || profile?.auth_provider === "both";
-        if (shouldAttemptRefresh) {
-          try {
-            const res = await fetchWithTimeout("/api/auth/refresh", {
-              method: "POST",
-            });
-            if (res.ok) {
-              const refreshed = await res.json();
-              if (refreshed?.access_token) {
-                return refreshed.access_token;
-              }
-            }
-          } catch {
-            /* proxy refresh failed — fall through to direct */
-          }
-
-          // Fallback: direct cross-origin refresh (works in Chrome, may fail in Firefox)
-          try {
-            const { data: refreshed } = await supabase.auth.refreshSession();
-            if (refreshed?.session?.access_token) {
-              return refreshed.session.access_token;
-            }
-          } catch {
-            /* direct refresh failed */
-          }
-        }
       }
-    } catch (err) {
-      if (err instanceof Error) {
-        console.warn("[AUTH] getAccessToken getSession failed:", err.message);
-      }
+    } catch {
+      // getSession() failed (expired session + _refreshAccessToken override error,
+      // or timeout). Fall through to refresh proxy.
     }
 
-    // 2. Wallet user — httpOnly cookie is sent automatically.
+    // 2. Session expired or missing — attempt refresh via same-origin proxy.
+    // The server can read Supabase cookies and refresh even when the browser
+    // client can't (Firefox ETP, computer sleep, or _refreshAccessToken override).
+    // We ALWAYS try this — don't gate on profile state or refresh_token presence.
+    try {
+      const res = await fetchWithTimeout("/api/auth/refresh", {
+        method: "POST",
+      });
+      if (res.ok) {
+        const refreshed = await res.json();
+        if (refreshed?.access_token) {
+          return refreshed.access_token;
+        }
+      }
+    } catch {
+      /* proxy refresh failed — fall through */
+    }
+
+    // 3. Fallback: direct cross-origin refresh (dead codepath because
+    // _refreshAccessToken is overridden, but kept as a safety net).
+    try {
+      if (supabase) {
+        const { data: refreshed } = await supabase.auth.refreshSession();
+        if (refreshed?.session?.access_token) {
+          return refreshed.session.access_token;
+        }
+      }
+    } catch {
+      /* direct refresh failed */
+    }
+
+    // 4. Wallet user — httpOnly cookie is sent automatically.
     if (profile?.auth_provider === "wallet" || profile?.auth_provider === "both") {
       return "cookie";
     }
@@ -902,20 +903,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ─── Public API ──────────────────────────────────────────────────────
   const signInWithGoogle = useCallback(async () => {
     if (!supabase) return;
-    console.log("[DIAGNOSTIC] signInWithGoogle() called");
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/api/auth/callback`,
         },
       });
-      console.log("[DIAGNOSTIC] signInWithOAuth result:", { hasUrl: !!data?.url, error: error?.message || null });
       if (error) {
-        console.error("[DIAGNOSTIC] signInWithOAuth error:", error);
+        console.error("[AUTH] signInWithOAuth error:", error.message);
       }
     } catch (err) {
-      console.error("[DIAGNOSTIC] signInWithOAuth threw:", err);
+      console.error("[AUTH] signInWithOAuth threw:", err);
     }
   }, [supabase]);
 

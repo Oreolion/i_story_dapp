@@ -64,14 +64,6 @@ export async function apiFetch<T>(
       } catch {
         data = undefined;
       }
-      if (res.status === 401) {
-        console.warn("[DIAGNOSTIC apiFetch] 401 error:", {
-          url: input,
-          tokenPrefix: token?.slice(0, 10) || null,
-          tokenIsCookie: token === "cookie",
-          error: (data as any)?.error,
-        });
-      }
       throw new ApiError(
         res.status,
         (data as any)?.error || `HTTP ${res.status}`,
