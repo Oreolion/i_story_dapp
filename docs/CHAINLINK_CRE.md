@@ -449,3 +449,10 @@ cast call $CONTRACT_ADDRESS \
 eStories is an engine for individuation. The patterns your AI reveals to users will inevitably touch upon their repressed, unconscious traits.
 
  **Actionable Focus:** Architect eStories to help users safely identify and integrate their `` rather than reject it.
+
+
+### The Undercurrents of eStories
+
+Your platform helps users "see their patterns." A pattern is only half-visible if you only look at the light.
+
+Pay attention to: The . The personal unconscious contains repressed impulses and denied capabilities. True individuation—and true narrative synthesis—requires integrating the shadow. EStories will be most potent if its AI can help users detect and integrate the shadow within their spoken narratives.

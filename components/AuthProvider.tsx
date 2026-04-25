@@ -187,9 +187,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (refreshed?.access_token) {
           return refreshed.access_token;
         }
+      } else if (
+        res.status === 401 &&
+        profile &&
+        profile.auth_provider === "google"
+      ) {
+        // Google-only user: Supabase session died server-side and there's no
+        // wallet cookie fallback. Clear profile so UI reflects logged-out state
+        // and React Query hooks stop retrying. Deferred so in-flight callers
+        // finish cleanly before the re-render cascade.
+        // Wallet and "both" users are excluded — a 401 here is expected for
+        // them (no Supabase session to refresh) and their cookie path still works.
+        setTimeout(() => {
+          setProfile(null);
+          setNeedsOnboarding(false);
+          hydratedRef.current = false;
+        }, 0);
       }
     } catch {
-      /* proxy refresh failed — fall through */
+      /* proxy refresh failed (network/timeout) — do NOT clear profile; transient */
     }
 
     // 3. Fallback: direct cross-origin refresh (dead codepath because
@@ -637,11 +653,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               probeData.user.auth_provider === "google" ? profile?.supabaseUser ?? null : null,
             );
           }
+        } else if (probeRes.status === 401) {
+          // Definitive: server reached and both auth methods (Supabase session
+          // cookie AND wallet JWT cookie) failed to validate. Session is dead.
+          // Clear profile so UI flips to logged-out and the user can re-auth.
+          // Other HTTP errors (5xx, 404) are treated as transient and ignored.
+          setProfile(null);
+          setNeedsOnboarding(false);
+          hydratedRef.current = false;
         }
-        // Don't clear profile on failure — transient errors shouldn't log
-        // the user out. Next real API call will surface a 401 if needed.
       } catch {
-        // Silent — network blip or offline
+        // Network error or timeout — silent, don't clear (could be offline/blip)
       }
     };
 
